@@ -4,6 +4,93 @@ import { RarityBadge } from '@/components/RarityBadge';
 import { cn } from '@/lib/utils';
 import { Disc3 } from 'lucide-react';
 
+// Variant labels that appear as badge text overrides (named Epic variants)
+// Everything else is a stamp/modifier on the card art
+const BADGE_LABEL_OVERRIDES = new Set([
+  'Grammy', 'Freshman', 'Lovers', 'Anniversary', 'Pride',
+]);
+
+// Variant labels that should render as a stamp on the card art
+const STAMP_LABELS = new Set([
+  'Week 1', 'Day 1', 'April Fools', 'Halloween', 'Pridemap',
+]);
+
+/** Modifier stamp rendered directly on the card face */
+function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: number }) {
+  const stampSize = Math.max(32, cardWidth * 0.28);
+
+  if (label === 'Week 1') {
+    return (
+      <div
+        className="absolute bottom-0 left-0 bg-white/90 text-black font-black uppercase tracking-wider rounded-tr-lg rounded-bl-2xl leading-none z-20"
+        style={{ fontSize: Math.max(7, cardWidth * 0.07), padding: '3px 7px 3px 5px' }}
+      >
+        WEEK 1
+      </div>
+    );
+  }
+
+  if (label === 'Day 1') {
+    return (
+      <svg
+        className="absolute bottom-2 left-2 z-20 drop-shadow-md"
+        width={stampSize} height={stampSize}
+        viewBox="0 0 40 40"
+        aria-label="Day 1"
+      >
+        <circle cx="20" cy="20" r="19" fill="#d4a017" />
+        <circle cx="20" cy="20" r="19" fill="none" stroke="#8b6600" strokeWidth="0.8" />
+        <circle cx="20" cy="20" r="14" fill="none" stroke="#8b6600" strokeWidth="0.6" strokeDasharray="2.5 2" />
+        <text x="20" y="17.5" textAnchor="middle" fontSize="7" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">DAY</text>
+        <text x="20" y="26" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">1</text>
+        <path id="cpc" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
+        <text fontSize="4" fontWeight="700" fill="#1a0800" fontFamily="sans-serif" letterSpacing="1.2">
+          <textPath href="#cpc" startOffset="5%">RELEASE EDITION · RELEASE EDITION ·</textPath>
+        </text>
+      </svg>
+    );
+  }
+
+  if (label === 'April Fools') {
+    return (
+      <div
+        className="absolute bottom-2 right-2 z-20 leading-none select-none drop-shadow-lg"
+        style={{ fontSize: stampSize }}
+        title="April Fools"
+      >
+        🤡
+      </div>
+    );
+  }
+
+  if (label === 'Halloween') {
+    return (
+      <div
+        className="absolute bottom-2 right-2 z-20 leading-none select-none drop-shadow-lg"
+        style={{ fontSize: stampSize }}
+        title="Halloween"
+      >
+        🕷️
+      </div>
+    );
+  }
+
+  if (label === 'Pridemap') {
+    return (
+      <div className="absolute bottom-0 left-0 right-0 h-[6px] z-20 overflow-hidden rounded-b-[inherit]">
+        <div
+          className="w-full h-full"
+          style={{
+            background: 'linear-gradient(90deg, #e40303 0%, #ff8c00 17%, #ffed00 33%, #008026 50%, #004dff 67%, #750787 83%, #e40303 100%)',
+          }}
+        />
+      </div>
+    );
+  }
+
+  return null;
+}
+
 interface SoundmapCardProps {
   card: CollectedCard;
   title: string;
@@ -98,22 +185,30 @@ export function SoundmapCard({ card, title, artist, className, size = 'md' }: So
           name={card.rarityType.name}
           category={card.rarityType.category}
           size={size === 'sm' ? 'sm' : 'md'}
-          // Only use variantLabel as badge text for named variants (Grammy, Freshman, etc.)
-          // Numbered variants (#031) show as a separate overlay, not in the badge
+          // Named variants (Grammy, Freshman, Lovers) override the badge label.
+          // Stamp modifiers (Week 1, Day 1, April Fools, Halloween, Pridemap) and
+          // numbered variants (#031) are handled separately — badge stays as rarity name.
           labelOverride={
-            card.variantLabel && !card.variantLabel.startsWith('#')
+            card.variantLabel && BADGE_LABEL_OVERRIDES.has(card.variantLabel)
               ? card.variantLabel
               : undefined
           }
         />
       </div>
 
-      {/* Number overlay — top right for numbered epics */}
-      {card.variantLabel && card.variantLabel.startsWith('#') && (
+      {/* Numbered epic — top right amber pill */}
+      {card.variantLabel?.startsWith('#') && (
         <div className="absolute top-2.5 right-2.5 z-20 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
           {card.variantLabel}
         </div>
       )}
+
+      {/* Modifier stamp — corner sticker for Week 1, Day 1, April Fools, Halloween, Pridemap */}
+      {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (() => {
+        // Map size name → approximate card pixel width for stamp sizing
+        const widthMap = { sm: 96, md: 160, lg: 256, hero: 300 };
+        return <CardModifierStamp label={card.variantLabel} cardWidth={widthMap[size]} />;
+      })()}
 
       {/* Fallback center icon when no artwork */}
       {!card.artworkUrl && (

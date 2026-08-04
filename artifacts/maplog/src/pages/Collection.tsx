@@ -29,13 +29,101 @@ function artistGradient(artist: string): [string, string] {
   return palettes[Math.abs(hash) % palettes.length];
 }
 
+// Modifier stamps that appear on the album art thumbnail
+function ModifierStamp({ label, size }: { label: string; size: number }) {
+  const s = size;
+
+  if (label.startsWith('#')) {
+    // Numbered epic badge — top-right corner
+    return (
+      <div
+        className="absolute -top-1.5 -right-1.5 bg-amber-400 text-black font-black rounded-full leading-none flex items-center justify-center"
+        style={{ fontSize: Math.max(7, s * 0.135), padding: '2px 5px' }}
+      >
+        {label}
+      </div>
+    );
+  }
+
+  if (label === 'Week 1') {
+    return (
+      <div
+        className="absolute bottom-0 left-0 bg-white/90 text-black font-black uppercase tracking-wider rounded-tr-lg rounded-bl-xl leading-none"
+        style={{ fontSize: Math.max(6, s * 0.12), padding: '2px 5px 2px 4px' }}
+      >
+        WEEK 1
+      </div>
+    );
+  }
+
+  if (label === 'Day 1') {
+    const r = Math.round(s * 0.44);
+    return (
+      <svg
+        className="absolute bottom-0.5 left-0.5"
+        width={r} height={r}
+        viewBox="0 0 40 40"
+        aria-label="Day 1"
+      >
+        <circle cx="20" cy="20" r="19" fill="#d4a017" />
+        <circle cx="20" cy="20" r="19" fill="none" stroke="#8b6600" strokeWidth="0.8" />
+        <circle cx="20" cy="20" r="14" fill="none" stroke="#8b6600" strokeWidth="0.6" strokeDasharray="2.5 2" />
+        <text x="20" y="17.5" textAnchor="middle" fontSize="7" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">DAY</text>
+        <text x="20" y="26" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">1</text>
+        <path id="cp" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
+        <text fontSize="4" fontWeight="700" fill="#1a0800" fontFamily="sans-serif" letterSpacing="1.2">
+          <textPath href="#cp" startOffset="5%">RELEASE EDITION · RELEASE EDITION ·</textPath>
+        </text>
+      </svg>
+    );
+  }
+
+  if (label === 'April Fools') {
+    return (
+      <div
+        className="absolute bottom-0.5 right-0.5 leading-none select-none"
+        style={{ fontSize: Math.round(s * 0.38) }}
+        title="April Fools"
+      >
+        🤡
+      </div>
+    );
+  }
+
+  if (label === 'Halloween') {
+    return (
+      <div
+        className="absolute bottom-0.5 right-0.5 leading-none select-none"
+        style={{ fontSize: Math.round(s * 0.38) }}
+        title="Halloween"
+      >
+        🕷️
+      </div>
+    );
+  }
+
+  if (label === 'Pridemap') {
+    // Pride rainbow stripe across the bottom of the art
+    return (
+      <div className="absolute bottom-0 left-0 right-0 h-[4px] rounded-b-xl overflow-hidden">
+        <div
+          className="w-full h-full"
+          style={{
+            background: 'linear-gradient(90deg, #e40303 0%, #ff8c00 17%, #ffed00 33%, #008026 50%, #004dff 67%, #750787 83%, #e40303 100%)',
+          }}
+        />
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function AlbumArt({ song, topCard, size = 56 }: { song: Song; topCard?: CollectedCard; size?: number }) {
   const artworkUrl = topCard?.artworkUrl;
   const [from, to] = artistGradient(song.artist);
   const initials = song.title.charAt(0).toUpperCase();
-
-  // Show variant number overlay for numbered epics (#031, #2, etc.)
-  const isNumbered = topCard?.variantLabel?.startsWith('#');
+  const label = topCard?.variantLabel ?? null;
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
@@ -56,12 +144,8 @@ function AlbumArt({ song, topCard, size = 56 }: { song: Song; topCard?: Collecte
         </div>
       )}
 
-      {/* Number overlay for numbered epics */}
-      {isNumbered && (
-        <div className="absolute -top-1.5 -right-1.5 bg-amber-400 text-black text-[9px] font-black px-1 py-0.5 rounded-full leading-none">
-          {topCard.variantLabel}
-        </div>
-      )}
+      {/* Modifier stamp overlay */}
+      {label && <ModifierStamp label={label} size={size} />}
     </div>
   );
 }
