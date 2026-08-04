@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Maplog"
+description = "A PWA Soundmap companion app and preservation archive. Users can catalog their collected Soundmap cards (by rarity type — regular, shiny, epic, special edition, lyric, radiant, moments, etc.), play audio for each song via self-hosted files, and browse/organize their collection even if the Soundmap game ever shuts down. Features: card collection browser by rarity, full music player with Soundmap card art instead of album art, version swiper (swipe through collected rarities per song without pausing playback), playlists, queue management, profile with collection stats. Dark mode only, aesthetic inspired by Apple Music × Soundmap."
+version = "1.0.0"
+id = "artifacts/maplog"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22986
+
+[services.development]
+run = "pnpm --filter @workspace/maplog run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/maplog", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/maplog/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22986"
+BASE_PATH = "/"

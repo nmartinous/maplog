@@ -3,20 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Maplog - Soundmap companion archive API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: songs
+    description: Song catalog
+  - name: rarity-types
+    description: Rarity type definitions (modular, config-driven)
+  - name: collected-cards
+    description: Collected cards linking songs to rarity types
+  - name: playlists
+    description: User-created playlists
+  - name: stats
+    description: Collection statistics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +33,630 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Songs ──────────────────────────────────────────────────────────────────
+  /songs:
+    get:
+      operationId: listSongs
+      tags: [songs]
+      summary: List songs with optional search and filters
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: artist
+          in: query
+          schema: { type: string }
+        - name: rarityCategory
+          in: query
+          description: Filter to songs that have at least one collected card of this rarity category
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: List of songs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Song"
+    post:
+      operationId: createSong
+      tags: [songs]
+      summary: Add a new song to the archive
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SongInput"
+      responses:
+        "201":
+          description: Song created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Song"
+
+  /songs/recently-added:
+    get:
+      operationId: listRecentSongs
+      tags: [songs]
+      summary: Recently added songs (last 20)
+      responses:
+        "200":
+          description: Recent songs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Song"
+
+  /songs/{id}:
+    get:
+      operationId: getSong
+      tags: [songs]
+      summary: Get a song with all its collected cards
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Song with collected cards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateSong
+      tags: [songs]
+      summary: Update a song
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SongUpdate"
+      responses:
+        "200":
+          description: Updated song
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Song"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteSong
+      tags: [songs]
+      summary: Delete a song and all its collected cards
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Rarity Types ───────────────────────────────────────────────────────────
+  /rarity-types:
+    get:
+      operationId: listRarityTypes
+      tags: [rarity-types]
+      summary: List all rarity types, optionally grouped by category
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of rarity types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RarityType"
+    post:
+      operationId: createRarityType
+      tags: [rarity-types]
+      summary: Create a new rarity type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RarityTypeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RarityType"
+
+  /rarity-types/{id}:
+    patch:
+      operationId: updateRarityType
+      tags: [rarity-types]
+      summary: Update rarity type visual theme or metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RarityTypeUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RarityType"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteRarityType
+      tags: [rarity-types]
+      summary: Delete a rarity type (only if no cards reference it)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Collected Cards ────────────────────────────────────────────────────────
+  /collected-cards:
+    get:
+      operationId: listCollectedCards
+      tags: [collected-cards]
+      summary: List collected cards with filters
+      parameters:
+        - name: songId
+          in: query
+          schema: { type: integer }
+        - name: rarityTypeId
+          in: query
+          schema: { type: integer }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: List of collected cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollectedCard"
+    post:
+      operationId: createCollectedCard
+      tags: [collected-cards]
+      summary: Add a collected card (link a song to a rarity type)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectedCardInput"
+      responses:
+        "201":
+          description: Card created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectedCard"
+
+  /collected-cards/{id}:
+    patch:
+      operationId: updateCollectedCard
+      tags: [collected-cards]
+      summary: Update a collected card (variant label, artwork URL, notes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectedCardUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectedCard"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteCollectedCard
+      tags: [collected-cards]
+      summary: Remove a collected card
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Playlists ──────────────────────────────────────────────────────────────
+  /playlists:
+    get:
+      operationId: listPlaylists
+      tags: [playlists]
+      summary: List all playlists with song counts
+      responses:
+        "200":
+          description: List of playlists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Playlist"
+    post:
+      operationId: createPlaylist
+      tags: [playlists]
+      summary: Create a playlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Playlist"
+
+  /playlists/{id}:
+    get:
+      operationId: getPlaylist
+      tags: [playlists]
+      summary: Get a playlist with all its songs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Playlist with songs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePlaylist
+      tags: [playlists]
+      summary: Update a playlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Playlist"
+        "404":
+          description: Not found
+    delete:
+      operationId: deletePlaylist
+      tags: [playlists]
+      summary: Delete a playlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  /playlists/{id}/songs:
+    post:
+      operationId: addSongToPlaylist
+      tags: [playlists]
+      summary: Add a song to a playlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistSongInput"
+      responses:
+        "201":
+          description: Song added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistDetail"
+
+  /playlists/{id}/songs/{songId}:
+    delete:
+      operationId: removeSongFromPlaylist
+      tags: [playlists]
+      summary: Remove a song from a playlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: songId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Removed
+
+  # ── Stats (wow endpoints) ──────────────────────────────────────────────────
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Collection statistics — total songs, cards by category, rarity tier breakdown
+      responses:
+        "200":
+          description: Collection stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionStats"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
+        status: { type: string }
 
+    # ── Song ────────────────────────────────────────────────────────────────
+    Song:
+      type: object
+      required: [id, title, artist, createdAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        artist: { type: string }
+        album: { type: ["string", "null"] }
+        durationMs: { type: ["integer", "null"] }
+        audioUrl: { type: ["string", "null"] }
+        appleMusicId: { type: ["string", "null"] }
+        cardCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    SongDetail:
+      type: object
+      required: [id, title, artist, createdAt, cards]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        artist: { type: string }
+        album: { type: ["string", "null"] }
+        durationMs: { type: ["integer", "null"] }
+        audioUrl: { type: ["string", "null"] }
+        appleMusicId: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectedCard"
+
+    SongInput:
+      type: object
+      required: [title, artist]
+      properties:
+        title: { type: string, minLength: 1 }
+        artist: { type: string, minLength: 1 }
+        album: { type: string }
+        durationMs: { type: integer }
+        audioUrl: { type: string }
+        appleMusicId: { type: string }
+
+    SongUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        artist: { type: string, minLength: 1 }
+        album: { type: string }
+        durationMs: { type: integer }
+        audioUrl: { type: string }
+        appleMusicId: { type: string }
+
+    # ── RarityType ──────────────────────────────────────────────────────────
+    RarityType:
+      type: object
+      required: [id, slug, name, category, tier, themeConfig]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        category: { type: string }
+        tier: { type: integer, description: "Numeric tier for sorting (higher = rarer)" }
+        themeConfig:
+          type: object
+          description: "JSON visual config: borderColor, glowColor, backgroundEffect, badgeLabel, hasShimmer, hasParticles, etc."
+          additionalProperties: true
+
+    RarityTypeInput:
+      type: object
+      required: [slug, name, category, tier, themeConfig]
+      properties:
+        slug: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1 }
+        category: { type: string, minLength: 1 }
+        tier: { type: integer }
+        themeConfig:
+          type: object
+          additionalProperties: true
+
+    RarityTypeUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        category: { type: string }
+        tier: { type: integer }
+        themeConfig:
+          type: object
+          additionalProperties: true
+
+    # ── CollectedCard ───────────────────────────────────────────────────────
+    CollectedCard:
+      type: object
+      required: [id, songId, rarityTypeId, rarityType, collectedAt]
+      properties:
+        id: { type: integer }
+        songId: { type: integer }
+        rarityTypeId: { type: integer }
+        rarityType:
+          $ref: "#/components/schemas/RarityType"
+        variantLabel: { type: ["string", "null"], description: "e.g. '#042', 'Halloween', 'Freshman'" }
+        artworkUrl: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        collectedAt: { type: string, format: date-time }
+
+    CollectedCardInput:
+      type: object
+      required: [songId, rarityTypeId]
+      properties:
+        songId: { type: integer }
+        rarityTypeId: { type: integer }
+        variantLabel: { type: string }
+        artworkUrl: { type: string }
+        notes: { type: string }
+
+    CollectedCardUpdate:
+      type: object
+      properties:
+        variantLabel: { type: string }
+        artworkUrl: { type: string }
+        notes: { type: string }
+
+    # ── Playlist ────────────────────────────────────────────────────────────
+    Playlist:
+      type: object
+      required: [id, name, songCount, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        songCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    PlaylistDetail:
+      type: object
+      required: [id, name, songCount, createdAt, songs]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        songCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        songs:
+          type: array
+          items:
+            $ref: "#/components/schemas/Song"
+
+    PlaylistInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+
+    PlaylistUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+
+    PlaylistSongInput:
+      type: object
+      required: [songId]
+      properties:
+        songId: { type: integer }
+
+    # ── Stats ───────────────────────────────────────────────────────────────
+    CollectionStats:
+      type: object
+      required: [totalSongs, totalCards, byCategory, recentlyAdded]
+      properties:
+        totalSongs: { type: integer }
+        totalCards: { type: integer }
+        totalPlaylists: { type: integer }
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryStat"
+        recentlyAdded:
+          type: array
+          items:
+            $ref: "#/components/schemas/Song"
+
+    CategoryStat:
+      type: object
+      required: [category, count, tier]
+      properties:
+        category: { type: string }
+        count: { type: integer }
+        tier: { type: integer }
