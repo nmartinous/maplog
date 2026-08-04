@@ -1,29 +1,30 @@
 import React from 'react';
 import { CollectedCard } from '@workspace/api-client-react';
 import { RarityBadge } from '@/components/RarityBadge';
+import { useArtColor } from '@/lib/useArtColor';
 import { cn } from '@/lib/utils';
 import { Disc3, Play } from 'lucide-react';
 
-// Variant Epic label overrides: badge text changes to the variant name
-const BADGE_LABEL_OVERRIDES = new Set([
-  'Freshman',
-]);
+// ── Variant label routing ─────────────────────────────────────────────────────
 
-// Variant Regular / event stamps: overlay on card art, base rarity badge unchanged
+/** These variant labels replace the badge text (named Epic variants) */
+const BADGE_LABEL_OVERRIDES = new Set(['Freshman']);
+
+/** These variant labels render as art stamps; base rarity badge is unchanged */
 const STAMP_LABELS = new Set([
   'Week 1', 'Day 1', 'April Fools', 'Halloween', 'Pridemap', 'Grammy', 'Lovers',
 ]);
 
-// ── Modifier stamp overlay ────────────────────────────────────────────────────
+// ── Modifier stamps on the art section ───────────────────────────────────────
 
-function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: number }) {
-  const stampSize = Math.max(32, cardWidth * 0.28);
+function ArtStamp({ label, cardWidth }: { label: string; cardWidth: number }) {
+  const stampSize = Math.max(32, cardWidth * 0.26);
 
   if (label === 'Week 1') {
     return (
       <div
-        className="absolute bottom-0 left-0 bg-white/90 text-black font-black uppercase tracking-wider rounded-tr-lg rounded-bl-2xl leading-none z-20"
-        style={{ fontSize: Math.max(7, cardWidth * 0.07), padding: '3px 7px 3px 5px' }}
+        className="absolute bottom-0 left-0 bg-white/90 text-black font-black uppercase tracking-wider rounded-tr-lg leading-none z-10"
+        style={{ fontSize: Math.max(7, cardWidth * 0.065), padding: '3px 7px 3px 5px' }}
       >
         WEEK 1
       </div>
@@ -33,9 +34,8 @@ function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: num
   if (label === 'Day 1') {
     return (
       <svg
-        className="absolute bottom-2 left-2 z-20 drop-shadow-md"
-        width={stampSize} height={stampSize}
-        viewBox="0 0 40 40"
+        className="absolute bottom-2 left-2 z-10 drop-shadow-md"
+        width={stampSize} height={stampSize} viewBox="0 0 40 40"
         aria-label="Day 1"
       >
         <circle cx="20" cy="20" r="19" fill="#d4a017" />
@@ -43,9 +43,9 @@ function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: num
         <circle cx="20" cy="20" r="14" fill="none" stroke="#8b6600" strokeWidth="0.6" strokeDasharray="2.5 2" />
         <text x="20" y="17.5" textAnchor="middle" fontSize="7" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">DAY</text>
         <text x="20" y="26" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">1</text>
-        <path id="cpc" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
+        <path id="cpc-s" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
         <text fontSize="4" fontWeight="700" fill="#1a0800" fontFamily="sans-serif" letterSpacing="1.2">
-          <textPath href="#cpc" startOffset="5%">RELEASE EDITION · RELEASE EDITION ·</textPath>
+          <textPath href="#cpc-s" startOffset="5%">RELEASE EDITION · RELEASE EDITION ·</textPath>
         </text>
       </svg>
     );
@@ -54,56 +54,44 @@ function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: num
   if (label === 'April Fools') {
     return (
       <div
-        className="absolute bottom-2 right-2 z-20 leading-none select-none drop-shadow-lg"
-        style={{ fontSize: stampSize }}
-        title="April Fools"
-      >
-        🤡
-      </div>
+        className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
+        style={{ fontSize: stampSize }} title="April Fools"
+      >🤡</div>
     );
   }
 
   if (label === 'Halloween') {
     return (
       <div
-        className="absolute bottom-2 right-2 z-20 leading-none select-none drop-shadow-lg"
-        style={{ fontSize: stampSize }}
-        title="Halloween"
-      >
-        🕷️
-      </div>
+        className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
+        style={{ fontSize: stampSize }} title="Halloween"
+      >🕷️</div>
     );
   }
 
   if (label === 'Pridemap') {
     return (
-      <div className="absolute bottom-0 left-0 right-0 h-[6px] z-20 overflow-hidden rounded-b-[inherit]">
-        <div
-          className="w-full h-full"
-          style={{
-            background: 'linear-gradient(90deg, #e40303 0%, #ff8c00 17%, #ffed00 33%, #008026 50%, #004dff 67%, #750787 83%, #e40303 100%)',
-          }}
-        />
+      <div className="absolute bottom-0 left-0 right-0 h-[5px] z-10 overflow-hidden">
+        <div className="w-full h-full" style={{
+          background: 'linear-gradient(90deg,#e40303 0%,#ff8c00 17%,#ffed00 33%,#008026 50%,#004dff 67%,#750787 83%,#e40303 100%)',
+        }} />
       </div>
     );
   }
 
   if (label === 'Grammy') {
     return (
-      <svg
-        className="absolute bottom-2 right-2 z-20 drop-shadow-md"
-        width={stampSize} height={stampSize}
-        viewBox="0 0 40 40"
-        aria-label="Grammy"
+      <svg className="absolute bottom-2 right-2 z-10 drop-shadow-md"
+        width={stampSize} height={stampSize} viewBox="0 0 40 40" aria-label="Grammy"
       >
         <circle cx="20" cy="20" r="19" fill="#c8a400" />
         <circle cx="20" cy="20" r="19" fill="none" stroke="#7a6000" strokeWidth="0.8" />
         <circle cx="20" cy="20" r="14" fill="none" stroke="#7a6000" strokeWidth="0.6" strokeDasharray="2.5 2" />
         <text x="20" y="18" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">GRAM</text>
         <text x="20" y="26" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">MY</text>
-        <path id="gcp" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
+        <path id="gcp-s" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
         <text fontSize="4" fontWeight="700" fill="#1a0f00" fontFamily="sans-serif" letterSpacing="1">
-          <textPath href="#gcp" startOffset="5%">RECORDING ACADEMY · RECORDING ACADEMY ·</textPath>
+          <textPath href="#gcp-s" startOffset="5%">RECORDING ACADEMY · RECORDING ACADEMY ·</textPath>
         </text>
       </svg>
     );
@@ -112,47 +100,35 @@ function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: num
   if (label === 'Lovers') {
     return (
       <div
-        className="absolute bottom-2 right-2 z-20 leading-none select-none drop-shadow-lg"
-        style={{ fontSize: stampSize }}
-        title="Lovers"
-      >
-        🩷
-      </div>
+        className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
+        style={{ fontSize: stampSize }} title="Lovers"
+      >🩷</div>
     );
   }
 
   return null;
 }
 
-// ── Card backgrounds ──────────────────────────────────────────────────────────
+// ── Theme fallback border colors per rarity slug ──────────────────────────────
 
-function cardBackground(slug: string): string {
+function rarityFallbackColor(slug: string): string {
   const map: Record<string, string> = {
-    'regular-common':   'linear-gradient(160deg, #0d1f0d 0%, #0a120a 100%)',
-    'regular-uncommon': 'linear-gradient(160deg, #1a0f2e 0%, #0f0a1a 100%)',
-    'regular-rare':     'linear-gradient(160deg, #1f1200 0%, #120900 100%)',
-    'shiny-common':     'linear-gradient(160deg, #1a0d2e 0%, #0a0d1f 100%)',
-    'shiny-uncommon':   'linear-gradient(160deg, #130d2e 0%, #0a0a1f 100%)',
-    'shiny-rare':       'linear-gradient(160deg, #0d0f2e 0%, #07071a 100%)',
-    'epic':             'linear-gradient(160deg, #1f1000 0%, #1f0010 100%)',
-    'epic-numbered':    'linear-gradient(160deg, #1f1000 0%, #1f0010 100%)',
-    'special-edition':  'linear-gradient(160deg, #2e0d1a 0%, #1a0010 100%)',
-    'special-epic':     'linear-gradient(160deg, #2e0505 0%, #1a000f 100%)',
-    'streak-epic':      'linear-gradient(160deg, #2e1000 0%, #1f0a00 100%)',
-    'radiant':          'linear-gradient(160deg, #0f0f14 0%, #0a0a10 100%)',
-    'lyric':            'linear-gradient(160deg, #000f1f 0%, #001428 100%)',
-    'moment':           'linear-gradient(160deg, #150005 0%, #080010 100%)',
+    'regular-common':   '#166534',
+    'regular-uncommon': '#7e22ce',
+    'regular-rare':     '#c2410c',
+    'shiny-common':     '#4ade80',
+    'shiny-uncommon':   '#d946ef',
+    'shiny-rare':       '#f97316',
+    'epic':             '#b48400',
+    'epic-numbered':    '#b48400',
+    'special-edition':  '#be185d',
+    'special-epic':     '#e11d48',
+    'streak-epic':      '#ea580c',
+    'radiant':          '#7c3aed',
+    'lyric':            '#92400e',
+    'moment':           '#991b1b',
   };
-  return map[slug] || 'linear-gradient(160deg, #111 0%, #090909 100%)';
-}
-
-function parseThemeConfig(config: any) {
-  return {
-    borderColor: config?.borderColor || '#444',
-    glowColor: config?.glowColor || 'rgba(0,0,0,0)',
-    hasShimmer: config?.hasShimmer === true,
-    isPrismatic: config?.isPrismatic === true,
-  };
+  return map[slug] || '#444444';
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -164,12 +140,16 @@ interface SoundmapCardProps {
   genre?: string | null;
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'hero';
-  /** When provided, a play button appears on the card */
+  /** When provided, a play button appears in the info section */
   onPlay?: () => void;
 }
 
-export function SoundmapCard({ card, title, artist, genre, className, size = 'md', onPlay }: SoundmapCardProps) {
-  const theme = parseThemeConfig(card.rarityType.themeConfig);
+export function SoundmapCard({
+  card, title, artist, genre, className, size = 'md', onPlay,
+}: SoundmapCardProps) {
+  // Extract vibrant border color from artwork; fall back to rarity theme color
+  const fallbackBorder = rarityFallbackColor(card.rarityType.slug);
+  const borderColor = useArtColor(card.artworkUrl, fallbackBorder);
 
   const sizeClasses = {
     sm:   'w-24 h-36 rounded-xl',
@@ -178,133 +158,111 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
     hero: 'w-[280px] sm:w-[320px] aspect-[2/3] rounded-3xl',
   };
 
-  // Map size to approximate pixel width for stamp sizing
   const widthMap = { sm: 96, md: 160, lg: 256, hero: 300 };
+  const cardWidth = widthMap[size];
+
+  // Info-section font sizes
+  const titleSize  = size === 'hero' ? 'text-xl'  : size === 'lg' ? 'text-base' : 'text-sm';
+  const artistSize = size === 'hero' ? 'text-sm'  : 'text-xs';
+  const showInfo   = size !== 'sm';
 
   return (
     <div
       className={cn(
-        'card-effect relative flex flex-col justify-end overflow-hidden text-white',
+        'relative flex flex-col overflow-hidden text-white card-effect',
         sizeClasses[size],
-        className
+        className,
       )}
       style={{
-        background: cardBackground(card.rarityType.slug),
-        border: `2px solid ${theme.borderColor}`,
-        boxShadow: `0 0 24px -6px ${theme.glowColor}, 0 0 0 1px ${theme.borderColor}22`,
+        border: `2px solid ${borderColor}`,
+        boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22`,
+        background: '#0d0d0d',
       }}
     >
-      {/* Background artwork */}
-      {card.artworkUrl && (
-        <img
-          src={card.artworkUrl}
-          alt={title}
-          className="absolute inset-0 w-full h-full object-cover z-0 opacity-60 mix-blend-luminosity"
-        />
-      )}
+      {/* ── Art section (top ~68%) ────────────────────────────────────────── */}
+      <div className="relative flex-1 overflow-hidden bg-black">
+        {card.artworkUrl ? (
+          <img
+            src={card.artworkUrl}
+            alt={title}
+            className="absolute inset-0 w-full h-full object-cover"
+            crossOrigin="anonymous"
+          />
+        ) : (
+          /* Subtle dark gradient + ghost disc when no artwork */
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ background: `linear-gradient(160deg, ${borderColor}22 0%, #0d0d0d 100%)` }}
+          >
+            <Disc3
+              className="opacity-[0.07]"
+              style={{ width: '55%', height: '55%', color: borderColor }}
+            />
+          </div>
+        )}
 
-      {/* Shimmer for shiny / epic types */}
-      {theme.hasShimmer && (
-        <div className="absolute inset-0 z-10 shimmer-bg pointer-events-none mix-blend-soft-light opacity-60" />
-      )}
+        {/* Numbered epic badge — top right of art */}
+        {card.variantLabel?.startsWith('#') && (
+          <div className="absolute top-2 right-2 z-10 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
+            {card.variantLabel}
+          </div>
+        )}
 
-      {/* Prismatic overlay for Radiant */}
-      {theme.isPrismatic && (
-        <div
-          className="absolute inset-0 z-10 pointer-events-none opacity-40"
-          style={{
-            background: 'linear-gradient(135deg, #ff006688 0%, #ffff0088 25%, #00ff8888 50%, #0088ff88 75%, #8800ff88 100%)',
-            backgroundSize: '400% 400%',
-            animation: 'shimmer 3s linear infinite',
-          }}
-        />
-      )}
-
-      {/* Rarity badge — top left */}
-      <div className="absolute top-2.5 left-2.5 z-20">
-        <RarityBadge
-          slug={card.rarityType.slug}
-          name={card.rarityType.name}
-          category={card.rarityType.category}
-          size={size === 'sm' ? 'sm' : 'md'}
-          labelOverride={
-            card.variantLabel && BADGE_LABEL_OVERRIDES.has(card.variantLabel)
-              ? card.variantLabel
-              : undefined
-          }
-        />
+        {/* Modifier stamps inside the art section */}
+        {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
+          <ArtStamp label={card.variantLabel} cardWidth={cardWidth} />
+        )}
       </div>
 
-      {/* Numbered epic — top right amber pill */}
-      {card.variantLabel?.startsWith('#') && (
-        <div className="absolute top-2.5 right-2.5 z-20 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
-          {card.variantLabel}
-        </div>
-      )}
-
-      {/* Modifier stamp (Week 1, Day 1, April Fools, Halloween, Pridemap, Grammy, Lovers) */}
-      {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
-        <CardModifierStamp label={card.variantLabel} cardWidth={widthMap[size]} />
-      )}
-
-      {/* Fallback center disc icon when no artwork */}
-      {!card.artworkUrl && (
-        <div className="absolute inset-0 z-0 flex items-center justify-center">
-          <Disc3
-            className="opacity-[0.06]"
-            style={{ width: '55%', height: '55%', color: theme.borderColor }}
-          />
-        </div>
-      )}
-
-      {/* Bottom info — title, artist, genre, play */}
-      {size !== 'sm' && (
+      {/* ── Info section (bottom ~32%) ────────────────────────────────────── */}
+      {showInfo && (
         <div
-          className="relative z-20 px-3 pb-3 pt-10"
-          style={{
-            background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)',
-          }}
+          className="shrink-0 px-3 pt-2.5 pb-3 flex flex-col gap-1.5"
+          style={{ background: '#111111' }}
         >
-          <p className={cn(
-            'font-bold truncate leading-tight mb-0.5',
-            size === 'hero' ? 'text-xl' : size === 'lg' ? 'text-base' : 'text-sm'
-          )}>
+          {/* Title */}
+          <p className={cn('font-bold leading-tight truncate', titleSize)}>
             {title}
           </p>
-          <p className={cn(
-            'text-white/60 truncate leading-tight',
-            size === 'hero' ? 'text-sm' : 'text-xs'
-          )}>
-            {artist}
-          </p>
 
-          {/* Genre + play row */}
-          {(genre || onPlay) && (
-            <div className="flex items-center justify-between mt-2 gap-2">
-              {genre ? (
-                <span className={cn(
-                  'shrink-0 rounded-full font-semibold bg-white/10 text-white/70 border border-white/15 leading-none',
-                  size === 'hero' ? 'text-[11px] px-2.5 py-1' : 'text-[10px] px-2 py-0.5'
-                )}>
-                  {genre}
-                </span>
-              ) : <span />}
+          {/* Artist + play button */}
+          <div className="flex items-center justify-between gap-2">
+            <p className={cn('text-white/55 leading-tight truncate flex-1', artistSize)}>
+              {artist}
+            </p>
+            {onPlay && (
+              <button
+                onClick={e => { e.stopPropagation(); onPlay(); }}
+                className="shrink-0 w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                aria-label="Play"
+              >
+                <Play className="w-3 h-3 fill-white ml-0.5 text-white" />
+              </button>
+            )}
+          </div>
 
-              {onPlay && (
-                <button
-                  onClick={e => { e.stopPropagation(); onPlay(); }}
-                  className={cn(
-                    'shrink-0 rounded-full bg-white text-black flex items-center justify-center',
-                    'hover:scale-110 active:scale-95 transition-transform shadow-md',
-                    size === 'hero' ? 'w-10 h-10' : size === 'lg' ? 'w-9 h-9' : 'w-7 h-7'
-                  )}
-                  aria-label="Play"
-                >
-                  <Play className={cn('fill-current ml-0.5', size === 'hero' ? 'w-5 h-5' : size === 'lg' ? 'w-4 h-4' : 'w-3 h-3')} />
-                </button>
-              )}
-            </div>
-          )}
+          {/* Rarity badge + genre */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <RarityBadge
+              slug={card.rarityType.slug}
+              name={card.rarityType.name}
+              category={card.rarityType.category}
+              size="sm"
+              labelOverride={
+                card.variantLabel && BADGE_LABEL_OVERRIDES.has(card.variantLabel)
+                  ? card.variantLabel
+                  : undefined
+              }
+            />
+            {genre && (
+              <span className="text-[10px] font-semibold rounded-full bg-white/10 text-white/60 border border-white/10 px-2 py-0.5 leading-none flex items-center gap-1">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" className="shrink-0">
+                  <path d="M1 1.5h7M1 4.5h5M1 7.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+                {genre}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
