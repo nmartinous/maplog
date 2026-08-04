@@ -167,8 +167,8 @@ export default function SongDetail() {
         )}
       </div>
 
-      {/* Action buttons — always visible, no scroll */}
-      <div className="relative z-10 shrink-0 flex items-center justify-center gap-5 pb-6 pt-3">
+      {/* Action buttons — always visible, no scroll; pb accounts for MiniPlayer height above nav */}
+      <div className="relative z-10 shrink-0 flex items-center justify-center gap-5 pb-24 pt-3">
         {/* Play — circular */}
         <button
           onClick={handlePlay}

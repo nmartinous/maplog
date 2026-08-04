@@ -9,8 +9,8 @@ export function MiniPlayer() {
   const { currentSong, isPlaying, play, pause, resume, skipNext, currentTime, duration } = usePlayer();
   const [location] = useLocation();
 
-  // Don't show mini player on Now Playing or Song Detail pages
-  if (!currentSong || location === '/' || location.startsWith('/song/')) return null;
+  // Don't show mini player on Now Playing (full player is shown there)
+  if (!currentSong || location === '/') return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
