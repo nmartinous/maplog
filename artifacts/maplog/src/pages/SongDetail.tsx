@@ -129,9 +129,9 @@ export default function SongDetail() {
       </div>
 
       {/* Card carousel — fills available space */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center min-h-0 px-4">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center min-h-0">
         {cards.length > 0 ? (
-          <div className="w-full max-w-sm overflow-hidden" ref={emblaRef}>
+          <div className="w-full max-w-sm overflow-hidden py-10 px-8" ref={emblaRef}>
             <div className="flex touch-pan-y">
               {cards.map((card, i) => (
                 <div key={card.id} className="flex-[0_0_100%] min-w-0 flex justify-center items-center py-2">

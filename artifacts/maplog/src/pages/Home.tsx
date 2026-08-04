@@ -114,13 +114,15 @@ export default function Home() {
       </div>
 
       {/* ── Card carousel ─────────────────────────────────────────── */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-6 min-h-0">
+      {/* px-6 on outer so glow has horizontal breathing room outside the embla clip */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto min-h-0">
         {cards.length > 0 ? (
           <>
-            <div className="w-full overflow-hidden" ref={emblaRef}>
+            {/* overflow-hidden needed for embla; py-10 px-8 give room for box-shadow glow */}
+            <div className="w-full overflow-hidden py-10 px-8" ref={emblaRef}>
               <div className="flex touch-pan-y">
                 {cards.map((card, i) => (
-                  <div key={card.id} className="flex-[0_0_100%] min-w-0 flex justify-center items-center py-4">
+                  <div key={card.id} className="flex-[0_0_100%] min-w-0 flex justify-center items-center">
                     <SoundmapCard
                       card={card}
                       title={currentSong.title}
@@ -139,7 +141,7 @@ export default function Home() {
 
             {/* Card dots */}
             {cards.length > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-3">
+              <div className="flex items-center justify-center gap-2">
                 {cards.map((_, i) => (
                   <div
                     key={i}
@@ -164,8 +166,8 @@ export default function Home() {
         )}
       </div>
 
-      {/* ── Controls area ─────────────────────────────────────────── */}
-      <div className="relative z-10 w-full max-w-md mx-auto px-8 pb-6 flex flex-col gap-5">
+      {/* ── Controls area — shrink-0 prevents flex from pushing into card area ── */}
+      <div className="relative z-10 shrink-0 w-full max-w-md mx-auto px-8 pb-6 flex flex-col gap-4">
 
         {/* Scrubber */}
         <div className="flex flex-col gap-1.5">
