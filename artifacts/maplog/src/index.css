@@ -7,19 +7,20 @@
 @keyframes rare-breathe {
   0%, 100% {
     box-shadow:
-      0 0 6px -2px rgba(194, 65, 12, 0.25),
-      0 0 0 1px rgba(194, 65, 12, 0.12);
+      0 0 4px 0px  rgba(194, 65, 12, 0.20),
+      0 0 0   1px  rgba(194, 65, 12, 0.10);
   }
   50% {
     box-shadow:
-      0 0 32px 8px  rgba(249, 115, 22, 0.72),
-      0 0 60px 18px rgba(194, 65, 12, 0.38),
-      0 0 0   1px  rgba(249, 115, 22, 0.55);
+      0 0 22px 6px  rgba(249, 115, 22, 0.62),
+      0 0 42px 12px rgba(194, 65, 12, 0.32),
+      0 0 0    1px  rgba(249, 115, 22, 0.48);
   }
 }
 
 .card-rare-glow {
-  animation: rare-breathe 2.8s ease-in-out infinite;
+  /* 4.5s feels natural — a slow, breathing pulse */
+  animation: rare-breathe 4.5s ease-in-out infinite;
 }
 
 /* ── Shiny badge border animation ───────────────────────────────────────── */

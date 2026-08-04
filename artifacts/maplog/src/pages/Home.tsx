@@ -71,7 +71,7 @@ export default function Home() {
   const cards = songDetail?.cards || [];
 
   return (
-    <div className="h-[calc(100dvh-4rem)] sm:h-[100dvh] bg-black text-white flex flex-col relative overflow-hidden">
+    <div className="h-[calc(100dvh-4rem)] sm:h-[100dvh] bg-black text-white flex flex-col relative">
 
       {/* Blurred art background */}
       <div className="absolute inset-0 z-0 pointer-events-none">
@@ -118,8 +118,8 @@ export default function Home() {
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto min-h-0">
         {cards.length > 0 ? (
           <>
-            {/* overflow-hidden needed for embla; py-10 px-8 give room for box-shadow glow */}
-            <div className="w-full overflow-hidden py-10 px-8" ref={emblaRef}>
+            {/* overflow-x:clip clips off-screen slides without blocking box-shadow overflow */}
+            <div className="w-full [overflow-x:clip] py-12 px-12" ref={emblaRef}>
               <div className="flex touch-pan-y">
                 {cards.map((card, i) => (
                   <div key={card.id} className="flex-[0_0_100%] min-w-0 flex justify-center items-center">
