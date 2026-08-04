@@ -64,7 +64,7 @@ export default function Home() {
   const cards = songDetail?.cards || [];
 
   return (
-    <div className="min-h-[100dvh] bg-black text-white flex flex-col relative overflow-hidden">
+    <div className="h-[calc(100dvh-4rem)] sm:h-[100dvh] bg-black text-white flex flex-col relative overflow-hidden">
       {/* Dynamic blurred background based on current card if any */}
       <div className="absolute inset-0 z-0 opacity-40 mix-blend-screen overflow-hidden pointer-events-none">
         {cards[activeCardIndex]?.artworkUrl ? (

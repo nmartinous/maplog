@@ -26,11 +26,8 @@ function AppShell() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col sm:flex-row bg-background">
-      {!isHome && <Navigation />}
-      <main className={cn(
-        "flex-1 relative flex flex-col",
-        !isHome ? "sm:ml-64 pb-16 sm:pb-0" : ""
-      )}>
+      <Navigation />
+      <main className="flex-1 relative flex flex-col sm:ml-64 pb-16 sm:pb-0">
         <div className={cn("flex-1 w-full mx-auto", !isHome ? "max-w-7xl" : "")}>
           <Switch>
             <Route path="/" component={Home} />
