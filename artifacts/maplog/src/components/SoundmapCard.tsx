@@ -218,7 +218,7 @@ export function SoundmapCard({
       {showInfo && (
         <div
           className="shrink-0 px-3 pt-2.5 pb-3 flex flex-col gap-1.5"
-          style={{ background: '#111111' }}
+          style={{ background: `color-mix(in srgb, ${borderColor} 22%, #07080f)` }}
         >
           {/* Title */}
           <p className={cn('font-bold leading-tight truncate', titleSize)}>
@@ -233,10 +233,10 @@ export function SoundmapCard({
             {onPlay && (
               <button
                 onClick={e => { e.stopPropagation(); onPlay(); }}
-                className="shrink-0 w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                className="shrink-0 flex items-center justify-center text-white/40 hover:text-white/80 transition-colors active:scale-95"
                 aria-label="Play"
               >
-                <Play className="w-3 h-3 fill-white ml-0.5 text-white" />
+                <Play className={cn('fill-current', size === 'hero' ? 'w-4 h-4' : 'w-3.5 h-3.5')} />
               </button>
             )}
           </div>

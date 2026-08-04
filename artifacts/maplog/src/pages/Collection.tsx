@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { useListSongs, useListCollectedCards, Song, CollectedCard } from '@workspace/api-client-react';
+import { useListSongs, useListCollectedCards, useDeleteSong, Song, CollectedCard } from '@workspace/api-client-react';
 import { Link, useLocation } from 'wouter';
 import { RarityBadge } from '@/components/RarityBadge';
 import { Input } from '@/components/ui/input';
-import { Search, Play, Library, Plus, Loader2 } from 'lucide-react';
+import { Search, Play, Library, Plus, Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import { Button } from '@/components/ui/button';
+import { useQueryClient } from '@tanstack/react-query';
 
 const CATEGORIES = ['All', 'Regular', 'Shiny', 'Epic', 'Special Edition', 'Special Epic', 'Streak Epic', 'Lyric', 'Radiant', 'Moment'];
 
@@ -186,8 +187,14 @@ function AlbumArt({ song, topCard, size = 56 }: { song: Song; topCard?: Collecte
 export default function Collection() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const { play } = usePlayer();
+  const { play, currentSong } = usePlayer();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const deleteSong = useDeleteSong({
+    mutation: {
+      onSuccess: () => queryClient.invalidateQueries(),
+    },
+  });
 
   const { data: songs, isLoading: isLoadingSongs } = useListSongs({ limit: 1000 });
   const { data: allCards, isLoading: isLoadingCards } = useListCollectedCards({ limit: 5000 });
@@ -225,6 +232,13 @@ export default function Collection() {
     e.stopPropagation();
     play(song);
     setLocation('/');
+  };
+
+  const handleDelete = (e: React.MouseEvent, song: Song) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`Remove "${song.title}" and all its cards?`)) return;
+    deleteSong.mutate({ id: song.id });
   };
 
   return (
@@ -340,10 +354,19 @@ export default function Collection() {
                     <span className="text-xs text-muted-foreground/50 shrink-0">—</span>
                   )}
 
+                  {/* Delete button */}
+                  <button
+                    onClick={e => handleDelete(e, song)}
+                    className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-white/80 hover:bg-white/8 transition-all"
+                    aria-label={`Remove ${song.title}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+
                   {/* Play button */}
                   <button
                     onClick={e => handlePlay(e, song)}
-                    className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all ml-1"
+                    className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all"
                     aria-label={`Play ${song.title}`}
                   >
                     <Play className="h-3.5 w-3.5 fill-current" />
