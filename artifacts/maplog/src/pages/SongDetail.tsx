@@ -106,8 +106,15 @@ export default function SongDetail() {
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-4 pt-5 pb-2 shrink-0">
-        <Button variant="ghost" size="icon" onClick={() => window.history.back()}
-          className="rounded-full bg-card/50 backdrop-blur-sm">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            if (window.history.length > 1) window.history.back();
+            else setLocation('/collection');
+          }}
+          className="rounded-full bg-card/50 backdrop-blur-sm"
+        >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <DropdownMenu>

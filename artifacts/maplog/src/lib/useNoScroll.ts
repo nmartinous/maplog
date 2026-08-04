@@ -1,26 +1,20 @@
 import { useEffect } from 'react';
 
 /**
- * Locks body scroll for the lifetime of the calling component.
- * Works on iOS Safari / PWA by also setting position:fixed.
+ * Locks scroll for the lifetime of the calling component.
+ *
+ * Sets overflow:hidden on <html> (not body) so Radix UI portals
+ * (dropdowns, dialogs) can still calculate their fixed positions correctly.
+ * The page must already be height-constrained (h-dvh etc.) — this just
+ * prevents any accidental overflow from scrolling.
  */
 export function useNoScroll() {
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    const prevPosition = document.body.style.position;
-    const prevWidth    = document.body.style.width;
-    const prevHeight   = document.body.style.height;
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width    = '100%';
-    document.body.style.height   = '100%';
-
+    const html = document.documentElement;
+    const prev = html.style.overflow;
+    html.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.position = prevPosition;
-      document.body.style.width    = prevWidth;
-      document.body.style.height   = prevHeight;
+      html.style.overflow = prev;
     };
   }, []);
 }
