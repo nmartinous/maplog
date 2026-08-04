@@ -36,28 +36,33 @@ export default defineConfig({
     runtimeErrorOverlay(),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Maplog',
         short_name: 'Maplog',
+        description: 'Soundmap card collection archive & music player',
         display: 'standalone',
+        orientation: 'portrait',
+        start_url: '.',
         background_color: '#09090b',
         theme_color: '#09090b',
         icons: [
           {
-            src: '/favicon.svg',
+            src: 'icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/png',
           },
           {
-            src: '/favicon.svg',
+            src: 'icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml'
-          }
-        ]
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+        ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      }
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      },
     }),
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined
