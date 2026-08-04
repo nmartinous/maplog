@@ -1,0 +1,1 @@
+- [Rarity System](rarity-system.md) — base (common/uncommon/rare) + modifiers (shiny/day1/aprilfools add) + overrides (epic/lyric/radiant replace)

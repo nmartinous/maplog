@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import { useGetSong, getGetSongQueryKey } from '@workspace/api-client-react';
+import { useNoScroll } from '@/lib/useNoScroll';
 import { Link } from 'wouter';
 import useEmblaCarousel from 'embla-carousel-react';
 import {
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function Home() {
+  useNoScroll();
   const { currentSong, isPlaying, pause, resume, skipNext, skipPrev, currentTime, duration, seek, activeCardIndex, setActiveCardIndex, queue } = usePlayer();
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [shuffle, setShuffle] = useState(false);

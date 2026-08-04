@@ -145,16 +145,19 @@ export function SoundmapCard({
   const artistSize = size === 'hero' ? 'text-sm'  : 'text-xs';
   const showInfo   = size !== 'sm';
 
+  const isRare = card.rarityType.slug === 'regular-rare' || card.rarityType.slug === 'shiny-rare';
+
   return (
     <div
       className={cn(
         'relative flex flex-col overflow-hidden text-white card-effect',
         sizeClasses[size],
+        isRare && 'card-rare-glow',
         className,
       )}
       style={{
         border: `2px solid ${borderColor}`,
-        boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22`,
+        ...(isRare ? {} : { boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22` }),
         background: `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
       }}
     >

@@ -3,6 +3,25 @@
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
+/* ── Rare card breathing glow ───────────────────────────────────────────── */
+@keyframes rare-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 6px -2px rgba(194, 65, 12, 0.25),
+      0 0 0 1px rgba(194, 65, 12, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 32px 8px  rgba(249, 115, 22, 0.72),
+      0 0 60px 18px rgba(194, 65, 12, 0.38),
+      0 0 0   1px  rgba(249, 115, 22, 0.55);
+  }
+}
+
+.card-rare-glow {
+  animation: rare-breathe 2.8s ease-in-out infinite;
+}
+
 /* ── Shiny badge border animation ───────────────────────────────────────── */
 @keyframes badge-shiny {
   0%   { border-color: rgba(239, 68,  68,  0.85); box-shadow: 0 0 8px -2px rgba(239,68,68,0.35); }

@@ -11,24 +11,42 @@ const CrystalGem = ({ color }: { color: string }) => (
   </svg>
 );
 
-/** Three-petal flower / asterisk — Uncommon */
+/** 6-petal ornate rosette — Uncommon */
 const FlowerStar = ({ color }: { color: string }) => (
   <svg width="11" height="11" viewBox="0 0 11 11" fill="none" className="shrink-0" aria-hidden>
-    <ellipse cx="5.5" cy="5.5" rx="1.6" ry="4.6" fill={color} />
-    <ellipse cx="5.5" cy="5.5" rx="1.6" ry="4.6" fill={color} transform="rotate(60 5.5 5.5)" />
-    <ellipse cx="5.5" cy="5.5" rx="1.6" ry="4.6" fill={color} transform="rotate(120 5.5 5.5)" />
+    {/* 6 round petals at 60° intervals */}
+    {[0, 60, 120, 180, 240, 300].map(deg => {
+      const rad = (deg * Math.PI) / 180;
+      const cx = 5.5 + Math.cos(rad) * 2.7;
+      const cy = 5.5 + Math.sin(rad) * 2.7;
+      return <circle key={deg} cx={cx} cy={cy} r="1.65" fill={color} />;
+    })}
+    {/* Centre */}
+    <circle cx="5.5" cy="5.5" r="1.9" fill={color} />
+    <circle cx="5.5" cy="5.5" r="0.85" fill="white" fillOpacity="0.35" />
   </svg>
 );
 
-/** Pixel/mosaic gem face — Rare */
+/** Basket-weave / over-under grid — Rare */
 const PixelGem = ({ color }: { color: string }) => (
   <svg width="11" height="11" viewBox="0 0 11 11" fill="none" className="shrink-0" aria-hidden>
-    <rect x="0.5" y="0.5" width="10" height="10" rx="1.5" fill={color} fillOpacity="0.18" stroke={color} strokeWidth="0.8" />
-    {/* eyes */}
-    <rect x="2" y="2.5" width="2.5" height="2.5" rx="0.5" fill={color} />
-    <rect x="6.5" y="2.5" width="2.5" height="2.5" rx="0.5" fill={color} />
-    {/* mouth */}
-    <rect x="2" y="7" width="7" height="1.5" rx="0.5" fill={color} />
+    {/* outer frame */}
+    <rect x="0.6" y="0.6" width="9.8" height="9.8" rx="1.5" fill={color} fillOpacity="0.15" stroke={color} strokeWidth="0.9" />
+    {/* horizontal strands — pass over vertical at alternating cells */}
+    {/* row 1: cols 1&3 on top */}
+    <rect x="0.6" y="2.5" width="3.5" height="1.4" rx="0.3" fill={color} />
+    <rect x="6.9" y="2.5" width="3.5" height="1.4" rx="0.3" fill={color} />
+    {/* row 2: cols 2 on top */}
+    <rect x="3.7" y="5.3" width="3.6" height="1.4" rx="0.3" fill={color} />
+    {/* row 3: cols 1&3 on top */}
+    <rect x="0.6" y="8.1" width="3.5" height="1.4" rx="0.3" fill={color} />
+    <rect x="6.9" y="8.1" width="3.5" height="1.4" rx="0.3" fill={color} />
+    {/* vertical strands — behind the horizontals */}
+    <rect x="2.5" y="0.6" width="1.4" height="3.5" rx="0.3" fill={color} fillOpacity="0.6" />
+    <rect x="7.1" y="0.6" width="1.4" height="3.5" rx="0.3" fill={color} fillOpacity="0.6" />
+    <rect x="4.8" y="3.7" width="1.4" height="3.6" rx="0.3" fill={color} fillOpacity="0.6" />
+    <rect x="2.5" y="6.8" width="1.4" height="3.7" rx="0.3" fill={color} fillOpacity="0.6" />
+    <rect x="7.1" y="6.8" width="1.4" height="3.7" rx="0.3" fill={color} fillOpacity="0.6" />
   </svg>
 );
 

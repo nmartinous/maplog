@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useLocation } from 'wouter';
+import { useNoScroll } from '@/lib/useNoScroll';
 import {
   useGetSong, getGetSongQueryKey, useDeleteSong,
   useListPlaylists, useAddSongToPlaylist,
@@ -23,6 +24,7 @@ import {
 import { toast } from 'sonner';
 
 export default function SongDetail() {
+  useNoScroll();
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
