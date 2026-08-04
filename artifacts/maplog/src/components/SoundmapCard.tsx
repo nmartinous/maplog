@@ -155,11 +155,12 @@ export function SoundmapCard({
       style={{
         border: `2px solid ${borderColor}`,
         boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22`,
-        background: '#0d0d0d',
+        background: `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
       }}
     >
       {/* ── Art section with inset padding ───────────────────────────────── */}
-      <div className={cn(artPad, 'bg-black/40')}>
+      {/* No explicit bg — inherits card tint so the padding blends in */}
+      <div className={artPad}>
         <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
           {card.artworkUrl ? (
             <img

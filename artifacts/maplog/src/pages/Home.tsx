@@ -102,7 +102,6 @@ export default function Home() {
                     artist={currentSong.artist}
                     genre={currentSong.genre}
                     size="hero"
-                    onPlay={isPlaying ? pause : resume}
                     className={cn(
                       "transition-all duration-500 ease-out",
                       i === activeCardIndex ? "scale-100 opacity-100" : "scale-90 opacity-50"
@@ -138,13 +137,6 @@ export default function Home() {
 
       {/* Controls */}
       <div className="relative z-10 p-6 sm:p-8 max-w-md w-full mx-auto pb-12">
-        <div className="mb-6 flex justify-between items-end">
-          <div className="min-w-0 flex-1 pr-4">
-            <h2 className="text-2xl font-bold truncate">{currentSong.title}</h2>
-            <p className="text-white/60 text-lg truncate">{currentSong.artist}</p>
-          </div>
-        </div>
-
         <div className="mb-8">
           <Slider
             value={[currentTime]}
