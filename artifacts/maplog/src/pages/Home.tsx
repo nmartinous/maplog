@@ -5,20 +5,16 @@ import { useNoScroll } from '@/lib/useNoScroll';
 import { Link } from 'wouter';
 import useEmblaCarousel from 'embla-carousel-react';
 import {
-  Play, Pause, SkipBack, SkipForward, Library, ListMusic,
-  Shuffle, Repeat, Repeat1, ListOrdered, Volume2, ChevronDown,
+  Library, ListMusic, ListOrdered, Volume2, ChevronDown,
 } from 'lucide-react';
 import { SoundmapCard } from '@/components/SoundmapCard';
-import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function Home() {
   useNoScroll();
-  const { currentSong, isPlaying, pause, resume, skipNext, skipPrev, currentTime, duration, seek, activeCardIndex, setActiveCardIndex, queue } = usePlayer();
+  const { currentSong, isPlaying, activeCardIndex, setActiveCardIndex, queue } = usePlayer();
   const [isQueueOpen, setIsQueueOpen] = useState(false);
-  const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState<'off' | 'all' | 'one'>('off');
 
   const { data: songDetail } = useGetSong(currentSong?.id || 0, {
     query: {
@@ -41,15 +37,7 @@ export default function Home() {
     }
   }, [emblaApi, activeCardIndex]);
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
-
-  const cycleRepeat = () =>
-    setRepeat(r => r === 'off' ? 'all' : r === 'all' ? 'one' : 'off');
-
+  // ── Empty state ─────────────────────────────────────────────────────────────
   if (!currentSong) {
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 text-center">
@@ -57,7 +45,9 @@ export default function Home() {
           <ListMusic className="w-12 h-12 text-muted-foreground" />
         </div>
         <h1 className="text-2xl font-bold mb-2">No song playing</h1>
-        <p className="text-muted-foreground mb-8">Select a song from your collection to start listening.</p>
+        <p className="text-muted-foreground mb-8">
+          Select a song from your collection to start listening.
+        </p>
         <Link href="/collection">
           <Button size="lg" className="rounded-full font-bold px-8">
             <Library className="mr-2 h-5 w-5" />
@@ -74,7 +64,7 @@ export default function Home() {
     <div className="h-[calc(100dvh-4rem)] sm:h-[100dvh] bg-black text-white flex flex-col relative">
 
       {/* Blurred art background */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         {cards[activeCardIndex]?.artworkUrl ? (
           <img
             src={cards[activeCardIndex].artworkUrl!}
@@ -84,12 +74,11 @@ export default function Home() {
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-3xl" />
         )}
-        {/* Extra darkening overlay so controls stay readable */}
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-black/55" />
       </div>
 
-      {/* ── Top bar ───────────────────────────────────────────────── */}
-      <div className="relative z-10 flex items-center justify-between px-6 pt-10 pb-2">
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+      <div className="relative z-10 flex items-center justify-between px-6 pt-10 pb-2 shrink-0">
         <Button
           variant="ghost" size="icon"
           className="w-9 h-9 rounded-full text-white/50 hover:text-white hover:bg-white/10"
@@ -113,12 +102,10 @@ export default function Home() {
         </Button>
       </div>
 
-      {/* ── Card carousel ─────────────────────────────────────────── */}
-      {/* px-6 on outer so glow has horizontal breathing room outside the embla clip */}
+      {/* ── Card carousel — fills ALL remaining space ─────────────────────── */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto min-h-0">
         {cards.length > 0 ? (
           <>
-            {/* overflow-x:clip clips off-screen slides without blocking box-shadow overflow */}
             <div className="w-full [overflow-x:clip] py-12 px-12" ref={emblaRef}>
               <div className="flex touch-pan-y">
                 {cards.map((card, i) => (
@@ -139,9 +126,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Card dots */}
             {cards.length > 1 && (
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-2 shrink-0">
                 {cards.map((_, i) => (
                   <div
                     key={i}
@@ -166,100 +152,15 @@ export default function Home() {
         )}
       </div>
 
-      {/* ── Controls area — shrink-0 prevents flex from pushing into card area ── */}
-      <div className="relative z-10 shrink-0 w-full max-w-md mx-auto px-8 pb-6 flex flex-col gap-4">
-
-        {/* Scrubber */}
-        <div className="flex flex-col gap-1.5">
-          <Slider
-            value={[currentTime]}
-            max={duration || 100}
-            step={1}
-            onValueChange={([val]) => seek(val)}
-            className="w-full [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-[0_0_8px_rgba(255,255,255,0.6)] [&_.bg-primary]:bg-white"
-          />
-          <div className="flex justify-between text-[11px] font-mono text-white/35">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-
-        {/* Main transport */}
-        <div className="flex items-center justify-between">
-          {/* Shuffle */}
-          <button
-            onClick={() => setShuffle(s => !s)}
-            className={cn(
-              'p-2 rounded-full transition-colors',
-              shuffle ? 'text-white' : 'text-white/30 hover:text-white/60'
-            )}
-          >
-            <Shuffle className="h-5 w-5" strokeWidth={shuffle ? 2.5 : 1.8} />
-          </button>
-
-          {/* Skip Back */}
-          <button
-            onClick={skipPrev}
-            className="p-2 text-white/80 hover:text-white transition-colors"
-          >
-            <SkipBack className="h-8 w-8" fill="currentColor" />
-          </button>
-
-          {/* Play / Pause */}
-          <button
-            onClick={isPlaying ? pause : resume}
-            className="w-[68px] h-[68px] rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_32px_rgba(255,255,255,0.25)] hover:bg-white/90 hover:scale-105 active:scale-95 transition-all"
-          >
-            {isPlaying
-              ? <Pause className="h-7 w-7" fill="currentColor" />
-              : <Play className="h-7 w-7 ml-0.5" fill="currentColor" />
-            }
-          </button>
-
-          {/* Skip Forward */}
-          <button
-            onClick={skipNext}
-            className="p-2 text-white/80 hover:text-white transition-colors"
-          >
-            <SkipForward className="h-8 w-8" fill="currentColor" />
-          </button>
-
-          {/* Repeat */}
-          <button
-            onClick={cycleRepeat}
-            className={cn(
-              'p-2 rounded-full transition-colors relative',
-              repeat !== 'off' ? 'text-white' : 'text-white/30 hover:text-white/60'
-            )}
-          >
-            {repeat === 'one'
-              ? <Repeat1 className="h-5 w-5" strokeWidth={2.5} />
-              : <Repeat className="h-5 w-5" strokeWidth={repeat === 'all' ? 2.5 : 1.8} />
-            }
-          </button>
-        </div>
-
-        {/* Volume */}
-        <div className="flex items-center gap-3">
-          <Volume2 className="h-4 w-4 text-white/30 shrink-0" />
-          <Slider
-            defaultValue={[80]}
-            max={100}
-            step={1}
-            className="flex-1 [&_[role=slider]]:h-2.5 [&_[role=slider]]:w-2.5 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_.bg-primary]:bg-white [&_.bg-secondary]:bg-white/20"
-          />
-          <Volume2 className="h-4 w-4 text-white/60 shrink-0" />
-        </div>
-      </div>
-
-      {/* ── Queue sheet ───────────────────────────────────────────── */}
+      {/* ── Queue sheet ─────────────────────────────────────────────────────── */}
       {isQueueOpen && (
         <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-2xl flex flex-col">
-          {/* Sheet header */}
-          <div className="flex justify-between items-center px-6 pt-12 pb-4">
+          <div className="flex justify-between items-center px-6 pt-12 pb-4 shrink-0">
             <div>
               <h3 className="text-xl font-bold">Up Next</h3>
-              <p className="text-white/35 text-sm mt-0.5">{queue.length} song{queue.length !== 1 ? 's' : ''} in queue</p>
+              <p className="text-white/35 text-sm mt-0.5">
+                {queue.length} song{queue.length !== 1 ? 's' : ''} in queue
+              </p>
             </div>
             <Button
               variant="ghost" size="sm"
@@ -294,10 +195,12 @@ export default function Home() {
                         {isCurrent ? <Volume2 className="h-3.5 w-3.5" /> : i + 1}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={cn('text-sm font-semibold truncate', isCurrent ? 'text-white' : 'text-white/75')}>{song.title}</p>
+                        <p className={cn('text-sm font-semibold truncate', isCurrent ? 'text-white' : 'text-white/75')}>
+                          {song.title}
+                        </p>
                         <p className="text-xs text-white/35 truncate">{song.artist}</p>
                       </div>
-                      {isCurrent && (
+                      {isCurrent && isPlaying && (
                         <div className="shrink-0 flex items-end gap-[2px] h-4">
                           {[0, 1, 2].map(j => (
                             <div

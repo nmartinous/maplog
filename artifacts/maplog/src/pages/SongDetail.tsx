@@ -15,10 +15,6 @@ import {
 } from 'lucide-react';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -38,6 +34,7 @@ export default function SongDetail() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, watchDrag: multiCard });
   const [activeSnap, setActiveSnap] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
 
   const deleteSong = useDeleteSong();
@@ -117,22 +114,14 @@ export default function SongDetail() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full bg-card/50 backdrop-blur-sm">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => setLocation(`/add?edit=${songDetail.id}`)}>
-              <Edit2 className="mr-2 h-4 w-4" /> Edit Song
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
-              <Trash2 className="mr-2 h-4 w-4" /> Delete Song
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setMenuOpen(true)}
+          className="rounded-full bg-card/50 backdrop-blur-sm"
+        >
+          <MoreVertical className="h-5 w-5" />
+        </Button>
       </div>
 
       {/* Card carousel — fills available space */}
@@ -201,6 +190,31 @@ export default function SongDetail() {
         <span data-artist>{songDetail.artist}</span>
         <span data-album>{songDetail.album}</span>
       </div>
+
+      {/* ── Song menu (Edit / Delete) ─────────────────────────────────────── */}
+      <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
+        <DialogContent className="sm:max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">{songDetail.title}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-1 pb-2">
+            <button
+              onClick={() => { setMenuOpen(false); setLocation(`/add?edit=${songDetail.id}`); }}
+              className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/8 transition-colors text-left w-full"
+            >
+              <Edit2 className="w-5 h-5 text-muted-foreground shrink-0" />
+              <span className="font-semibold">Edit Song</span>
+            </button>
+            <button
+              onClick={() => { setMenuOpen(false); handleDelete(); }}
+              className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-red-500/10 transition-colors text-left w-full text-destructive"
+            >
+              <Trash2 className="w-5 h-5 shrink-0" />
+              <span className="font-semibold">Delete Song</span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Actions sheet ─────────────────────────────────────────────────── */}
       <Dialog open={actionsOpen} onOpenChange={setActionsOpen}>
