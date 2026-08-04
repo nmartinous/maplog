@@ -195,12 +195,9 @@ export function SoundmapCard({
         </div>
       </div>
 
-      {/* ── Info section — centered ───────────────────────────────────────── */}
+      {/* ── Info section — centered, inherits card bg ────────────────────── */}
       {showInfo && (
-        <div
-          className="px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center"
-          style={{ background: `color-mix(in srgb, ${borderColor} 22%, #07080f)` }}
-        >
+        <div className="px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center">
           <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>
             {title}
           </p>

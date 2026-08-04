@@ -3,40 +3,43 @@ import { Link, useLocation } from 'wouter';
 import { Home, Library, ListMusic, User, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// All routes still exist — only Player and Collection are visible in the nav
+const ALL_NAV_ITEMS = [
+  { href: '/', icon: Home, label: 'Player', visible: true },
+  { href: '/collection', icon: Library, label: 'Collection', visible: true },
+  { href: '/playlists', icon: ListMusic, label: 'Playlists', visible: false },
+  { href: '/profile', icon: User, label: 'Profile', visible: false },
+  { href: '/add', icon: PlusCircle, label: 'Add', visible: false },
+];
+
 export function Navigation() {
   const [location] = useLocation();
-
-  const navItems = [
-    { href: '/', icon: Home, label: 'Player' },
-    { href: '/collection', icon: Library, label: 'Collection' },
-    { href: '/playlists', icon: ListMusic, label: 'Playlists' },
-    { href: '/profile', icon: User, label: 'Profile' },
-    { href: '/add', icon: PlusCircle, label: 'Add' },
-  ];
+  const visibleItems = ALL_NAV_ITEMS.filter(i => i.visible);
 
   return (
     <>
       {/* Mobile Bottom Nav */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border z-50 flex items-center justify-around px-2">
-        {navItems.map((item) => {
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-t border-white/8 z-50 flex items-center justify-around px-8">
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href || (item.href !== '/' && location.startsWith(item.href));
           return (
-            <Link key={item.href} href={item.href} className="flex flex-col items-center justify-center w-full h-full">
-              <div className={cn(
-                "flex flex-col items-center justify-center w-12 h-12 rounded-full transition-colors",
-                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-              )}>
-                <Icon className="h-5 w-5 mb-1" />
-                <span className="text-[10px] font-medium leading-none">{item.label}</span>
-              </div>
+            <Link key={item.href} href={item.href} className="flex flex-col items-center justify-center gap-1 py-2 px-6">
+              <Icon className={cn(
+                "h-[22px] w-[22px] transition-colors",
+                isActive ? "text-white" : "text-white/35"
+              )} strokeWidth={isActive ? 2.2 : 1.6} />
+              <span className={cn(
+                "text-[10px] font-medium leading-none tracking-wide transition-colors",
+                isActive ? "text-white" : "text-white/35"
+              )}>{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
       {/* Desktop Sidebar Nav */}
-      <nav className="hidden sm:flex fixed top-0 bottom-0 left-0 w-64 bg-card border-r border-border z-50 flex-col py-8 px-4">
+      <nav className="hidden sm:flex fixed top-0 bottom-0 left-0 w-56 bg-card border-r border-border z-50 flex-col py-8 px-4">
         <div className="mb-8 px-4 flex items-center gap-3 text-primary">
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
             <ListMusic className="h-5 w-5" />
@@ -45,7 +48,7 @@ export function Navigation() {
         </div>
 
         <div className="space-y-1 flex-1">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const Icon = item.icon;
             const isActive = location === item.href || (item.href !== '/' && location.startsWith(item.href));
             return (
