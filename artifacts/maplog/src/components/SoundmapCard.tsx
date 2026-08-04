@@ -3,14 +3,12 @@ import { CollectedCard } from '@workspace/api-client-react';
 import { RarityBadge } from '@/components/RarityBadge';
 import { useArtColor } from '@/lib/useArtColor';
 import { cn } from '@/lib/utils';
-import { Disc3, Play } from 'lucide-react';
+import { Disc3 } from 'lucide-react';
 
 // ── Variant label routing ─────────────────────────────────────────────────────
 
-/** These variant labels replace the badge text (named Epic variants) */
 const BADGE_LABEL_OVERRIDES = new Set(['Freshman']);
 
-/** These variant labels render as art stamps; base rarity badge is unchanged */
 const STAMP_LABELS = new Set([
   'Week 1', 'Day 1', 'April Fools', 'Halloween', 'Pridemap', 'Grammy', 'Lovers',
 ]);
@@ -30,14 +28,10 @@ function ArtStamp({ label, cardWidth }: { label: string; cardWidth: number }) {
       </div>
     );
   }
-
   if (label === 'Day 1') {
     return (
-      <svg
-        className="absolute bottom-2 left-2 z-10 drop-shadow-md"
-        width={stampSize} height={stampSize} viewBox="0 0 40 40"
-        aria-label="Day 1"
-      >
+      <svg className="absolute bottom-2 left-2 z-10 drop-shadow-md"
+        width={stampSize} height={stampSize} viewBox="0 0 40 40" aria-label="Day 1">
         <circle cx="20" cy="20" r="19" fill="#d4a017" />
         <circle cx="20" cy="20" r="19" fill="none" stroke="#8b6600" strokeWidth="0.8" />
         <circle cx="20" cy="20" r="14" fill="none" stroke="#8b6600" strokeWidth="0.6" strokeDasharray="2.5 2" />
@@ -50,66 +44,43 @@ function ArtStamp({ label, cardWidth }: { label: string; cardWidth: number }) {
       </svg>
     );
   }
-
-  if (label === 'April Fools') {
-    return (
-      <div
-        className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
-        style={{ fontSize: stampSize }} title="April Fools"
-      >🤡</div>
-    );
-  }
-
-  if (label === 'Halloween') {
-    return (
-      <div
-        className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
-        style={{ fontSize: stampSize }} title="Halloween"
-      >🕷️</div>
-    );
-  }
-
-  if (label === 'Pridemap') {
-    return (
-      <div className="absolute bottom-0 left-0 right-0 h-[5px] z-10 overflow-hidden">
-        <div className="w-full h-full" style={{
-          background: 'linear-gradient(90deg,#e40303 0%,#ff8c00 17%,#ffed00 33%,#008026 50%,#004dff 67%,#750787 83%,#e40303 100%)',
-        }} />
-      </div>
-    );
-  }
-
-  if (label === 'Grammy') {
-    return (
-      <svg className="absolute bottom-2 right-2 z-10 drop-shadow-md"
-        width={stampSize} height={stampSize} viewBox="0 0 40 40" aria-label="Grammy"
-      >
-        <circle cx="20" cy="20" r="19" fill="#c8a400" />
-        <circle cx="20" cy="20" r="19" fill="none" stroke="#7a6000" strokeWidth="0.8" />
-        <circle cx="20" cy="20" r="14" fill="none" stroke="#7a6000" strokeWidth="0.6" strokeDasharray="2.5 2" />
-        <text x="20" y="18" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">GRAM</text>
-        <text x="20" y="26" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">MY</text>
-        <path id="gcp-s" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
-        <text fontSize="4" fontWeight="700" fill="#1a0f00" fontFamily="sans-serif" letterSpacing="1">
-          <textPath href="#gcp-s" startOffset="5%">RECORDING ACADEMY · RECORDING ACADEMY ·</textPath>
-        </text>
-      </svg>
-    );
-  }
-
-  if (label === 'Lovers') {
-    return (
-      <div
-        className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
-        style={{ fontSize: stampSize }} title="Lovers"
-      >🩷</div>
-    );
-  }
-
+  if (label === 'April Fools') return (
+    <div className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
+      style={{ fontSize: stampSize }} title="April Fools">🤡</div>
+  );
+  if (label === 'Halloween') return (
+    <div className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
+      style={{ fontSize: stampSize }} title="Halloween">🕷️</div>
+  );
+  if (label === 'Pridemap') return (
+    <div className="absolute bottom-0 left-0 right-0 h-[5px] z-10 overflow-hidden">
+      <div className="w-full h-full" style={{
+        background: 'linear-gradient(90deg,#e40303 0%,#ff8c00 17%,#ffed00 33%,#008026 50%,#004dff 67%,#750787 83%,#e40303 100%)',
+      }} />
+    </div>
+  );
+  if (label === 'Grammy') return (
+    <svg className="absolute bottom-2 right-2 z-10 drop-shadow-md"
+      width={stampSize} height={stampSize} viewBox="0 0 40 40" aria-label="Grammy">
+      <circle cx="20" cy="20" r="19" fill="#c8a400" />
+      <circle cx="20" cy="20" r="19" fill="none" stroke="#7a6000" strokeWidth="0.8" />
+      <circle cx="20" cy="20" r="14" fill="none" stroke="#7a6000" strokeWidth="0.6" strokeDasharray="2.5 2" />
+      <text x="20" y="18" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">GRAM</text>
+      <text x="20" y="26" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">MY</text>
+      <path id="gcp-s" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
+      <text fontSize="4" fontWeight="700" fill="#1a0f00" fontFamily="sans-serif" letterSpacing="1">
+        <textPath href="#gcp-s" startOffset="5%">RECORDING ACADEMY · RECORDING ACADEMY ·</textPath>
+      </text>
+    </svg>
+  );
+  if (label === 'Lovers') return (
+    <div className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
+      style={{ fontSize: stampSize }} title="Lovers">🩷</div>
+  );
   return null;
 }
 
-// ── Theme fallback border colors per rarity slug ──────────────────────────────
+// ── Rarity fallback border colors ─────────────────────────────────────────────
 
 function rarityFallbackColor(slug: string): string {
   const map: Record<string, string> = {
@@ -140,28 +111,36 @@ interface SoundmapCardProps {
   genre?: string | null;
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'hero';
-  /** When provided, a play button appears in the info section */
-  onPlay?: () => void;
 }
 
 export function SoundmapCard({
-  card, title, artist, genre, className, size = 'md', onPlay,
+  card, title, artist, genre, className, size = 'md',
 }: SoundmapCardProps) {
-  // Extract vibrant border color from artwork; fall back to rarity theme color
   const fallbackBorder = rarityFallbackColor(card.rarityType.slug);
   const borderColor = useArtColor(card.artworkUrl, fallbackBorder);
 
+  // Width-only classes — height is driven by content (square art + info)
   const sizeClasses = {
-    sm:   'w-24 h-36 rounded-xl',
-    md:   'w-40 h-60 rounded-2xl',
-    lg:   'w-64 h-96 rounded-2xl',
-    hero: 'w-[280px] sm:w-[320px] aspect-[2/3] rounded-3xl',
+    sm:   'w-24 rounded-xl',
+    md:   'w-40 rounded-2xl',
+    lg:   'w-64 rounded-2xl',
+    hero: 'w-[280px] sm:w-[320px] rounded-3xl',
   };
+
+  // Inner art corner radius (slightly smaller than card to match inset feel)
+  const artRadius = {
+    sm:   'rounded-lg',
+    md:   'rounded-xl',
+    lg:   'rounded-xl',
+    hero: 'rounded-2xl',
+  };
+
+  // Padding around the art
+  const artPad = size === 'sm' ? 'p-1.5' : 'p-2';
 
   const widthMap = { sm: 96, md: 160, lg: 256, hero: 300 };
   const cardWidth = widthMap[size];
 
-  // Info-section font sizes
   const titleSize  = size === 'hero' ? 'text-xl'  : size === 'lg' ? 'text-base' : 'text-sm';
   const artistSize = size === 'hero' ? 'text-sm'  : 'text-xs';
   const showInfo   = size !== 'sm';
@@ -179,70 +158,57 @@ export function SoundmapCard({
         background: '#0d0d0d',
       }}
     >
-      {/* ── Art section (top ~68%) ────────────────────────────────────────── */}
-      <div className="relative flex-1 overflow-hidden bg-black">
-        {card.artworkUrl ? (
-          <img
-            src={card.artworkUrl}
-            alt={title}
-            className="absolute inset-0 w-full h-full object-cover"
-            crossOrigin="anonymous"
-          />
-        ) : (
-          /* Subtle dark gradient + ghost disc when no artwork */
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ background: `linear-gradient(160deg, ${borderColor}22 0%, #0d0d0d 100%)` }}
-          >
-            <Disc3
-              className="opacity-[0.07]"
-              style={{ width: '55%', height: '55%', color: borderColor }}
+      {/* ── Art section with inset padding ───────────────────────────────── */}
+      <div className={cn(artPad, 'bg-black/40')}>
+        <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
+          {card.artworkUrl ? (
+            <img
+              src={card.artworkUrl}
+              alt={title}
+              className="absolute inset-0 w-full h-full object-cover"
+              crossOrigin="anonymous"
             />
-          </div>
-        )}
+          ) : (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ background: `linear-gradient(160deg, ${borderColor}22 0%, #0d0d0d 100%)` }}
+            >
+              <Disc3
+                className="opacity-[0.07]"
+                style={{ width: '55%', height: '55%', color: borderColor }}
+              />
+            </div>
+          )}
 
-        {/* Numbered epic badge — top right of art */}
-        {card.variantLabel?.startsWith('#') && (
-          <div className="absolute top-2 right-2 z-10 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
-            {card.variantLabel}
-          </div>
-        )}
+          {/* Numbered epic badge — top right of art */}
+          {card.variantLabel?.startsWith('#') && (
+            <div className="absolute top-1.5 right-1.5 z-10 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
+              {card.variantLabel}
+            </div>
+          )}
 
-        {/* Modifier stamps inside the art section */}
-        {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
-          <ArtStamp label={card.variantLabel} cardWidth={cardWidth} />
-        )}
+          {/* Modifier stamps */}
+          {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
+            <ArtStamp label={card.variantLabel} cardWidth={cardWidth} />
+          )}
+        </div>
       </div>
 
-      {/* ── Info section (bottom ~32%) ────────────────────────────────────── */}
+      {/* ── Info section — centered ───────────────────────────────────────── */}
       {showInfo && (
         <div
-          className="shrink-0 px-3 pt-2.5 pb-3 flex flex-col gap-1.5"
+          className="px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center"
           style={{ background: `color-mix(in srgb, ${borderColor} 22%, #07080f)` }}
         >
-          {/* Title */}
-          <p className={cn('font-bold leading-tight truncate', titleSize)}>
+          <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>
             {title}
           </p>
-
-          {/* Artist + play button */}
-          <div className="flex items-center justify-between gap-2">
-            <p className={cn('text-white/55 leading-tight truncate flex-1', artistSize)}>
-              {artist}
-            </p>
-            {onPlay && (
-              <button
-                onClick={e => { e.stopPropagation(); onPlay(); }}
-                className="shrink-0 flex items-center justify-center text-white/40 hover:text-white/80 transition-colors active:scale-95"
-                aria-label="Play"
-              >
-                <Play className={cn('fill-current', size === 'hero' ? 'w-4 h-4' : 'w-3.5 h-3.5')} />
-              </button>
-            )}
-          </div>
+          <p className={cn('text-white/55 leading-tight truncate w-full', artistSize)}>
+            {artist}
+          </p>
 
           {/* Rarity badge + genre */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center justify-center gap-1.5 flex-wrap mt-0.5">
             <RarityBadge
               slug={card.rarityType.slug}
               name={card.rarityType.name}
