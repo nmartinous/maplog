@@ -103,7 +103,6 @@ function ModifierStamp({ label, size }: { label: string; size: number }) {
   }
 
   if (label === 'Pridemap') {
-    // Pride rainbow stripe across the bottom of the art
     return (
       <div className="absolute bottom-0 left-0 right-0 h-[4px] rounded-b-xl overflow-hidden">
         <div
@@ -112,6 +111,40 @@ function ModifierStamp({ label, size }: { label: string; size: number }) {
             background: 'linear-gradient(90deg, #e40303 0%, #ff8c00 17%, #ffed00 33%, #008026 50%, #004dff 67%, #750787 83%, #e40303 100%)',
           }}
         />
+      </div>
+    );
+  }
+
+  if (label === 'Grammy') {
+    const r = Math.round(s * 0.44);
+    return (
+      <svg
+        className="absolute bottom-0.5 right-0.5"
+        width={r} height={r}
+        viewBox="0 0 40 40"
+        aria-label="Grammy"
+      >
+        <circle cx="20" cy="20" r="19" fill="#c8a400" />
+        <circle cx="20" cy="20" r="19" fill="none" stroke="#7a6000" strokeWidth="0.8" />
+        <circle cx="20" cy="20" r="14" fill="none" stroke="#7a6000" strokeWidth="0.6" strokeDasharray="2.5 2" />
+        <text x="20" y="18" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">GRAM</text>
+        <text x="20" y="26" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">MY</text>
+        <path id="gcpv" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
+        <text fontSize="4" fontWeight="700" fill="#1a0f00" fontFamily="sans-serif" letterSpacing="1">
+          <textPath href="#gcpv" startOffset="5%">RECORDING ACADEMY · RECORDING ACADEMY ·</textPath>
+        </text>
+      </svg>
+    );
+  }
+
+  if (label === 'Lovers') {
+    return (
+      <div
+        className="absolute bottom-0.5 right-0.5 leading-none select-none"
+        style={{ fontSize: Math.round(s * 0.38) }}
+        title="Lovers"
+      >
+        🩷
       </div>
     );
   }

@@ -4,15 +4,17 @@ import { RarityBadge } from '@/components/RarityBadge';
 import { cn } from '@/lib/utils';
 import { Disc3 } from 'lucide-react';
 
-// Variant labels that appear as badge text overrides (named Epic variants)
-// Everything else is a stamp/modifier on the card art
+// Variant Epic label overrides: badge text changes to the variant name
+// (these are epic-tier variants — Freshman shows "Freshman" in the badge, etc.)
 const BADGE_LABEL_OVERRIDES = new Set([
-  'Grammy', 'Freshman', 'Lovers', 'Anniversary', 'Pride',
+  'Freshman',
 ]);
 
-// Variant labels that should render as a stamp on the card art
+// Variant Regular stamps: overlay on the card art, base rarity badge unchanged
+// Includes event modifiers (Week 1, Day 1, April Fools, Halloween),
+// variant regulars (Grammy, Lovers), and Epic visual modifiers (Pridemap)
 const STAMP_LABELS = new Set([
-  'Week 1', 'Day 1', 'April Fools', 'Halloween', 'Pridemap',
+  'Week 1', 'Day 1', 'April Fools', 'Halloween', 'Pridemap', 'Grammy', 'Lovers',
 ]);
 
 /** Modifier stamp rendered directly on the card face */
@@ -84,6 +86,39 @@ function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: num
             background: 'linear-gradient(90deg, #e40303 0%, #ff8c00 17%, #ffed00 33%, #008026 50%, #004dff 67%, #750787 83%, #e40303 100%)',
           }}
         />
+      </div>
+    );
+  }
+
+  if (label === 'Grammy') {
+    return (
+      <svg
+        className="absolute bottom-2 right-2 z-20 drop-shadow-md"
+        width={stampSize} height={stampSize}
+        viewBox="0 0 40 40"
+        aria-label="Grammy"
+      >
+        <circle cx="20" cy="20" r="19" fill="#c8a400" />
+        <circle cx="20" cy="20" r="19" fill="none" stroke="#7a6000" strokeWidth="0.8" />
+        <circle cx="20" cy="20" r="14" fill="none" stroke="#7a6000" strokeWidth="0.6" strokeDasharray="2.5 2" />
+        <text x="20" y="18" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">GRAM</text>
+        <text x="20" y="26" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">MY</text>
+        <path id="gcp" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
+        <text fontSize="4" fontWeight="700" fill="#1a0f00" fontFamily="sans-serif" letterSpacing="1">
+          <textPath href="#gcp" startOffset="5%">RECORDING ACADEMY · RECORDING ACADEMY ·</textPath>
+        </text>
+      </svg>
+    );
+  }
+
+  if (label === 'Lovers') {
+    return (
+      <div
+        className="absolute bottom-2 right-2 z-20 leading-none select-none drop-shadow-lg"
+        style={{ fontSize: stampSize }}
+        title="Lovers"
+      >
+        🩷
       </div>
     );
   }

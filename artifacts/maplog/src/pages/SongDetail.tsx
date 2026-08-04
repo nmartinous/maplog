@@ -17,12 +17,14 @@ export default function SongDetail() {
   const queryClient = useQueryClient();
   const { play } = usePlayer();
   
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
-  const [activeSnap, setActiveSnap] = useState(0);
-
   const { data: songDetail, isLoading } = useGetSong(Number(id), { 
     query: { enabled: !!id, queryKey: getGetSongQueryKey(Number(id)) }
   });
+
+  // Carousel only interactive when song has multiple collected cards
+  const multiCard = (songDetail?.cards?.length ?? 0) > 1;
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, watchDrag: true });
+  const [activeSnap, setActiveSnap] = useState(0);
   
   const deleteSong = useDeleteSong();
   const { data: playlists } = useListPlaylists();
@@ -194,22 +196,6 @@ export default function SongDetail() {
             </Dialog>
           </div>
 
-          {/* Rarity Info of Active Card */}
-          {cards[activeSnap] && (
-            <div className="bg-card/50 border border-border rounded-xl p-4 text-left">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Card Details</span>
-                <span className="text-xs font-mono bg-background px-2 py-1 rounded">Tier {cards[activeSnap].rarityType.tier}</span>
-              </div>
-              <p className="font-semibold text-lg">{cards[activeSnap].variantLabel || cards[activeSnap].rarityType.name}</p>
-              <p className="text-sm text-muted-foreground">Category: {cards[activeSnap].rarityType.category}</p>
-              {cards[activeSnap].notes && (
-                <p className="text-sm mt-3 pt-3 border-t border-border/50 italic text-muted-foreground">
-                  "{cards[activeSnap].notes}"
-                </p>
-              )}
-            </div>
-          )}
 
         </div>
       </div>
