@@ -11,7 +11,6 @@ import { MiniPlayer } from '@/components/MiniPlayer';
 import Home from '@/pages/Home';
 import Collection from '@/pages/Collection';
 import SongDetail from '@/pages/SongDetail';
-import Setup from '@/pages/Setup';
 import Playlists from '@/pages/Playlists';
 import PlaylistDetail from '@/pages/PlaylistDetail';
 import Profile from '@/pages/Profile';
@@ -23,13 +22,6 @@ const queryClient = new QueryClient();
 // ── Inner shell — has access to MusicKit context ──────────────────────────────
 
 function AppShell() {
-  const { hasToken } = useMusicKit();
-
-  // No developer token yet → show the one-time setup screen
-  if (!hasToken) {
-    return <Setup />;
-  }
-
   return (
     <div className="min-h-[100dvh] flex flex-col sm:flex-row bg-background">
       <Navigation />

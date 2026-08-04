@@ -1,13 +1,15 @@
-import React from 'react';
-import { useGetStats } from '@workspace/api-client-react';
-import { Disc3, Star, Layers, ListMusic, TrendingUp } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { useMusicKit } from '@/context/MusicKitContext';
+import { Disc3, Layers, Star, TrendingUp, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-function StatCard({ label, value, icon: Icon, accent }: { label: string; value: string | number; icon: React.ElementType; accent?: string }) {
+function StatCard({ label, value, icon: Icon, accent }: {
+  label: string; value: string | number; icon: React.ElementType; accent?: string;
+}) {
   return (
-    <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-4 card-effect">
-      <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", accent || "bg-primary/10")}>
-        <Icon className={cn("h-6 w-6", accent ? "text-white" : "text-primary")} />
+    <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-4">
+      <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center shrink-0', accent || 'bg-primary/10')}>
+        <Icon className={cn('h-6 w-6', accent ? 'text-white' : 'text-primary')} />
       </div>
       <div>
         <p className="text-3xl font-extrabold font-mono tracking-tight">{value}</p>
@@ -30,15 +32,30 @@ const RARITY_COLORS: Record<string, string> = {
 };
 
 export default function Profile() {
-  const { data: stats, isLoading } = useGetStats();
+  const { songs, isDemoMode } = useMusicKit();
 
-  // Find highest tier card in byCategory (tier is on each stat)
-  const highestTier = stats?.byCategory?.length
-    ? Math.max(...stats.byCategory.map(c => c.tier))
-    : null;
+  const stats = useMemo(() => {
+    const totalSongs = songs.length;
+    const totalCards = songs.reduce((sum, s) => sum + s.cards.length, 0);
+
+    const byCategory = Object.entries(
+      songs.flatMap(s => s.cards).reduce<Record<string, number>>((acc, card) => {
+        const cat = card.rarityType.category;
+        acc[cat] = (acc[cat] ?? 0) + 1;
+        return acc;
+      }, {}),
+    )
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const highestTier = songs.flatMap(s => s.cards).reduce((max, c) => Math.max(max, c.rarityType.tier), 0);
+
+    return { totalSongs, totalCards, byCategory, highestTier };
+  }, [songs]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-10 animate-in fade-in pb-24 sm:pb-8 max-w-4xl">
+
       {/* Header */}
       <div className="flex items-center gap-5">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
@@ -46,80 +63,83 @@ export default function Profile() {
         </div>
         <div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">My Profile</h1>
-          <p className="text-muted-foreground mt-1">Your Soundmap collection archive</p>
+          <p className="text-muted-foreground mt-1">
+            Your Soundmap collection archive{isDemoMode ? ' (demo)' : ''}
+          </p>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-card border border-border rounded-xl p-5 h-24 animate-pulse" />
-          ))}
+      {songs.length === 0 ? (
+        <div className="text-center py-20 text-muted-foreground">
+          <Star className="h-12 w-12 mx-auto mb-4 opacity-40" />
+          <p>No cards yet. Start adding songs to your collection!</p>
         </div>
-      ) : stats ? (
+      ) : (
         <>
-          {/* Primary Stats */}
+          {/* Stats */}
           <section className="space-y-3">
             <h2 className="text-xs font-bold tracking-widest uppercase text-muted-foreground">Overview</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               <StatCard label="Songs" value={stats.totalSongs} icon={Disc3} />
               <StatCard label="Cards" value={stats.totalCards} icon={Layers} />
-              <StatCard label="Playlists" value={stats.totalPlaylists ?? 0} icon={ListMusic} />
-              <StatCard label="Highest Tier" value={highestTier != null ? `Tier ${highestTier}` : '—'} icon={TrendingUp} />
+              <StatCard
+                label="Highest Tier"
+                value={stats.highestTier > 0 ? `Tier ${stats.highestTier}` : '—'}
+                icon={TrendingUp}
+              />
             </div>
           </section>
 
-          {/* Cards by Category */}
+          {/* Cards by category */}
           {stats.byCategory.length > 0 && (
             <section className="space-y-3">
               <h2 className="text-xs font-bold tracking-widest uppercase text-muted-foreground">Cards by Category</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {[...stats.byCategory]
-                  .sort((a, b) => b.count - a.count)
-                  .map(stat => (
-                    <div
-                      key={stat.category}
-                      className={cn(
-                        "rounded-xl border px-4 py-3 flex items-center justify-between",
-                        RARITY_COLORS[stat.category] || 'bg-card border-border'
-                      )}
-                    >
-                      <span className="text-sm font-semibold truncate pr-2">{stat.category}</span>
-                      <span className="font-black font-mono text-lg shrink-0">{stat.count}</span>
-                    </div>
-                  ))}
-              </div>
-            </section>
-          )}
-
-          {/* Recently Added */}
-          {stats.recentlyAdded.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-xs font-bold tracking-widest uppercase text-muted-foreground">Recently Added</h2>
-              <div className="space-y-2">
-                {stats.recentlyAdded.map(song => (
-                  <div key={song.id} className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <Disc3 className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{song.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground font-mono shrink-0">
-                      {new Date(song.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
+                {stats.byCategory.map(({ category, count }) => (
+                  <div
+                    key={category}
+                    className={cn(
+                      'rounded-xl border px-4 py-3 flex items-center justify-between',
+                      RARITY_COLORS[category] || 'bg-card border-border',
+                    )}
+                  >
+                    <span className="text-sm font-semibold truncate pr-2">{category}</span>
+                    <span className="font-black font-mono text-lg shrink-0">{count}</span>
                   </div>
                 ))}
               </div>
             </section>
           )}
+
+          {/* Top cards */}
+          <section className="space-y-3">
+            <h2 className="text-xs font-bold tracking-widest uppercase text-muted-foreground">Highest Rarity Cards</h2>
+            <div className="space-y-2">
+              {[...songs]
+                .filter(s => s.cards.length > 0)
+                .sort((a, b) => (b.cards[0]?.rarityType.tier ?? 0) - (a.cards[0]?.rarityType.tier ?? 0))
+                .slice(0, 5)
+                .map(song => (
+                  <div key={song.id} className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3">
+                    {song.artworkUrl ? (
+                      <img src={song.artworkUrl} alt={song.title} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <Sparkles className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{song.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                    </div>
+                    <span className="text-xs font-bold text-primary/70 bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20 shrink-0">
+                      {song.cards[0]?.rarityType.name}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </section>
         </>
-      ) : (
-        <div className="text-center py-20 text-muted-foreground">
-          <Star className="h-12 w-12 mx-auto mb-4 opacity-40" />
-          <p>No stats yet. Start building your collection!</p>
-        </div>
       )}
     </div>
   );

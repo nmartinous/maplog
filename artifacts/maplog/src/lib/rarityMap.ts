@@ -38,3 +38,7 @@ export const ALL_CATEGORIES = [
   'Special Edition', 'Special Epic', 'Streak Epic',
   'Lyric', 'Radiant', 'Moment',
 ] as const;
+
+/** All rarity types in tier order (for pickers) */
+export const ALL_RARITIES: MaplogRarityType[] = Object.values(RARITY_MAP)
+  .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));

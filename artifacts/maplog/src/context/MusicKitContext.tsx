@@ -1,289 +1,174 @@
 /**
- * MusicKitContext — Deezer implementation.
- * Exports the same `MusicKitProvider` / `useMusicKit` names so all consumers
- * (Collection, SongDetail, App) require zero changes.
+ * MusicKitContext — self-contained collection backed by localStorage.
+ * Track search uses Deezer's public API (no auth required) via the API proxy.
+ * Keeps the same MusicKitProvider / useMusicKit exports so all consumers need zero changes.
  */
 
 import React, {
-  createContext, useContext, useEffect, useState, useCallback, useRef,
+  createContext, useContext, useState, useCallback,
 } from 'react';
-import type { MaplogSong, MaplogCard } from '@/lib/types';
-import { isMaplogPlaylist, rarityFromPlaylistName } from '@/lib/rarityMap';
+import type { MaplogSong, MaplogCard, MaplogRarityType } from '@/lib/types';
 import { DEMO_SONGS } from '@/lib/demoData';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
-const APP_ID_KEY    = 'maplog:deezerAppId';
-const DEMO_MODE_KEY = 'maplog:demoMode';
+const COLLECTION_KEY = 'maplog:collection';
+const DEMO_MODE_KEY  = 'maplog:demoMode';
 
-// ── Deezer API helpers ────────────────────────────────────────────────────────
+// ── Deezer public search (via API proxy) ───────────────────────────────────────
 
-/** Promisified DZ.api() */
-function dzApi(path: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if (typeof DZ === 'undefined') {
-      reject(new Error('Deezer SDK not loaded. Check your internet connection.'));
-      return;
-    }
-    DZ.api(path, (response: any) => {
-      if (response?.error) {
-        reject(new Error(response.error.message ?? `Deezer API error on ${path}`));
-      } else {
-        resolve(response);
-      }
-    });
-  });
+function deezerTrackToSong(track: any): MaplogSong {
+  return {
+    id:         String(track.id),
+    title:      track.title      ?? 'Unknown',
+    artist:     track.artist?.name ?? 'Unknown Artist',
+    album:      track.album?.title ?? '',
+    genre:      null,
+    durationMs: (track.duration ?? 0) * 1000,
+    artworkUrl: track.album?.cover_xl ?? track.album?.cover_big ?? track.album?.cover ?? '',
+    previewUrl: track.preview ?? null,
+    cards:      [],
+  };
 }
 
-/** Fetch all pages of a Deezer paginated endpoint */
-async function dzApiAll(startPath: string): Promise<any[]> {
-  const items: any[] = [];
-  let path: string | null = startPath;
+async function deezerSearch(query: string): Promise<MaplogSong[]> {
+  if (!query.trim()) return [];
+  const res = await fetch(`/api/deezer/search?q=${encodeURIComponent(query)}&limit=25`);
+  if (!res.ok) throw new Error('Search failed — please try again.');
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message ?? 'Deezer search error');
+  return (data.data ?? []).map(deezerTrackToSong);
+}
 
-  while (path) {
-    const res = await dzApi(path);
-    items.push(...(res.data ?? []));
-    if (res.next) {
-      try {
-        const url = new URL(res.next);
-        path = url.pathname + url.search;
-      } catch {
-        path = null;
-      }
-    } else {
-      path = null;
-    }
+// ── Local storage helpers ──────────────────────────────────────────────────────
+
+function loadCollection(): MaplogSong[] {
+  try {
+    const raw = localStorage.getItem(COLLECTION_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
   }
-
-  return items;
 }
 
-/** Load all songs from "Maplog · *" playlists */
-async function loadMaplogSongs(): Promise<MaplogSong[]> {
-  const playlists = await dzApiAll('/user/me/playlists?limit=100');
-
-  const maplogPlaylists = playlists.filter((p: any) =>
-    isMaplogPlaylist(p.title ?? ''),
-  );
-
-  if (maplogPlaylists.length === 0) return [];
-
-  const songMap = new Map<string, MaplogSong>();
-
-  await Promise.all(
-    maplogPlaylists.map(async (playlist: any) => {
-      const rarity = rarityFromPlaylistName(playlist.title);
-      if (!rarity) return;
-
-      const tracks = await dzApiAll(`/playlist/${playlist.id}/tracks?limit=100`);
-
-      for (const track of tracks) {
-        const songId = String(track.id);
-        const artworkUrl: string =
-          track.album?.cover_xl ?? track.album?.cover_big ?? track.album?.cover ?? '';
-
-        const card: MaplogCard = {
-          id: `${songId}::${rarity.slug}`,
-          artworkUrl: artworkUrl || null,
-          rarityType: rarity,
-          variantLabel: null,
-        };
-
-        const existing = songMap.get(songId);
-        if (existing) {
-          existing.cards.push(card);
-        } else {
-          songMap.set(songId, {
-            id: songId,
-            title: track.title ?? 'Unknown',
-            artist: track.artist?.name ?? 'Unknown Artist',
-            album: track.album?.title ?? '',
-            genre: null,
-            durationMs: (track.duration ?? 0) * 1000,
-            artworkUrl,
-            previewUrl: track.preview ?? null,
-            cards: [card],
-          });
-        }
-      }
-    }),
-  );
-
-  for (const song of songMap.values()) {
-    song.cards.sort((a, b) => b.rarityType.tier - a.rarityType.tier);
-  }
-
-  return Array.from(songMap.values()).sort((a, b) =>
-    a.title.localeCompare(b.title),
-  );
+function saveCollection(songs: MaplogSong[]): void {
+  localStorage.setItem(COLLECTION_KEY, JSON.stringify(songs));
 }
 
-// ── Context types ─────────────────────────────────────────────────────────────
+// ── Context types ──────────────────────────────────────────────────────────────
 
-interface MusicKitContextType {
-  /** True when an App ID is saved OR demo mode is active */
-  hasToken: boolean;
-  /** SDK initialised and ready */
-  isReady: boolean;
-  /** User has authorised Deezer access */
+export interface MusicKitContextType {
+  /** Always true — no setup required */
+  hasToken:     boolean;
+  isReady:      boolean;
   isAuthorized: boolean;
-  /** Playlists are being loaded */
-  isLoading: boolean;
-  /** Error message, if any */
-  error: string | null;
-  /** Songs loaded from Deezer playlists */
-  songs: MaplogSong[];
-  /** Look up a single song by its Deezer track ID */
-  getSong: (id: string) => MaplogSong | undefined;
-  /** Open Deezer OAuth login popup */
+  isLoading:    boolean;
+  error:        string | null;
+  songs:        MaplogSong[];
+  getSong:      (id: string) => MaplogSong | undefined;
+
+  /** Search Deezer (no auth needed) */
+  searchDeezer: (query: string) => Promise<MaplogSong[]>;
+
+  /** Add a song + rarity card to the local collection */
+  addToCollection: (song: MaplogSong, rarity: MaplogRarityType) => void;
+
+  /** Remove a song entirely from the collection */
+  removeFromCollection: (songId: string) => void;
+
+  /** Reload collection from localStorage */
+  refresh: () => void;
+
+  /** No-op — kept for interface compatibility */
   authorize: () => void;
-  /** Reload songs from playlists */
-  refresh: () => Promise<void>;
-  /** Save a Deezer App ID and initialise the SDK */
-  setAppId: (id: string) => void;
-  /** The stored Deezer App ID */
-  appId: string;
-  /** True when running with mock data (no real Deezer account) */
-  isDemoMode: boolean;
+
+  isDemoMode:    boolean;
   enterDemoMode: () => void;
-  exitDemoMode: () => void;
+  exitDemoMode:  () => void;
 }
 
 const MusicKitContext = createContext<MusicKitContextType | null>(null);
 
-// ── Provider ──────────────────────────────────────────────────────────────────
+// ── Provider ───────────────────────────────────────────────────────────────────
 
 export function MusicKitProvider({ children }: { children: React.ReactNode }) {
-  const [appId, setAppIdState] = useState<string>(
-    () => import.meta.env.VITE_DEEZER_APP_ID || localStorage.getItem(APP_ID_KEY) || '',
-  );
   const [isDemoMode, setIsDemoMode] = useState<boolean>(
     () => localStorage.getItem(DEMO_MODE_KEY) === 'true',
   );
-  const [isReady, setIsReady]           = useState(false);
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isLoading, setIsLoading]       = useState(false);
-  const [songs, setSongs]               = useState<MaplogSong[]>([]);
-  const [error, setError]               = useState<string | null>(null);
-  const sdkInitialized                  = useRef(false);
+  const [songs, setSongs] = useState<MaplogSong[]>(
+    () => localStorage.getItem(DEMO_MODE_KEY) === 'true' ? DEMO_SONGS : loadCollection(),
+  );
 
-  // ── Demo mode shortcut ───────────────────────────────────────────────────
-  useEffect(() => {
-    if (isDemoMode) {
-      setSongs(DEMO_SONGS);
-      setIsReady(true);
-      setIsAuthorized(true);
-      setIsLoading(false);
-      setError(null);
-    }
+  // ── Collection mutations ──────────────────────────────────────────────────
+
+  const addToCollection = useCallback((song: MaplogSong, rarity: MaplogRarityType) => {
+    if (isDemoMode) return; // demo is read-only
+    setSongs(prev => {
+      const existing = prev.find(s => s.id === song.id);
+      let updated: MaplogSong[];
+
+      if (existing) {
+        // Add another card variant to an existing song
+        const newCard: MaplogCard = {
+          id:          `${song.id}::${rarity.slug}::${Date.now()}`,
+          artworkUrl:  song.artworkUrl,
+          rarityType:  rarity,
+          variantLabel: null,
+        };
+        updated = prev.map(s =>
+          s.id === song.id
+            ? {
+                ...s,
+                cards: [...s.cards, newCard].sort((a, b) => b.rarityType.tier - a.rarityType.tier),
+              }
+            : s,
+        );
+      } else {
+        // New song
+        const newCard: MaplogCard = {
+          id:          `${song.id}::${rarity.slug}`,
+          artworkUrl:  song.artworkUrl,
+          rarityType:  rarity,
+          variantLabel: null,
+        };
+        updated = [...prev, { ...song, cards: [newCard] }]
+          .sort((a, b) => a.title.localeCompare(b.title));
+      }
+
+      saveCollection(updated);
+      return updated;
+    });
   }, [isDemoMode]);
 
-  // ── SDK init (real mode) ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!appId || isDemoMode || sdkInitialized.current) return;
-
-    if (typeof DZ === 'undefined') {
-      setError('Deezer SDK failed to load. Refresh the page.');
-      return;
-    }
-
-    const base = import.meta.env.BASE_URL ?? '/';
-    const channelUrl = `${window.location.origin}${base}channel.html`;
-
-    DZ.init({
-      appId,
-      channelUrl,
+  const removeFromCollection = useCallback((songId: string) => {
+    if (isDemoMode) return;
+    setSongs(prev => {
+      const updated = prev.filter(s => s.id !== songId);
+      saveCollection(updated);
+      return updated;
     });
-    sdkInitialized.current = true;
-    setIsReady(true);
-
-    // Check if already logged in from a previous session
-    DZ.getLoginStatus((res) => {
-      if (res.status === 'connected') {
-        setIsAuthorized(true);
-      }
-    });
-  }, [appId, isDemoMode]);
-
-  // ── Load songs when authorised (real mode) ───────────────────────────────
-  useEffect(() => {
-    if (isDemoMode || !isReady || !isAuthorized) return;
-
-    const load = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const loaded = await loadMaplogSongs();
-        setSongs(loaded);
-      } catch (e: any) {
-        console.error('Playlist load failed:', e);
-        setError('Could not load playlists: ' + (e?.message ?? String(e)));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthorized]);
-
-  // ── Public methods ───────────────────────────────────────────────────────
-
-  const authorize = useCallback(() => {
-    if (isDemoMode || typeof DZ === 'undefined') return;
-    DZ.login(
-      (res) => {
-        if (res.status === 'connected') {
-          setIsAuthorized(true);
-          setError(null);
-        } else {
-          setError('Deezer login was cancelled or failed. Please try again.');
-        }
-      },
-      { perms: 'basic_access,email,manage_library,listening_history,offline_access' },
-    );
   }, [isDemoMode]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => {
     if (isDemoMode) { setSongs([...DEMO_SONGS]); return; }
-    if (!isAuthorized) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const loaded = await loadMaplogSongs();
-      setSongs(loaded);
-    } catch (e: any) {
-      setError('Refresh failed: ' + (e?.message ?? String(e)));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isDemoMode, isAuthorized]);
+    setSongs(loadCollection());
+  }, [isDemoMode]);
 
-  const setAppId = useCallback((id: string) => {
-    const clean = id.trim();
-    localStorage.setItem(APP_ID_KEY, clean);
-    localStorage.removeItem(DEMO_MODE_KEY);
-    sdkInitialized.current = false;
-    setIsDemoMode(false);
-    setAppIdState(clean);
-    setIsReady(false);
-    setIsAuthorized(false);
-    setSongs([]);
-    setError(null);
-  }, []);
+  // ── Demo mode ─────────────────────────────────────────────────────────────
 
   const enterDemoMode = useCallback(() => {
     localStorage.setItem(DEMO_MODE_KEY, 'true');
     setIsDemoMode(true);
+    setSongs(DEMO_SONGS);
   }, []);
 
   const exitDemoMode = useCallback(() => {
     localStorage.removeItem(DEMO_MODE_KEY);
     setIsDemoMode(false);
-    setSongs([]);
-    setIsReady(false);
-    setIsAuthorized(false);
+    setSongs(loadCollection());
   }, []);
+
+  // ── Lookup ────────────────────────────────────────────────────────────────
 
   const getSong = useCallback(
     (id: string) => songs.find(s => s.id === id),
@@ -293,17 +178,18 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   return (
     <MusicKitContext.Provider
       value={{
-        hasToken: !!appId || isDemoMode,
-        isReady,
-        isAuthorized,
-        isLoading,
-        error,
+        hasToken:            true,
+        isReady:             true,
+        isAuthorized:        true,
+        isLoading:           false,
+        error:               null,
         songs,
         getSong,
-        authorize,
+        searchDeezer:        deezerSearch,
+        addToCollection,
+        removeFromCollection,
         refresh,
-        setAppId,
-        appId,
+        authorize:           () => {},
         isDemoMode,
         enterDemoMode,
         exitDemoMode,

@@ -1,52 +1,24 @@
 ---
-name: Streaming Architecture
-description: How Maplog connects to a streaming service — currently Deezer. Covers data flow, types, playlist conventions, and the audio player.
+name: MusicKit Architecture
+description: Data layer, auth, and playback approach for Maplog
 ---
 
-# Streaming Architecture (Deezer)
+## Current Architecture (self-contained, no streaming service account required)
 
-## Core principle
-No backend, no database. Deezer playlists are the database. The frontend reads playlists named "Maplog · <RarityName>", maps songs to rarity cards, and streams 30-second previews via HTML5 Audio.
+**Data layer:** localStorage (`maplog:collection` key) stores `MaplogSong[]` directly in the browser. No external service login needed.
 
-## Rarity convention
-Playlist name format: `Maplog · Common`, `Maplog · Rare`, `Maplog · Shiny Rare`, etc.
-Full map in `artifacts/maplog/src/lib/rarityMap.ts`.
+**Track search:** Deezer's public API (no auth, no App ID) via a thin CORS proxy at `/api/deezer/search?q=...` on the api-server. The proxy lives in `artifacts/api-server/src/routes/deezer.ts`.
 
-## Key types (src/lib/types.ts)
-- `MaplogSong` — id (Deezer track ID as string), title, artist, album, genre, durationMs, artworkUrl, previewUrl (30s MP3), cards[]
-- `MaplogCard` — id, artworkUrl, rarityType (slug/name/category/tier), variantLabel
+**Audio playback:** 30-second preview MP3s from `track.preview` on Deezer search results, played via HTML5 `<audio>` in `AudioPlayerContext`.
 
-## Context structure
-- `MusicKitContext` (src/context/MusicKitContext.tsx) — Deezer implementation behind the same exported names (`MusicKitProvider`, `useMusicKit`)
-  - Stores App ID in `localStorage('maplog:deezerAppId')` or `VITE_DEEZER_APP_ID` env var
-  - Init: `DZ.init({ appId, channelUrl })` where channelUrl = `${origin}${BASE_URL}channel.html`
-  - Auth: `DZ.login()` popup, `DZ.getLoginStatus()` on startup for session persistence
-  - API: promisified `DZ.api()` via JSONP — no CORS issues
-- `AudioPlayerContext` (src/context/AudioPlayerContext.tsx) — HTML5 Audio with `song.previewUrl`
+**Why:** Deezer requires new app registrations (closed periods), and Spotify was rejected by the user. The public Deezer API requires no registration and returns preview URLs freely. CORS blocked direct browser calls, so the proxy is the only required server-side piece.
 
-## Deezer SDK setup requirements
-- `public/channel.html` must exist on the same domain (served by Vite from `public/`)
-- `<div id="dz-root" style="display:none">` must be in index.html (SDK looks for it)
-- SDK loads synchronously from `https://e-cdns-files.dzcdn.net/js/min/dz.js` (no async attr)
+**How to apply:**
+- `MusicKitContext` exports `addToCollection(song, rarity)`, `removeFromCollection(songId)`, `searchDeezer(query)` — all self-contained.
+- `hasToken`, `isReady`, `isAuthorized` are always `true` — no setup screen shown.
+- Demo mode still works via `isDemoMode` / `enterDemoMode` / `exitDemoMode`.
 
-## Deezer app registration (user must do this once)
-1. developers.deezer.com/myapps → Create Application
-2. Set Application domain + Redirect URL to the app's URL
-3. Copy App ID (a plain number) → paste into Maplog Setup screen
-
-## Audio playback
-- Uses `track.preview` URL from Deezer API — a public 30-second MP3 CDN URL
-- Played via `new Audio()` in AudioPlayerContext; no DZ.player widget needed
-- Demo mode uses setInterval timer instead (no real audio)
-
-## Session persistence
-`DZ.getLoginStatus()` on SDK init checks for existing Deezer session (cookie-based).
-If `status === 'connected'`, user is already auth'd and songs load automatically.
-
-## Migrated from Apple Music
-Previous architecture used MusicKit JS v3 + JWT developer token. Switched to Deezer because:
-- No paid developer enrollment required
-- Same-day free App ID
-- Same playlist-as-database pattern works identically
-
-**Why same exported names (`useMusicKit`, `MusicKitProvider`):** All consumers (Collection, SongDetail, App) required zero changes.
+## History (for reference)
+- Originally: Apple Music / MusicKit JS (requires Apple Developer enrollment — still pending)
+- Then: Deezer SDK with OAuth (App ID required, registration closed)
+- Now: Deezer public API + localStorage (no account of any kind)

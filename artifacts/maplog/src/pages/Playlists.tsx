@@ -1,122 +1,98 @@
-import React, { useState } from 'react';
-import { useListPlaylists, useCreatePlaylist, useDeletePlaylist, getListPlaylistsQueryKey } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
+import React, { useMemo } from 'react';
 import { Link } from 'wouter';
-import { ListMusic, Plus, Trash2, MoreVertical } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { toast } from 'sonner';
+import { useMusicKit } from '@/context/MusicKitContext';
+import { ALL_CATEGORIES } from '@/lib/rarityMap';
+import { RarityBadge } from '@/components/RarityBadge';
+import { Music2, Layers } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
+/** Group songs by rarity category for a "browse by rarity" view */
 export default function Playlists() {
-  const { data: playlists, isLoading } = useListPlaylists();
-  const createPlaylist = useCreatePlaylist();
-  const deletePlaylist = useDeletePlaylist();
-  const queryClient = useQueryClient();
+  const { songs } = useMusicKit();
 
-  const [newPlaylistName, setNewPlaylistName] = useState('');
-  const [newPlaylistDesc, setNewPlaylistDesc] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const handleCreate = () => {
-    if (!newPlaylistName.trim()) return;
-    createPlaylist.mutate({ data: { name: newPlaylistName, description: newPlaylistDesc } }, {
-      onSuccess: () => {
-        toast.success('Playlist created');
-        setNewPlaylistName('');
-        setNewPlaylistDesc('');
-        setIsDialogOpen(false);
-        queryClient.invalidateQueries({ queryKey: getListPlaylistsQueryKey() });
-      }
-    });
-  };
-
-  const handleDelete = (id: number, e: React.MouseEvent) => {
-    e.preventDefault(); // prevent link click
-    if (confirm('Delete this playlist?')) {
-      deletePlaylist.mutate({ id }, {
-        onSuccess: () => {
-          toast.success('Playlist deleted');
-          queryClient.invalidateQueries({ queryKey: getListPlaylistsQueryKey() });
-        }
-      });
-    }
-  };
+  const groups = useMemo(() => {
+    const cats = ALL_CATEGORIES.filter(c => c !== 'All');
+    return cats
+      .map(category => {
+        const matching = songs.filter(s =>
+          s.cards.some(c => c.rarityType.category === category),
+        );
+        const cardCount = songs
+          .flatMap(s => s.cards)
+          .filter(c => c.rarityType.category === category).length;
+        // representative card for the top artwork
+        const topCard = matching
+          .flatMap(s => s.cards)
+          .filter(c => c.rarityType.category === category)
+          .sort((a, b) => b.rarityType.tier - a.rarityType.tier)[0];
+        return { category, songs: matching, cardCount, topCard };
+      })
+      .filter(g => g.songs.length > 0);
+  }, [songs]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8 animate-in fade-in pb-24 sm:pb-8">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Playlists</h1>
-          <p className="text-muted-foreground mt-1">{playlists?.length || 0} playlists</p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="rounded-full gap-2">
-              <Plus className="h-4 w-4" />
-              New Playlist
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Playlist</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
-                <Input value={newPlaylistName} onChange={e => setNewPlaylistName(e.target.value)} placeholder="Summer Vibes" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description (Optional)</label>
-                <Input value={newPlaylistDesc} onChange={e => setNewPlaylistDesc(e.target.value)} placeholder="My favorite tracks..." />
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button onClick={handleCreate} disabled={createPlaylist.isPending || !newPlaylistName.trim()}>
-                Create
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 animate-in fade-in pb-24 sm:pb-8">
+      <div>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">By Rarity</h1>
+        <p className="text-muted-foreground mt-1">Your collection grouped by card type</p>
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-20 text-muted-foreground">Loading playlists...</div>
-      ) : playlists?.length === 0 ? (
-        <div className="text-center py-20 bg-card border border-border border-dashed rounded-xl">
-          <ListMusic className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-bold mb-2">No Playlists Yet</h3>
-          <p className="text-muted-foreground mb-6">Create a playlist to start organizing your collection.</p>
-          <Button onClick={() => setIsDialogOpen(true)}>Create Playlist</Button>
+      {groups.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center px-8">
+          <div className="w-16 h-16 rounded-2xl bg-muted/40 flex items-center justify-center mb-5">
+            <Layers className="w-8 h-8 text-muted-foreground/50" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">No cards yet</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Add songs to your collection and they'll appear here grouped by rarity.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {playlists?.map(p => (
-            <Link key={p.id} href={`/playlists/${p.id}`}>
-              <div className="group bg-card hover:bg-accent border border-border rounded-xl p-4 sm:p-6 transition-all cursor-pointer relative overflow-hidden card-effect flex items-center gap-4">
-                <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                  <ListMusic className="h-8 w-8 text-muted-foreground" />
+          {groups.map(({ category, songs: groupSongs, cardCount, topCard }) => (
+            <Link key={category} href={`/collection`}>
+              <div className="group bg-card hover:bg-accent border border-border rounded-2xl p-5 transition-all cursor-pointer">
+
+                {/* Top 3 artworks stacked */}
+                <div className="flex gap-1.5 mb-4 h-14">
+                  {groupSongs.slice(0, 3).map((song, i) => (
+                    <div
+                      key={song.id}
+                      className={cn(
+                        'rounded-xl overflow-hidden shrink-0 transition-all',
+                        i === 0 ? 'w-14 h-14' : 'w-10 h-10 mt-2 opacity-60',
+                      )}
+                    >
+                      {song.artworkUrl ? (
+                        <img src={song.artworkUrl} alt={song.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <Music2 className="w-4 h-4 text-muted-foreground/40" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors">{p.name}</h3>
-                  <p className="text-sm text-muted-foreground truncate">{p.songCount} {p.songCount === 1 ? 'song' : 'songs'}</p>
+
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-extrabold text-base truncate group-hover:text-primary transition-colors">
+                      {category}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {groupSongs.length} {groupSongs.length === 1 ? 'song' : 'songs'}
+                      {' · '}
+                      {cardCount} {cardCount === 1 ? 'card' : 'cards'}
+                    </p>
+                  </div>
+                  {topCard && (
+                    <RarityBadge
+                      slug={topCard.rarityType.slug}
+                      name={topCard.rarityType.name}
+                      category={topCard.rarityType.category}
+                    />
+                  )}
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={e => e.preventDefault()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" onClick={e => e.preventDefault()}>
-                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(p.id, e)}>
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
             </Link>
           ))}

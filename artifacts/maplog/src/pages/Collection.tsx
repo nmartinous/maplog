@@ -5,9 +5,10 @@ import { usePlayer } from '@/context/AudioPlayerContext';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
 import { ALL_CATEGORIES } from '@/lib/rarityMap';
 import { RarityBadge } from '@/components/RarityBadge';
+import { AddSongSheet } from '@/components/AddSongSheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Play, Library, Loader2, RefreshCw, Music2 } from 'lucide-react';
+import { Search, Play, Library, Plus, RefreshCw, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ── Album art thumbnail ───────────────────────────────────────────────────────
@@ -30,11 +31,12 @@ function AlbumArt({ song, topCard, size = 56 }: { song: MaplogSong; topCard?: Ma
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Collection() {
-  const { songs, isLoading, isAuthorized, isReady, authorize, refresh, error } = useMusicKit();
+  const { songs, isLoading, refresh, error, isDemoMode } = useMusicKit();
   const { play } = usePlayer();
   const [, setLocation] = useLocation();
-  const [search, setSearch] = useState('');
+  const [search, setSearch]               = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [showAddSheet, setShowAddSheet]   = useState(false);
 
   // ── Filter + sort ──────────────────────────────────────────────────────────
   const displayData = useMemo(() => {
@@ -48,7 +50,6 @@ export default function Collection() {
         return true;
       })
       .map(song => {
-        // topCard = highest-tier card (cards are already sorted tier desc)
         const filtered = activeCategory === 'All'
           ? song.cards
           : song.cards.filter(c => c.rarityType.category === activeCategory);
@@ -62,34 +63,6 @@ export default function Collection() {
     play(song, songs);
     setLocation('/');
   };
-
-  // ── Not yet authorized ─────────────────────────────────────────────────────
-  if (isReady && !isAuthorized) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[100dvh] px-8 text-center">
-        <div className="w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
-          <Music2 className="w-10 h-10 text-primary" />
-        </div>
-        <h2 className="text-2xl font-extrabold mb-2">Connect Apple Music</h2>
-        <p className="text-muted-foreground text-sm mb-8 max-w-xs leading-relaxed">
-          Sign in with your Apple Music account to load your Maplog card collection.
-        </p>
-        <Button size="lg" className="rounded-full font-bold px-8" onClick={authorize}>
-          Sign in with Apple Music
-        </Button>
-        {error && <p className="text-destructive text-sm mt-4">{error}</p>}
-      </div>
-    );
-  }
-
-  // ── SDK not ready yet ──────────────────────────────────────────────────────
-  if (!isReady && !error) {
-    return (
-      <div className="flex items-center justify-center min-h-[100dvh]">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   // ── Main collection view ───────────────────────────────────────────────────
   return (
@@ -105,14 +78,25 @@ export default function Collection() {
             </p>
           )}
         </div>
-        <button
-          onClick={refresh}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/8 transition-all"
-          aria-label="Refresh collection"
-          disabled={isLoading}
-        >
-          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refresh}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/8 transition-all"
+            aria-label="Refresh collection"
+            disabled={isLoading}
+          >
+            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+          </button>
+          {!isDemoMode && (
+            <button
+              onClick={() => setShowAddSheet(true)}
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+              aria-label="Add song"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search */}
@@ -150,32 +134,44 @@ export default function Collection() {
       <div className="flex-1 overflow-y-auto pb-36 sm:pb-8">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading your collection…</p>
+            <div className="w-6 h-6 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading…</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
             <p className="text-destructive text-sm mb-4">{error}</p>
             <Button variant="outline" size="sm" onClick={refresh}>Try again</Button>
           </div>
-        ) : displayData.length === 0 ? (
+        ) : songs.length === 0 ? (
+          /* Empty collection — first-run state */
           <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-muted/40 flex items-center justify-center mb-5">
-              <Library className="w-8 h-8 text-muted-foreground/50" />
+            <div className="w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
+              <Library className="w-10 h-10 text-primary/60" />
             </div>
-            <h2 className="text-xl font-bold mb-2">
-              {search || activeCategory !== 'All' ? 'No matches' : 'No cards yet'}
-            </h2>
-            <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-              {search || activeCategory !== 'All'
-                ? 'Try different search terms or clear the filter.'
-                : 'Create playlists named "Maplog · Common", "Maplog · Rare", etc. in Apple Music and tap refresh.'}
+            <h2 className="text-xl font-bold mb-2">Your collection is empty</h2>
+            <p className="text-sm text-muted-foreground mb-8 max-w-xs leading-relaxed">
+              Search for songs from Deezer and add them to your collection with a rarity tier.
             </p>
-            {(search || activeCategory !== 'All') && (
-              <Button variant="outline" size="sm" onClick={() => { setSearch(''); setActiveCategory('All'); }}>
-                Clear filters
+            {!isDemoMode && (
+              <Button
+                className="rounded-full font-bold px-6 gap-2"
+                onClick={() => setShowAddSheet(true)}
+              >
+                <Plus className="w-4 h-4" />
+                Add your first song
               </Button>
             )}
+          </div>
+        ) : displayData.length === 0 ? (
+          /* Filter returned nothing */
+          <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+            <h2 className="text-lg font-bold mb-2">No matches</h2>
+            <p className="text-sm text-muted-foreground mb-6 max-w-xs">
+              Try different search terms or clear the filter.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => { setSearch(''); setActiveCategory('All'); }}>
+              Clear filters
+            </Button>
           </div>
         ) : (
           <div>
@@ -216,6 +212,9 @@ export default function Collection() {
           </div>
         )}
       </div>
+
+      {/* Add Song Sheet */}
+      <AddSongSheet open={showAddSheet} onOpenChange={setShowAddSheet} />
     </div>
   );
 }

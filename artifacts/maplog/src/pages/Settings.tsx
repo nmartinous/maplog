@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
-import { Link } from 'wouter';
-import { ExternalLink, Server, Info, Shield, RefreshCw, ChevronRight } from 'lucide-react';
+import React, { useRef } from 'react';
+import { useMusicKit } from '@/context/MusicKitContext';
+import type { MaplogSong } from '@/lib/types';
+import {
+  Trash2, Download, Upload, Sparkles, Shield, ExternalLink,
+  Info, ChevronRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { setBaseUrl } from '@workspace/api-client-react';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
-
-function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
       <h2 className="text-xs font-bold tracking-widest uppercase text-muted-foreground px-1">{title}</h2>
@@ -20,52 +19,87 @@ function SettingsSection({ title, children }: { title: string; children: React.R
   );
 }
 
-function SettingsRow({ icon: Icon, label, description, children, onClick }: {
+function Row({ icon: Icon, label, description, onClick, children, destructive }: {
   icon: React.ElementType;
   label: string;
   description?: string;
-  children?: React.ReactNode;
   onClick?: () => void;
+  children?: React.ReactNode;
+  destructive?: boolean;
 }) {
   return (
     <div
-      className={cn("flex items-center gap-4 px-4 py-4", onClick && "cursor-pointer hover:bg-accent/50 transition-colors")}
+      className={cn(
+        'flex items-center gap-4 px-4 py-4',
+        onClick && 'cursor-pointer hover:bg-accent/50 transition-colors',
+      )}
       onClick={onClick}
     >
-      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-        <Icon className="h-4 w-4 text-muted-foreground" />
+      <div className={cn(
+        'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
+        destructive ? 'bg-destructive/10' : 'bg-muted',
+      )}>
+        <Icon className={cn('h-4 w-4', destructive ? 'text-destructive' : 'text-muted-foreground')} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm">{label}</p>
-        {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+        <p className={cn('font-semibold text-sm', destructive && 'text-destructive')}>{label}</p>
+        {description && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{description}</p>}
       </div>
-      {children || (onClick && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />)}
+      {children ?? (onClick && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />)}
     </div>
   );
 }
 
 export default function Settings() {
-  const [apiBase, setApiBase] = useState(() =>
-    localStorage.getItem('maplog_api_base') || DEFAULT_API_BASE
-  );
-  const [editing, setEditing] = useState(false);
-  const [tempUrl, setTempUrl] = useState(apiBase);
+  const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection } = useMusicKit();
+  const importRef = useRef<HTMLInputElement>(null);
 
-  const handleSaveUrl = () => {
-    const url = tempUrl.trim().replace(/\/$/, '');
-    setApiBase(url);
-    localStorage.setItem('maplog_api_base', url);
-    setBaseUrl(url);
-    setEditing(false);
-    toast.success('API URL saved. Refresh the app to apply.');
+  // ── Export ────────────────────────────────────────────────────────────────
+
+  const handleExport = () => {
+    const json = JSON.stringify(songs, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `maplog-collection-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handleReset = () => {
-    setApiBase(DEFAULT_API_BASE);
-    setTempUrl(DEFAULT_API_BASE);
-    localStorage.removeItem('maplog_api_base');
-    setBaseUrl(DEFAULT_API_BASE);
-    toast.success('Reset to default API URL.');
+  // ── Import ────────────────────────────────────────────────────────────────
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string) as MaplogSong[];
+        if (!Array.isArray(data)) throw new Error('Expected an array');
+        let imported = 0;
+        for (const song of data) {
+          for (const card of song.cards ?? []) {
+            addToCollection(song, card.rarityType);
+            imported++;
+          }
+        }
+        alert(`Imported ${imported} card${imported !== 1 ? 's' : ''} successfully.`);
+      } catch {
+        alert('Could not read the file. Make sure it\'s a valid Maplog export.');
+      }
+    };
+    reader.readAsText(file);
+    // reset so the same file can be re-selected
+    e.target.value = '';
+  };
+
+  // ── Clear ─────────────────────────────────────────────────────────────────
+
+  const handleClear = () => {
+    if (!confirm(`Delete all ${songs.length} songs from your collection? This cannot be undone.`)) return;
+    localStorage.removeItem('maplog:collection');
+    window.location.reload();
   };
 
   return (
@@ -75,89 +109,77 @@ export default function Settings() {
         <p className="text-muted-foreground mt-1">Configure your Maplog experience</p>
       </div>
 
-      {/* API / Connection */}
-      <SettingsSection title="Connection">
-        <div className="px-4 py-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-              <Server className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">API Base URL</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Where the Maplog API server lives. Change this if you host it elsewhere.
-              </p>
-            </div>
-          </div>
+      {/* Collection */}
+      <Section title="Collection">
+        <Row
+          icon={Download}
+          label="Export collection"
+          description={`Download your ${songs.length} song${songs.length !== 1 ? 's' : ''} as a JSON backup`}
+          onClick={handleExport}
+        />
+        <Row
+          icon={Upload}
+          label="Import collection"
+          description="Restore from a previous JSON export"
+          onClick={() => importRef.current?.click()}
+        />
+        <input
+          ref={importRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={handleImportFile}
+        />
+        {songs.length > 0 && (
+          <Row
+            icon={Trash2}
+            label="Clear collection"
+            description="Remove all songs and cards — irreversible"
+            onClick={handleClear}
+            destructive
+          />
+        )}
+      </Section>
 
-          {editing ? (
-            <div className="flex gap-2 mt-3">
-              <Input
-                value={tempUrl}
-                onChange={(e) => setTempUrl(e.target.value)}
-                className="font-mono text-sm h-10"
-                placeholder="https://your-server.com/api"
-                autoFocus
-              />
-              <Button size="sm" onClick={handleSaveUrl} className="shrink-0">Save</Button>
-              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setTempUrl(apiBase); }} className="shrink-0">Cancel</Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 mt-3">
-              <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md text-muted-foreground font-mono truncate">
-                {apiBase}
-              </code>
-              <Button size="sm" variant="outline" onClick={() => { setEditing(true); setTempUrl(apiBase); }}>
-                Edit
-              </Button>
-              <Button size="sm" variant="ghost" onClick={handleReset} title="Reset to default">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-      </SettingsSection>
+      {/* Demo mode */}
+      <Section title="Demo Mode">
+        <Row
+          icon={Sparkles}
+          label={isDemoMode ? 'Exit demo mode' : 'Enter demo mode'}
+          description={
+            isDemoMode
+              ? 'Switch back to your real collection'
+              : 'Browse with 10 fictional sample cards — no account needed'
+          }
+          onClick={isDemoMode ? exitDemoMode : enterDemoMode}
+        />
+      </Section>
 
-      {/* Audio Hosting guide */}
-      <SettingsSection title="Audio Hosting">
-        <div className="px-4 py-4 space-y-3">
-          <div className="flex gap-3">
-            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-              <Info className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="space-y-2 text-sm">
-              <p className="font-semibold">Self-Host Your Audio Files</p>
-              <p className="text-muted-foreground leading-relaxed">
-                Maplog plays audio from direct URLs. Host your files on your home server using a static file server 
-                exposed via <strong>Cloudflare Tunnel</strong> — no port forwarding required.
-              </p>
-              <ol className="list-decimal list-inside text-muted-foreground space-y-1 text-xs">
-                <li>Install <code className="bg-muted px-1 rounded">cloudflared</code> on your home machine</li>
-                <li>Run a static file server (e.g. <code className="bg-muted px-1 rounded">npx serve ~/Music</code>)</li>
-                <li>Create a tunnel: <code className="bg-muted px-1 rounded">cloudflared tunnel --url http://localhost:3000</code></li>
-                <li>Paste the resulting URL when adding songs in Maplog</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      </SettingsSection>
+      {/* Audio info */}
+      <Section title="Audio">
+        <Row
+          icon={Info}
+          label="30-second previews"
+          description="Maplog plays track previews from Deezer's public API. No account or login required — previews are always available."
+        />
+      </Section>
 
       {/* About */}
-      <SettingsSection title="About">
-        <SettingsRow
+      <Section title="About">
+        <Row
           icon={Shield}
           label="Maplog"
           description="Your personal Soundmap preservation archive"
         >
           <span className="text-xs font-mono text-muted-foreground shrink-0">v1.0.0</span>
-        </SettingsRow>
-        <SettingsRow
+        </Row>
+        <Row
           icon={ExternalLink}
           label="Soundmap"
           description="The original card game this app preserves"
           onClick={() => window.open('https://soundmap.app', '_blank')}
         />
-      </SettingsSection>
+      </Section>
     </div>
   );
 }
