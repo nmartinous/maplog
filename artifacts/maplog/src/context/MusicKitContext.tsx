@@ -3,10 +3,12 @@ import React, {
 } from 'react';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
 import { isMaplogPlaylist, rarityFromPlaylistName } from '@/lib/rarityMap';
+import { DEMO_SONGS } from '@/lib/demoData';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const TOKEN_STORAGE_KEY = 'maplog:developerToken';
+const DEMO_MODE_KEY     = 'maplog:demoMode';
 
 function resolveArtwork(url: string, size = 500): string {
   return url.replace('{w}', String(size)).replace('{h}', String(size));
@@ -26,9 +28,7 @@ async function appleRequest(
       'Music-User-Token': userToken,
     },
   });
-  if (!res.ok) {
-    throw new Error(`Apple Music API ${res.status} — ${path}`);
-  }
+  if (!res.ok) throw new Error(`Apple Music API ${res.status} — ${path}`);
   return res.json();
 }
 
@@ -38,22 +38,17 @@ async function loadMaplogSongs(
   developerToken: string,
   userToken: string,
 ): Promise<MaplogSong[]> {
-  // 1. All library playlists (up to 100)
   const playlistsJson = await appleRequest(
     '/v1/me/library/playlists?limit=100',
     developerToken,
     userToken,
   );
   const allPlaylists: any[] = playlistsJson.data ?? [];
-
-  // 2. Filter to "Maplog · *" playlists
   const maplogPlaylists = allPlaylists.filter(
     p => isMaplogPlaylist(p.attributes?.name ?? ''),
   );
-
   if (maplogPlaylists.length === 0) return [];
 
-  // 3. Fetch tracks for each playlist, merge into a song map
   const songMap = new Map<string, MaplogSong>();
 
   await Promise.all(
@@ -64,7 +59,6 @@ async function loadMaplogSongs(
       let url: string | null =
         `/v1/me/library/playlists/${playlist.id}/tracks?limit=300`;
 
-      // Handle paginated responses
       while (url) {
         const tracksJson = await appleRequest(url, developerToken, userToken);
         const tracks: any[] = tracksJson.data ?? [];
@@ -72,7 +66,7 @@ async function loadMaplogSongs(
 
         for (const track of tracks) {
           const attrs = track.attributes ?? {};
-          const songId: string = track.id; // e.g. "i.XXXXXXXX"
+          const songId: string = track.id;
           const artworkUrl = attrs.artwork?.url
             ? resolveArtwork(attrs.artwork.url, 500)
             : '';
@@ -100,18 +94,15 @@ async function loadMaplogSongs(
             });
           }
         }
-
         url = nextUrl;
       }
     }),
   );
 
-  // 4. Sort each song's cards by tier descending (best rarity first)
   for (const song of songMap.values()) {
     song.cards.sort((a, b) => b.rarityType.tier - a.rarityType.tier);
   }
 
-  // 5. Sort songs alphabetically by title
   return Array.from(songMap.values()).sort((a, b) =>
     a.title.localeCompare(b.title),
   );
@@ -120,28 +111,23 @@ async function loadMaplogSongs(
 // ── Context types ─────────────────────────────────────────────────────────────
 
 interface MusicKitContextType {
-  /** Developer token is stored in localStorage */
   hasToken: boolean;
-  /** MusicKit SDK configured and ready */
   isReady: boolean;
-  /** User has authorised Apple Music access */
   isAuthorized: boolean;
-  /** Playlists are being loaded */
   isLoading: boolean;
-  /** Error string if anything went wrong */
   error: string | null;
-  /** All Maplog songs loaded from Apple Music playlists */
   songs: MaplogSong[];
-  /** Look up a single song by its MusicKit ID */
   getSong: (id: string) => MaplogSong | undefined;
-  /** Open Apple's authorization popup */
   authorize: () => Promise<void>;
-  /** Reload songs from playlists */
   refresh: () => Promise<void>;
-  /** Save a developer token and reload the SDK */
   setDeveloperToken: (token: string) => void;
-  /** The stored developer token (empty string if none) */
   developerToken: string;
+  /** True when running with mock data instead of a real Apple Music account */
+  isDemoMode: boolean;
+  /** Activate demo mode (no token needed) */
+  enterDemoMode: () => void;
+  /** Clear demo mode (returns to Setup screen) */
+  exitDemoMode: () => void;
 }
 
 const MusicKitContext = createContext<MusicKitContextType | null>(null);
@@ -152,6 +138,9 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   const [developerToken, setTokenState] = useState<string>(
     () => import.meta.env.VITE_MUSICKIT_TOKEN || localStorage.getItem(TOKEN_STORAGE_KEY) || '',
   );
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(
+    () => localStorage.getItem(DEMO_MODE_KEY) === 'true',
+  );
   const [isReady, setIsReady] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -159,13 +148,22 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const loadedForToken = useRef<string>('');
 
-  // ── SDK initialisation ───────────────────────────────────────────────────
+  // ── Demo mode shortcut ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!developerToken) return;
+    if (isDemoMode) {
+      setSongs(DEMO_SONGS);
+      setIsReady(true);
+      setIsAuthorized(true);
+      setIsLoading(false);
+    }
+  }, [isDemoMode]);
+
+  // ── SDK initialisation (real mode only) ──────────────────────────────────
+  useEffect(() => {
+    if (!developerToken || isDemoMode) return;
 
     const init = async () => {
       try {
-        // MusicKit loads asynchronously from CDN; wait for it
         await waitForMusicKit();
         await window.MusicKit.configure({
           developerToken,
@@ -181,11 +179,11 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     };
 
     init();
-  }, [developerToken]);
+  }, [developerToken, isDemoMode]);
 
-  // ── Load songs when authorised ───────────────────────────────────────────
+  // ── Load songs when authorised (real mode only) ──────────────────────────
   useEffect(() => {
-    if (!isReady || !isAuthorized || !developerToken) return;
+    if (isDemoMode || !isReady || !isAuthorized || !developerToken) return;
     if (loadedForToken.current === developerToken) return;
 
     const load = async () => {
@@ -205,11 +203,12 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     };
 
     load();
-  }, [isReady, isAuthorized, developerToken]);
+  }, [isReady, isAuthorized, developerToken, isDemoMode]);
 
   // ── Public methods ───────────────────────────────────────────────────────
 
   const authorize = useCallback(async () => {
+    if (isDemoMode) return;
     const music = window.MusicKit?.getInstance();
     if (!music) return;
     try {
@@ -219,9 +218,10 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
       console.error('Authorization failed:', e);
       setError('Authorization failed: ' + (e?.message ?? String(e)));
     }
-  }, []);
+  }, [isDemoMode]);
 
   const refresh = useCallback(async () => {
+    if (isDemoMode) { setSongs([...DEMO_SONGS]); return; }
     loadedForToken.current = '';
     const music = window.MusicKit?.getInstance();
     if (!music?.isAuthorized || !developerToken) return;
@@ -236,16 +236,32 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [developerToken]);
+  }, [developerToken, isDemoMode]);
 
   const setDeveloperToken = useCallback((token: string) => {
     const clean = token.trim();
     localStorage.setItem(TOKEN_STORAGE_KEY, clean);
+    // Leaving demo mode if they paste a real token
+    localStorage.removeItem(DEMO_MODE_KEY);
+    setIsDemoMode(false);
     setTokenState(clean);
     setIsReady(false);
     setIsAuthorized(false);
     setSongs([]);
     loadedForToken.current = '';
+  }, []);
+
+  const enterDemoMode = useCallback(() => {
+    localStorage.setItem(DEMO_MODE_KEY, 'true');
+    setIsDemoMode(true);
+  }, []);
+
+  const exitDemoMode = useCallback(() => {
+    localStorage.removeItem(DEMO_MODE_KEY);
+    setIsDemoMode(false);
+    setSongs([]);
+    setIsReady(false);
+    setIsAuthorized(false);
   }, []);
 
   const getSong = useCallback(
@@ -256,7 +272,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   return (
     <MusicKitContext.Provider
       value={{
-        hasToken: !!developerToken,
+        hasToken: !!developerToken || isDemoMode,
         isReady,
         isAuthorized,
         isLoading,
@@ -267,6 +283,9 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         refresh,
         setDeveloperToken,
         developerToken,
+        isDemoMode,
+        enterDemoMode,
+        exitDemoMode,
       }}
     >
       {children}

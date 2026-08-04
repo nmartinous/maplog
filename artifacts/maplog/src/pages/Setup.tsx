@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useMusicKit } from '@/context/MusicKitContext';
 import { Button } from '@/components/ui/button';
-import { Music2, ExternalLink, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Music2, ExternalLink, ChevronRight, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 
 export default function Setup() {
-  const { setDeveloperToken } = useMusicKit();
+  const { setDeveloperToken, enterDemoMode } = useMusicKit();
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
@@ -12,9 +12,8 @@ export default function Setup() {
   const handleSave = () => {
     const clean = token.trim();
     if (!clean) { setError('Paste your developer token above.'); return; }
-    // Rough JWT format check (three base64 segments)
     if (clean.split('.').length !== 3) {
-      setError('That doesn\'t look like a valid JWT. Make sure you copied the full token.');
+      setError("That doesn't look like a valid JWT. Make sure you copied the full token.");
       return;
     }
     setError('');
@@ -74,6 +73,22 @@ export default function Setup() {
           >
             I have my token <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
+
+          {/* Demo mode separator */}
+          <div className="flex items-center gap-3 pt-1">
+            <div className="flex-1 h-px bg-border/40" />
+            <span className="text-xs text-muted-foreground/50 font-medium">or</span>
+            <div className="flex-1 h-px bg-border/40" />
+          </div>
+
+          <button
+            onClick={enterDemoMode}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-border/50 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border hover:bg-white/[0.03] transition-all"
+          >
+            <Sparkles className="w-4 h-4 text-primary/70" />
+            Try Demo
+            <span className="text-xs font-normal text-muted-foreground/50 ml-1">no account needed</span>
+          </button>
         </div>
       ) : (
         /* ── Step 2: Paste token ──────────────────────────────────────────── */
@@ -129,7 +144,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
       </div>
       <div>
         <p className="font-semibold text-sm mb-1">{title}</p>
-        {/* Use div so block-level children (pre, code blocks) don't cause invalid nesting */}
+        {/* Use div so block-level children (pre) don't cause invalid nesting */}
         <div className="text-sm text-muted-foreground leading-relaxed">{children}</div>
       </div>
     </div>
