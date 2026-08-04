@@ -1,234 +1,100 @@
 import React, { useState, useMemo } from 'react';
-import { useListSongs, useListCollectedCards, Song, CollectedCard } from '@workspace/api-client-react';
 import { Link, useLocation } from 'wouter';
+import { useMusicKit } from '@/context/MusicKitContext';
+import { usePlayer } from '@/context/AudioPlayerContext';
+import type { MaplogSong, MaplogCard } from '@/lib/types';
+import { ALL_CATEGORIES } from '@/lib/rarityMap';
 import { RarityBadge } from '@/components/RarityBadge';
 import { Input } from '@/components/ui/input';
-import { Search, Play, Library, Plus, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { usePlayer } from '@/context/AudioPlayerContext';
 import { Button } from '@/components/ui/button';
+import { Search, Play, Library, Loader2, RefreshCw, Music2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const CATEGORIES = ['All', 'Regular', 'Shiny', 'Epic', 'Special Edition', 'Special Epic', 'Streak Epic', 'Lyric', 'Radiant', 'Moment'];
+// ── Album art thumbnail ───────────────────────────────────────────────────────
 
-// Deterministic gradient from artist name for album art placeholder
-function artistGradient(artist: string): [string, string] {
-  let hash = 0;
-  for (let i = 0; i < artist.length; i++) {
-    hash = artist.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const palettes: [string, string][] = [
-    ['#1a0533', '#0d1f3c'], // purple→navy
-    ['#0f2b1a', '#0a1a2e'], // green→navy
-    ['#2b0f0f', '#1a0e2b'], // red→purple
-    ['#1a1a0a', '#0a2020'], // olive→teal
-    ['#0f1a2b', '#1a0f2b'], // blue→purple
-    ['#2b1a0a', '#1a0f0a'], // amber→brown
-    ['#0a1a0a', '#0f0f2b'], // green→blue
-    ['#2b0a1a', '#0f1a1a'], // pink→teal
-  ];
-  return palettes[Math.abs(hash) % palettes.length];
-}
-
-// Modifier stamps that appear on the album art thumbnail
-function ModifierStamp({ label, size }: { label: string; size: number }) {
-  const s = size;
-
-  if (label.startsWith('#')) {
-    // Numbered epic badge — top-right corner
-    return (
-      <div
-        className="absolute -top-1.5 -right-1.5 bg-amber-400 text-black font-black rounded-full leading-none flex items-center justify-center"
-        style={{ fontSize: Math.max(7, s * 0.135), padding: '2px 5px' }}
-      >
-        {label}
-      </div>
-    );
-  }
-
-  if (label === 'Week 1') {
-    return (
-      <div
-        className="absolute bottom-0 left-0 bg-white/90 text-black font-black uppercase tracking-wider rounded-tr-lg rounded-bl-xl leading-none"
-        style={{ fontSize: Math.max(6, s * 0.12), padding: '2px 5px 2px 4px' }}
-      >
-        WEEK 1
-      </div>
-    );
-  }
-
-  if (label === 'Day 1') {
-    const r = Math.round(s * 0.44);
-    return (
-      <svg
-        className="absolute bottom-0.5 left-0.5"
-        width={r} height={r}
-        viewBox="0 0 40 40"
-        aria-label="Day 1"
-      >
-        <circle cx="20" cy="20" r="19" fill="#d4a017" />
-        <circle cx="20" cy="20" r="19" fill="none" stroke="#8b6600" strokeWidth="0.8" />
-        <circle cx="20" cy="20" r="14" fill="none" stroke="#8b6600" strokeWidth="0.6" strokeDasharray="2.5 2" />
-        <text x="20" y="17.5" textAnchor="middle" fontSize="7" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">DAY</text>
-        <text x="20" y="26" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">1</text>
-        <path id="cp" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
-        <text fontSize="4" fontWeight="700" fill="#1a0800" fontFamily="sans-serif" letterSpacing="1.2">
-          <textPath href="#cp" startOffset="5%">RELEASE EDITION · RELEASE EDITION ·</textPath>
-        </text>
-      </svg>
-    );
-  }
-
-  if (label === 'April Fools') {
-    return (
-      <div
-        className="absolute bottom-0.5 right-0.5 leading-none select-none"
-        style={{ fontSize: Math.round(s * 0.38) }}
-        title="April Fools"
-      >
-        🤡
-      </div>
-    );
-  }
-
-  if (label === 'Halloween') {
-    return (
-      <div
-        className="absolute bottom-0.5 right-0.5 leading-none select-none"
-        style={{ fontSize: Math.round(s * 0.38) }}
-        title="Halloween"
-      >
-        🕷️
-      </div>
-    );
-  }
-
-  if (label === 'Pridemap') {
-    return (
-      <div className="absolute bottom-0 left-0 right-0 h-[4px] rounded-b-xl overflow-hidden">
-        <div
-          className="w-full h-full"
-          style={{
-            background: 'linear-gradient(90deg, #e40303 0%, #ff8c00 17%, #ffed00 33%, #008026 50%, #004dff 67%, #750787 83%, #e40303 100%)',
-          }}
-        />
-      </div>
-    );
-  }
-
-  if (label === 'Grammy') {
-    const r = Math.round(s * 0.44);
-    return (
-      <svg
-        className="absolute bottom-0.5 right-0.5"
-        width={r} height={r}
-        viewBox="0 0 40 40"
-        aria-label="Grammy"
-      >
-        <circle cx="20" cy="20" r="19" fill="#c8a400" />
-        <circle cx="20" cy="20" r="19" fill="none" stroke="#7a6000" strokeWidth="0.8" />
-        <circle cx="20" cy="20" r="14" fill="none" stroke="#7a6000" strokeWidth="0.6" strokeDasharray="2.5 2" />
-        <text x="20" y="18" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">GRAM</text>
-        <text x="20" y="26" textAnchor="middle" fontSize="6" fontWeight="900" fill="#1a0f00" fontFamily="sans-serif">MY</text>
-        <path id="gcpv" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
-        <text fontSize="4" fontWeight="700" fill="#1a0f00" fontFamily="sans-serif" letterSpacing="1">
-          <textPath href="#gcpv" startOffset="5%">RECORDING ACADEMY · RECORDING ACADEMY ·</textPath>
-        </text>
-      </svg>
-    );
-  }
-
-  if (label === 'Lovers') {
-    return (
-      <div
-        className="absolute bottom-0.5 right-0.5 leading-none select-none"
-        style={{ fontSize: Math.round(s * 0.38) }}
-        title="Lovers"
-      >
-        🩷
-      </div>
-    );
-  }
-
-  return null;
-}
-
-function AlbumArt({ song, topCard, size = 56 }: { song: Song; topCard?: CollectedCard; size?: number }) {
-  const artworkUrl = topCard?.artworkUrl;
-  const [from, to] = artistGradient(song.artist);
-  const initials = song.title.charAt(0).toUpperCase();
-  const label = topCard?.variantLabel ?? null;
-
+function AlbumArt({ song, topCard, size = 56 }: { song: MaplogSong; topCard?: MaplogCard; size?: number }) {
+  const url = topCard?.artworkUrl ?? song.artworkUrl;
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
-      {artworkUrl ? (
-        <img
-          src={artworkUrl}
-          alt={song.title}
-          className="w-full h-full object-cover rounded-xl"
-        />
+      {url ? (
+        <img src={url} alt={song.title} className="w-full h-full object-cover rounded-xl" />
       ) : (
-        <div
-          className="w-full h-full rounded-xl flex items-center justify-center"
-          style={{ background: `linear-gradient(135deg, ${from} 0%, ${to} 100%)` }}
-        >
-          <span className="text-white/60 font-bold" style={{ fontSize: size * 0.38 }}>
-            {initials}
-          </span>
+        <div className="w-full h-full rounded-xl bg-muted flex items-center justify-center">
+          <Music2 className="w-5 h-5 text-muted-foreground/40" />
         </div>
       )}
-
-      {/* Modifier stamp overlay */}
-      {label && <ModifierStamp label={label} size={size} />}
     </div>
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function Collection() {
-  const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
+  const { songs, isLoading, isAuthorized, isReady, authorize, refresh, error } = useMusicKit();
   const { play } = usePlayer();
   const [, setLocation] = useLocation();
+  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
 
-  const { data: songs, isLoading: isLoadingSongs } = useListSongs({ limit: 1000 });
-  const { data: allCards, isLoading: isLoadingCards } = useListCollectedCards({ limit: 5000 });
-
+  // ── Filter + sort ──────────────────────────────────────────────────────────
   const displayData = useMemo(() => {
-    if (!songs || !allCards) return [];
+    const q = search.toLowerCase();
+    return songs
+      .filter(song => {
+        if (q && !song.title.toLowerCase().includes(q) && !song.artist.toLowerCase().includes(q)) return false;
+        if (activeCategory !== 'All') {
+          if (!song.cards.some(c => c.rarityType.category === activeCategory)) return false;
+        }
+        return true;
+      })
+      .map(song => {
+        // topCard = highest-tier card (cards are already sorted tier desc)
+        const filtered = activeCategory === 'All'
+          ? song.cards
+          : song.cards.filter(c => c.rarityType.category === activeCategory);
+        return { song, topCard: filtered[0] ?? song.cards[0] };
+      });
+  }, [songs, search, activeCategory]);
 
-    const cardsBySongId = new Map<number, CollectedCard[]>();
-    for (const card of allCards) {
-      if (!cardsBySongId.has(card.songId)) cardsBySongId.set(card.songId, []);
-      cardsBySongId.get(card.songId)!.push(card);
-    }
-
-    const filtered = songs.filter(song => {
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return song.title.toLowerCase().includes(q) || song.artist.toLowerCase().includes(q);
-    });
-
-    const items = filtered.map(song => {
-      const cards = (cardsBySongId.get(song.id) || [])
-        .slice()
-        .sort((a, b) => b.rarityType.tier - a.rarityType.tier);
-      return { song, topCard: cards[0], cards };
-    });
-
-    if (activeCategory === 'All') return items;
-    return items.filter(item => item.cards.some(c => c.rarityType.category === activeCategory));
-  }, [songs, allCards, search, activeCategory]);
-
-  const isLoading = isLoadingSongs || isLoadingCards;
-
-  const handlePlay = (e: React.MouseEvent, song: Song) => {
+  const handlePlay = (e: React.MouseEvent, song: MaplogSong) => {
     e.preventDefault();
     e.stopPropagation();
-    play(song);
+    play(song, songs);
     setLocation('/');
   };
 
+  // ── Not yet authorized ─────────────────────────────────────────────────────
+  if (isReady && !isAuthorized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[100dvh] px-8 text-center">
+        <div className="w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
+          <Music2 className="w-10 h-10 text-primary" />
+        </div>
+        <h2 className="text-2xl font-extrabold mb-2">Connect Apple Music</h2>
+        <p className="text-muted-foreground text-sm mb-8 max-w-xs leading-relaxed">
+          Sign in with your Apple Music account to load your Maplog card collection.
+        </p>
+        <Button size="lg" className="rounded-full font-bold px-8" onClick={authorize}>
+          Sign in with Apple Music
+        </Button>
+        {error && <p className="text-destructive text-sm mt-4">{error}</p>}
+      </div>
+    );
+  }
+
+  // ── SDK not ready yet ──────────────────────────────────────────────────────
+  if (!isReady && !error) {
+    return (
+      <div className="flex items-center justify-center min-h-[100dvh]">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // ── Main collection view ───────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full min-h-[100dvh] animate-in fade-in">
+
       {/* Header */}
       <div className="px-4 pt-6 pb-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div>
@@ -239,12 +105,14 @@ export default function Collection() {
             </p>
           )}
         </div>
-        <Link href="/add">
-          <Button size="sm" className="rounded-full gap-1.5 font-semibold">
-            <Plus className="h-4 w-4" />
-            Add
-          </Button>
-        </Link>
+        <button
+          onClick={refresh}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/8 transition-all"
+          aria-label="Refresh collection"
+          disabled={isLoading}
+        >
+          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+        </button>
       </div>
 
       {/* Search */}
@@ -260,9 +128,9 @@ export default function Collection() {
         </div>
       </div>
 
-      {/* Category filter chips */}
+      {/* Category chips */}
       <div className="flex overflow-x-auto pb-3 gap-2 px-4 sm:px-6 lg:px-8 scrollbar-hide shrink-0">
-        {CATEGORIES.map(cat => (
+        {ALL_CATEGORIES.map(cat => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
@@ -279,10 +147,16 @@ export default function Collection() {
       </div>
 
       {/* Song list */}
-      <div className="flex-1 overflow-y-auto pb-24 sm:pb-8">
+      <div className="flex-1 overflow-y-auto pb-36 sm:pb-8">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Loading your collection…</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+            <p className="text-destructive text-sm mb-4">{error}</p>
+            <Button variant="outline" size="sm" onClick={refresh}>Try again</Button>
           </div>
         ) : displayData.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
@@ -290,46 +164,35 @@ export default function Collection() {
               <Library className="w-8 h-8 text-muted-foreground/50" />
             </div>
             <h2 className="text-xl font-bold mb-2">
-              {search || activeCategory !== 'All' ? 'No matches' : 'Collection is empty'}
+              {search || activeCategory !== 'All' ? 'No matches' : 'No cards yet'}
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs">
               {search || activeCategory !== 'All'
                 ? 'Try different search terms or clear the filter.'
-                : 'Add your first song to get started.'}
+                : 'Create playlists named "Maplog · Common", "Maplog · Rare", etc. in Apple Music and tap refresh.'}
             </p>
-            {search || activeCategory !== 'All' ? (
+            {(search || activeCategory !== 'All') && (
               <Button variant="outline" size="sm" onClick={() => { setSearch(''); setActiveCategory('All'); }}>
                 Clear filters
               </Button>
-            ) : (
-              <Link href="/add">
-                <Button size="sm" className="rounded-full font-bold px-6">Add Song</Button>
-              </Link>
             )}
           </div>
         ) : (
           <div>
             {displayData.map(({ song, topCard }, i) => (
-              <Link key={song.id} href={`/song/${song.id}`}>
+              <Link key={song.id} href={`/song/${encodeURIComponent(song.id)}`}>
                 <div className={cn(
                   'flex items-center gap-3.5 px-4 sm:px-6 lg:px-8 py-3 transition-colors',
                   'hover:bg-white/[0.04] active:bg-white/[0.06]',
                   i !== displayData.length - 1 && 'border-b border-border/20'
                 )}>
-                  {/* Album art */}
                   <AlbumArt song={song} topCard={topCard} size={56} />
 
-                  {/* Title / artist */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[15px] leading-tight truncate text-foreground">
-                      {song.title}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate mt-0.5 leading-tight">
-                      {song.artist}
-                    </p>
+                    <p className="font-bold text-[15px] leading-tight truncate text-foreground">{song.title}</p>
+                    <p className="text-sm text-muted-foreground truncate mt-0.5 leading-tight">{song.artist}</p>
                   </div>
 
-                  {/* Rarity badge */}
                   {topCard ? (
                     <RarityBadge
                       slug={topCard.rarityType.slug}
@@ -340,7 +203,6 @@ export default function Collection() {
                     <span className="text-xs text-muted-foreground/50 shrink-0">—</span>
                   )}
 
-                  {/* Play button */}
                   <button
                     onClick={e => handlePlay(e, song)}
                     className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all"

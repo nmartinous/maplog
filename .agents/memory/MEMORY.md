@@ -1,1 +1,2 @@
 - [Rarity System](rarity-system.md) — base (common/uncommon/rare) + modifiers (shiny/day1/aprilfools add) + overrides (epic/lyric/radiant replace)
+- [MusicKit Architecture](musickit-architecture.md) — Apple Music as the data layer; playlists→cards, MaplogSong type, token setup, playback engine

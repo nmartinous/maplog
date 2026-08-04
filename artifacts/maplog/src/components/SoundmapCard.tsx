@@ -1,11 +1,11 @@
 import React from 'react';
-import { CollectedCard } from '@workspace/api-client-react';
+import type { MaplogCard } from '@/lib/types';
 import { RarityBadge } from '@/components/RarityBadge';
 import { useArtColor } from '@/lib/useArtColor';
 import { cn } from '@/lib/utils';
 import { Disc3 } from 'lucide-react';
 
-// ── Variant label routing ─────────────────────────────────────────────────────
+// ── Variant label routing ──────────────────────────────────────────────────────
 
 const BADGE_LABEL_OVERRIDES = new Set(['Freshman']);
 
@@ -18,32 +18,26 @@ const STAMP_LABELS = new Set([
 function ArtStamp({ label, cardWidth }: { label: string; cardWidth: number }) {
   const stampSize = Math.max(32, cardWidth * 0.26);
 
-  if (label === 'Week 1') {
-    return (
-      <div
-        className="absolute bottom-0 left-0 bg-white/90 text-black font-black uppercase tracking-wider rounded-tr-lg leading-none z-10"
-        style={{ fontSize: Math.max(7, cardWidth * 0.065), padding: '3px 7px 3px 5px' }}
-      >
-        WEEK 1
-      </div>
-    );
-  }
-  if (label === 'Day 1') {
-    return (
-      <svg className="absolute bottom-2 left-2 z-10 drop-shadow-md"
-        width={stampSize} height={stampSize} viewBox="0 0 40 40" aria-label="Day 1">
-        <circle cx="20" cy="20" r="19" fill="#d4a017" />
-        <circle cx="20" cy="20" r="19" fill="none" stroke="#8b6600" strokeWidth="0.8" />
-        <circle cx="20" cy="20" r="14" fill="none" stroke="#8b6600" strokeWidth="0.6" strokeDasharray="2.5 2" />
-        <text x="20" y="17.5" textAnchor="middle" fontSize="7" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">DAY</text>
-        <text x="20" y="26" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">1</text>
-        <path id="cpc-s" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
-        <text fontSize="4" fontWeight="700" fill="#1a0800" fontFamily="sans-serif" letterSpacing="1.2">
-          <textPath href="#cpc-s" startOffset="5%">RELEASE EDITION · RELEASE EDITION ·</textPath>
-        </text>
-      </svg>
-    );
-  }
+  if (label === 'Week 1') return (
+    <div className="absolute bottom-0 left-0 bg-white/90 text-black font-black uppercase tracking-wider rounded-tr-lg leading-none z-10"
+      style={{ fontSize: Math.max(7, cardWidth * 0.065), padding: '3px 7px 3px 5px' }}>
+      WEEK 1
+    </div>
+  );
+  if (label === 'Day 1') return (
+    <svg className="absolute bottom-2 left-2 z-10 drop-shadow-md"
+      width={stampSize} height={stampSize} viewBox="0 0 40 40" aria-label="Day 1">
+      <circle cx="20" cy="20" r="19" fill="#d4a017" />
+      <circle cx="20" cy="20" r="19" fill="none" stroke="#8b6600" strokeWidth="0.8" />
+      <circle cx="20" cy="20" r="14" fill="none" stroke="#8b6600" strokeWidth="0.6" strokeDasharray="2.5 2" />
+      <text x="20" y="17.5" textAnchor="middle" fontSize="7" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">DAY</text>
+      <text x="20" y="26" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a0800" fontFamily="sans-serif">1</text>
+      <path id="cpc-s" d="M20,20 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" fill="none" />
+      <text fontSize="4" fontWeight="700" fill="#1a0800" fontFamily="sans-serif" letterSpacing="1.2">
+        <textPath href="#cpc-s" startOffset="5%">RELEASE EDITION · RELEASE EDITION ·</textPath>
+      </text>
+    </svg>
+  );
   if (label === 'April Fools') return (
     <div className="absolute bottom-2 right-2 z-10 leading-none select-none drop-shadow-lg"
       style={{ fontSize: stampSize }} title="April Fools">🤡</div>
@@ -102,10 +96,10 @@ function rarityFallbackColor(slug: string): string {
   return map[slug] || '#444444';
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Component ──────────────────────────────────────────────────────────────────
 
 interface SoundmapCardProps {
-  card: CollectedCard;
+  card: MaplogCard;
   title: string;
   artist: string;
   genre?: string | null;
@@ -113,13 +107,10 @@ interface SoundmapCardProps {
   size?: 'sm' | 'md' | 'lg' | 'hero';
 }
 
-export function SoundmapCard({
-  card, title, artist, genre, className, size = 'md',
-}: SoundmapCardProps) {
+export function SoundmapCard({ card, title, artist, genre, className, size = 'md' }: SoundmapCardProps) {
   const fallbackBorder = rarityFallbackColor(card.rarityType.slug);
-  const borderColor = useArtColor(card.artworkUrl, fallbackBorder);
+  const borderColor = useArtColor(card.artworkUrl ?? null, fallbackBorder);
 
-  // Width-only classes — height is driven by content (square art + info)
   const sizeClasses = {
     sm:   'w-24 rounded-xl',
     md:   'w-40 rounded-2xl',
@@ -127,18 +118,12 @@ export function SoundmapCard({
     hero: 'w-[280px] sm:w-[320px] rounded-3xl',
   };
 
-  // Inner art corner radius (slightly smaller than card to match inset feel)
   const artRadius = {
-    sm:   'rounded-lg',
-    md:   'rounded-xl',
-    lg:   'rounded-xl',
-    hero: 'rounded-2xl',
+    sm: 'rounded-lg', md: 'rounded-xl', lg: 'rounded-xl', hero: 'rounded-2xl',
   };
 
-  // Padding around the art
-  const artPad = size === 'sm' ? 'p-1.5' : 'p-2';
-
-  const widthMap = { sm: 96, md: 160, lg: 256, hero: 300 };
+  const artPad    = size === 'sm' ? 'p-1.5' : 'p-2';
+  const widthMap  = { sm: 96, md: 160, lg: 256, hero: 300 };
   const cardWidth = widthMap[size];
 
   const titleSize  = size === 'hero' ? 'text-xl'  : size === 'lg' ? 'text-base' : 'text-sm';
@@ -161,8 +146,7 @@ export function SoundmapCard({
         background: `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
       }}
     >
-      {/* ── Art section with inset padding ───────────────────────────────── */}
-      {/* No explicit bg — inherits card tint so the padding blends in */}
+      {/* Art section */}
       <div className={artPad}>
         <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
           {card.artworkUrl ? (
@@ -173,42 +157,29 @@ export function SoundmapCard({
               crossOrigin="anonymous"
             />
           ) : (
-            <div
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ background: `linear-gradient(160deg, ${borderColor}22 0%, #0d0d0d 100%)` }}
-            >
-              <Disc3
-                className="opacity-[0.07]"
-                style={{ width: '55%', height: '55%', color: borderColor }}
-              />
+            <div className="absolute inset-0 flex items-center justify-center"
+              style={{ background: `linear-gradient(160deg, ${borderColor}22 0%, #0d0d0d 100%)` }}>
+              <Disc3 className="opacity-[0.07]" style={{ width: '55%', height: '55%', color: borderColor }} />
             </div>
           )}
 
-          {/* Numbered epic badge — top right of art */}
           {card.variantLabel?.startsWith('#') && (
             <div className="absolute top-1.5 right-1.5 z-10 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
               {card.variantLabel}
             </div>
           )}
 
-          {/* Modifier stamps */}
           {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
             <ArtStamp label={card.variantLabel} cardWidth={cardWidth} />
           )}
         </div>
       </div>
 
-      {/* ── Info section — centered, inherits card bg ────────────────────── */}
+      {/* Info section */}
       {showInfo && (
         <div className="px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center">
-          <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>
-            {title}
-          </p>
-          <p className={cn('text-white/55 leading-tight truncate w-full', artistSize)}>
-            {artist}
-          </p>
-
-          {/* Rarity badge + genre */}
+          <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>{title}</p>
+          <p className={cn('text-white/55 leading-tight truncate w-full', artistSize)}>{artist}</p>
           <div className="flex items-center justify-center gap-1.5 flex-wrap mt-0.5">
             <RarityBadge
               slug={card.rarityType.slug}
