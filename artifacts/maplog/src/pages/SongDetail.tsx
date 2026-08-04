@@ -127,8 +127,10 @@ export default function SongDetail() {
                     <SoundmapCard 
                       card={card} 
                       title={songDetail.title} 
-                      artist={songDetail.artist} 
+                      artist={songDetail.artist}
+                      genre={songDetail.genre}
                       size="lg"
+                      onPlay={handlePlay}
                       className={`transition-all duration-300 ${i === activeSnap ? 'scale-100 opacity-100' : 'scale-90 opacity-60'}`}
                     />
                   </div>

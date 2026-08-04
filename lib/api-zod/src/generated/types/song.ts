@@ -13,6 +13,8 @@ export interface Song {
   /** @nullable */
   album?: string | null;
   /** @nullable */
+  genre?: string | null;
+  /** @nullable */
   durationMs?: number | null;
   /** @nullable */
   audioUrl?: string | null;

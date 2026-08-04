@@ -2,22 +2,20 @@ import React from 'react';
 import { CollectedCard } from '@workspace/api-client-react';
 import { RarityBadge } from '@/components/RarityBadge';
 import { cn } from '@/lib/utils';
-import { Disc3 } from 'lucide-react';
+import { Disc3, Play } from 'lucide-react';
 
 // Variant Epic label overrides: badge text changes to the variant name
-// (these are epic-tier variants — Freshman shows "Freshman" in the badge, etc.)
 const BADGE_LABEL_OVERRIDES = new Set([
   'Freshman',
 ]);
 
-// Variant Regular stamps: overlay on the card art, base rarity badge unchanged
-// Includes event modifiers (Week 1, Day 1, April Fools, Halloween),
-// variant regulars (Grammy, Lovers), and Epic visual modifiers (Pridemap)
+// Variant Regular / event stamps: overlay on card art, base rarity badge unchanged
 const STAMP_LABELS = new Set([
   'Week 1', 'Day 1', 'April Fools', 'Halloween', 'Pridemap', 'Grammy', 'Lovers',
 ]);
 
-/** Modifier stamp rendered directly on the card face */
+// ── Modifier stamp overlay ────────────────────────────────────────────────────
+
 function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: number }) {
   const stampSize = Math.max(32, cardWidth * 0.28);
 
@@ -126,25 +124,9 @@ function CardModifierStamp({ label, cardWidth }: { label: string; cardWidth: num
   return null;
 }
 
-interface SoundmapCardProps {
-  card: CollectedCard;
-  title: string;
-  artist: string;
-  className?: string;
-  size?: 'sm' | 'md' | 'lg' | 'hero';
-}
+// ── Card backgrounds ──────────────────────────────────────────────────────────
 
-function parseThemeConfig(config: any) {
-  return {
-    borderColor: config?.borderColor || '#444',
-    glowColor: config?.glowColor || 'rgba(0,0,0,0)',
-    hasShimmer: config?.hasShimmer === true,
-    isPrismatic: config?.isPrismatic === true,
-  };
-}
-
-// Returns a CSS background string for the card body based on rarity
-function cardBackground(slug: string, borderColor: string): string {
+function cardBackground(slug: string): string {
   const map: Record<string, string> = {
     'regular-common':   'linear-gradient(160deg, #0d1f0d 0%, #0a120a 100%)',
     'regular-uncommon': 'linear-gradient(160deg, #1a0f2e 0%, #0f0a1a 100%)',
@@ -159,12 +141,34 @@ function cardBackground(slug: string, borderColor: string): string {
     'streak-epic':      'linear-gradient(160deg, #2e1000 0%, #1f0a00 100%)',
     'radiant':          'linear-gradient(160deg, #0f0f14 0%, #0a0a10 100%)',
     'lyric':            'linear-gradient(160deg, #000f1f 0%, #001428 100%)',
-    'moment':           'linear-gradient(160deg, #1a0f2e 0%, #0a0014 100%)',
+    'moment':           'linear-gradient(160deg, #150005 0%, #080010 100%)',
   };
-  return map[slug] || `linear-gradient(160deg, #111 0%, #090909 100%)`;
+  return map[slug] || 'linear-gradient(160deg, #111 0%, #090909 100%)';
 }
 
-export function SoundmapCard({ card, title, artist, className, size = 'md' }: SoundmapCardProps) {
+function parseThemeConfig(config: any) {
+  return {
+    borderColor: config?.borderColor || '#444',
+    glowColor: config?.glowColor || 'rgba(0,0,0,0)',
+    hasShimmer: config?.hasShimmer === true,
+    isPrismatic: config?.isPrismatic === true,
+  };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+interface SoundmapCardProps {
+  card: CollectedCard;
+  title: string;
+  artist: string;
+  genre?: string | null;
+  className?: string;
+  size?: 'sm' | 'md' | 'lg' | 'hero';
+  /** When provided, a play button appears on the card */
+  onPlay?: () => void;
+}
+
+export function SoundmapCard({ card, title, artist, genre, className, size = 'md', onPlay }: SoundmapCardProps) {
   const theme = parseThemeConfig(card.rarityType.themeConfig);
 
   const sizeClasses = {
@@ -174,6 +178,9 @@ export function SoundmapCard({ card, title, artist, className, size = 'md' }: So
     hero: 'w-[280px] sm:w-[320px] aspect-[2/3] rounded-3xl',
   };
 
+  // Map size to approximate pixel width for stamp sizing
+  const widthMap = { sm: 96, md: 160, lg: 256, hero: 300 };
+
   return (
     <div
       className={cn(
@@ -182,7 +189,7 @@ export function SoundmapCard({ card, title, artist, className, size = 'md' }: So
         className
       )}
       style={{
-        background: cardBackground(card.rarityType.slug, theme.borderColor),
+        background: cardBackground(card.rarityType.slug),
         border: `2px solid ${theme.borderColor}`,
         boxShadow: `0 0 24px -6px ${theme.glowColor}, 0 0 0 1px ${theme.borderColor}22`,
       }}
@@ -196,7 +203,7 @@ export function SoundmapCard({ card, title, artist, className, size = 'md' }: So
         />
       )}
 
-      {/* Shimmer overlay for shiny / epic types */}
+      {/* Shimmer for shiny / epic types */}
       {theme.hasShimmer && (
         <div className="absolute inset-0 z-10 shimmer-bg pointer-events-none mix-blend-soft-light opacity-60" />
       )}
@@ -220,9 +227,6 @@ export function SoundmapCard({ card, title, artist, className, size = 'md' }: So
           name={card.rarityType.name}
           category={card.rarityType.category}
           size={size === 'sm' ? 'sm' : 'md'}
-          // Named variants (Grammy, Freshman, Lovers) override the badge label.
-          // Stamp modifiers (Week 1, Day 1, April Fools, Halloween, Pridemap) and
-          // numbered variants (#031) are handled separately — badge stays as rarity name.
           labelOverride={
             card.variantLabel && BADGE_LABEL_OVERRIDES.has(card.variantLabel)
               ? card.variantLabel
@@ -238,51 +242,71 @@ export function SoundmapCard({ card, title, artist, className, size = 'md' }: So
         </div>
       )}
 
-      {/* Modifier stamp — corner sticker for Week 1, Day 1, April Fools, Halloween, Pridemap */}
-      {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (() => {
-        // Map size name → approximate card pixel width for stamp sizing
-        const widthMap = { sm: 96, md: 160, lg: 256, hero: 300 };
-        return <CardModifierStamp label={card.variantLabel} cardWidth={widthMap[size]} />;
-      })()}
+      {/* Modifier stamp (Week 1, Day 1, April Fools, Halloween, Pridemap, Grammy, Lovers) */}
+      {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
+        <CardModifierStamp label={card.variantLabel} cardWidth={widthMap[size]} />
+      )}
 
-      {/* Fallback center icon when no artwork */}
+      {/* Fallback center disc icon when no artwork */}
       {!card.artworkUrl && (
         <div className="absolute inset-0 z-0 flex items-center justify-center">
           <Disc3
             className="opacity-[0.06]"
-            style={{
-              width: '55%',
-              height: '55%',
-              color: theme.borderColor,
-            }}
+            style={{ width: '55%', height: '55%', color: theme.borderColor }}
           />
         </div>
       )}
 
-      {/* Bottom title/artist overlay */}
-      <div
-        className="relative z-20 px-3 pb-3 pt-12"
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)',
-        }}
-      >
-        {size !== 'sm' && (
-          <>
-            <p className={cn(
-              'font-bold truncate leading-tight mb-0.5',
-              size === 'hero' ? 'text-xl' : size === 'lg' ? 'text-base' : 'text-sm'
-            )}>
-              {title}
-            </p>
-            <p className={cn(
-              'text-white/60 truncate leading-tight',
-              size === 'hero' ? 'text-sm' : 'text-xs'
-            )}>
-              {artist}
-            </p>
-          </>
-        )}
-      </div>
+      {/* Bottom info — title, artist, genre, play */}
+      {size !== 'sm' && (
+        <div
+          className="relative z-20 px-3 pb-3 pt-10"
+          style={{
+            background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)',
+          }}
+        >
+          <p className={cn(
+            'font-bold truncate leading-tight mb-0.5',
+            size === 'hero' ? 'text-xl' : size === 'lg' ? 'text-base' : 'text-sm'
+          )}>
+            {title}
+          </p>
+          <p className={cn(
+            'text-white/60 truncate leading-tight',
+            size === 'hero' ? 'text-sm' : 'text-xs'
+          )}>
+            {artist}
+          </p>
+
+          {/* Genre + play row */}
+          {(genre || onPlay) && (
+            <div className="flex items-center justify-between mt-2 gap-2">
+              {genre ? (
+                <span className={cn(
+                  'shrink-0 rounded-full font-semibold bg-white/10 text-white/70 border border-white/15 leading-none',
+                  size === 'hero' ? 'text-[11px] px-2.5 py-1' : 'text-[10px] px-2 py-0.5'
+                )}>
+                  {genre}
+                </span>
+              ) : <span />}
+
+              {onPlay && (
+                <button
+                  onClick={e => { e.stopPropagation(); onPlay(); }}
+                  className={cn(
+                    'shrink-0 rounded-full bg-white text-black flex items-center justify-center',
+                    'hover:scale-110 active:scale-95 transition-transform shadow-md',
+                    size === 'hero' ? 'w-10 h-10' : size === 'lg' ? 'w-9 h-9' : 'w-7 h-7'
+                  )}
+                  aria-label="Play"
+                >
+                  <Play className={cn('fill-current ml-0.5', size === 'hero' ? 'w-5 h-5' : size === 'lg' ? 'w-4 h-4' : 'w-3 h-3')} />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

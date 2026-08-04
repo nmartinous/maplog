@@ -74,6 +74,7 @@ export default function AddSong() {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [album, setAlbum] = useState('');
+  const [genre, setGenre] = useState('');
   const [audioUrl, setAudioUrl] = useState('');
 
   // Card drafts (for adding new cards inline)
@@ -103,6 +104,7 @@ export default function AddSong() {
       setTitle(existingSong.title || '');
       setArtist(existingSong.artist || '');
       setAlbum(existingSong.album || '');
+      setGenre(existingSong.genre || '');
       setAudioUrl(existingSong.audioUrl || '');
       setSavedSongId(existingSong.id);
       // Populate existing cards
@@ -134,14 +136,14 @@ export default function AddSong() {
       if (isEdit && editId) {
         await updateSong.mutateAsync({
           id: Number(editId),
-          data: { title: title.trim(), artist: artist.trim(), album: album.trim() || undefined, audioUrl: audioUrl.trim() || undefined },
+          data: { title: title.trim(), artist: artist.trim(), album: album.trim() || undefined, genre: genre.trim() || undefined, audioUrl: audioUrl.trim() || undefined },
         });
         setSavedSongId(Number(editId));
         toast.success('Song updated!');
         queryClient.invalidateQueries({ queryKey: getGetSongQueryKey(Number(editId)) });
       } else {
         const newSong = await createSong.mutateAsync({
-          data: { title: title.trim(), artist: artist.trim(), album: album.trim() || undefined, audioUrl: audioUrl.trim() || undefined },
+          data: { title: title.trim(), artist: artist.trim(), album: album.trim() || undefined, genre: genre.trim() || undefined, audioUrl: audioUrl.trim() || undefined },
         });
         setSavedSongId(newSong.id);
         toast.success('Song saved! Now add your cards below.');
@@ -314,6 +316,16 @@ export default function AddSong() {
               value={album}
               onChange={e => setAlbum(e.target.value)}
               placeholder="this is what ____ feels like"
+              className="h-11"
+              disabled={songSaved && !isEdit}
+            />
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel>Genre</FieldLabel>
+            <Input
+              value={genre}
+              onChange={e => setGenre(e.target.value)}
+              placeholder="e.g. Jazz, Pop, Hip-Hop"
               className="h-11"
               disabled={songSaved && !isEdit}
             />

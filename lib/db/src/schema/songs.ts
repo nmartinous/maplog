@@ -7,6 +7,7 @@ export const songsTable = pgTable("songs", {
   title: text("title").notNull(),
   artist: text("artist").notNull(),
   album: text("album"),
+  genre: text("genre"),
   durationMs: integer("duration_ms"),
   audioUrl: text("audio_url"),
   appleMusicId: text("apple_music_id"),

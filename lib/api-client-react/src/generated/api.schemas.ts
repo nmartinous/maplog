@@ -16,6 +16,8 @@ export interface Song {
   /** @nullable */
   album?: string | null;
   /** @nullable */
+  genre?: string | null;
+  /** @nullable */
   durationMs?: number | null;
   /** @nullable */
   audioUrl?: string | null;
@@ -65,6 +67,8 @@ export interface SongDetail {
   /** @nullable */
   album?: string | null;
   /** @nullable */
+  genre?: string | null;
+  /** @nullable */
   durationMs?: number | null;
   /** @nullable */
   audioUrl?: string | null;
@@ -80,6 +84,7 @@ export interface SongInput {
   /** @minLength 1 */
   artist: string;
   album?: string;
+  genre?: string;
   durationMs?: number;
   audioUrl?: string;
   appleMusicId?: string;
@@ -91,6 +96,7 @@ export interface SongUpdate {
   /** @minLength 1 */
   artist?: string;
   album?: string;
+  genre?: string;
   durationMs?: number;
   audioUrl?: string;
   appleMusicId?: string;

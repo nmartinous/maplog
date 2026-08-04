@@ -14,6 +14,8 @@ export interface SongDetail {
   /** @nullable */
   album?: string | null;
   /** @nullable */
+  genre?: string | null;
+  /** @nullable */
   durationMs?: number | null;
   /** @nullable */
   audioUrl?: string | null;

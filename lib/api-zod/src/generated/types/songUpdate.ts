@@ -12,6 +12,7 @@ export interface SongUpdate {
   /** @minLength 1 */
   artist?: string;
   album?: string;
+  genre?: string;
   durationMs?: number;
   audioUrl?: string;
   appleMusicId?: string;

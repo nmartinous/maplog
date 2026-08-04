@@ -479,6 +479,7 @@ components:
         title: { type: string }
         artist: { type: string }
         album: { type: ["string", "null"] }
+        genre: { type: ["string", "null"] }
         durationMs: { type: ["integer", "null"] }
         audioUrl: { type: ["string", "null"] }
         appleMusicId: { type: ["string", "null"] }
@@ -493,6 +494,7 @@ components:
         title: { type: string }
         artist: { type: string }
         album: { type: ["string", "null"] }
+        genre: { type: ["string", "null"] }
         durationMs: { type: ["integer", "null"] }
         audioUrl: { type: ["string", "null"] }
         appleMusicId: { type: ["string", "null"] }
@@ -509,6 +511,7 @@ components:
         title: { type: string, minLength: 1 }
         artist: { type: string, minLength: 1 }
         album: { type: string }
+        genre: { type: string }
         durationMs: { type: integer }
         audioUrl: { type: string }
         appleMusicId: { type: string }
@@ -519,6 +522,7 @@ components:
         title: { type: string, minLength: 1 }
         artist: { type: string, minLength: 1 }
         album: { type: string }
+        genre: { type: string }
         durationMs: { type: integer }
         audioUrl: { type: string }
         appleMusicId: { type: string }

@@ -99,8 +99,10 @@ export default function Home() {
                   <SoundmapCard 
                     card={card} 
                     title={currentSong.title} 
-                    artist={currentSong.artist} 
+                    artist={currentSong.artist}
+                    genre={currentSong.genre}
                     size="hero"
+                    onPlay={isPlaying ? pause : resume}
                     className={cn(
                       "transition-all duration-500 ease-out",
                       i === activeCardIndex ? "scale-100 opacity-100" : "scale-90 opacity-50"
