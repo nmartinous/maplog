@@ -1,3 +1,9 @@
+/**
+ * MusicKitContext — Deezer implementation.
+ * Exports the same `MusicKitProvider` / `useMusicKit` names so all consumers
+ * (Collection, SongDetail, App) require zero changes.
+ */
+
 import React, {
   createContext, useContext, useEffect, useState, useCallback, useRef,
 } from 'react';
@@ -5,96 +11,100 @@ import type { MaplogSong, MaplogCard } from '@/lib/types';
 import { isMaplogPlaylist, rarityFromPlaylistName } from '@/lib/rarityMap';
 import { DEMO_SONGS } from '@/lib/demoData';
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-const TOKEN_STORAGE_KEY = 'maplog:developerToken';
-const DEMO_MODE_KEY     = 'maplog:demoMode';
+const APP_ID_KEY    = 'maplog:deezerAppId';
+const DEMO_MODE_KEY = 'maplog:demoMode';
 
-function resolveArtwork(url: string, size = 500): string {
-  return url.replace('{w}', String(size)).replace('{h}', String(size));
-}
+// ── Deezer API helpers ────────────────────────────────────────────────────────
 
-// ── Apple Music REST API helper ───────────────────────────────────────────────
-
-async function appleRequest(
-  path: string,
-  developerToken: string,
-  userToken: string,
-): Promise<any> {
-  const base = path.startsWith('http') ? path : `https://api.music.apple.com${path}`;
-  const res = await fetch(base, {
-    headers: {
-      Authorization: `Bearer ${developerToken}`,
-      'Music-User-Token': userToken,
-    },
+/** Promisified DZ.api() */
+function dzApi(path: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if (typeof DZ === 'undefined') {
+      reject(new Error('Deezer SDK not loaded. Check your internet connection.'));
+      return;
+    }
+    DZ.api(path, (response: any) => {
+      if (response?.error) {
+        reject(new Error(response.error.message ?? `Deezer API error on ${path}`));
+      } else {
+        resolve(response);
+      }
+    });
   });
-  if (!res.ok) throw new Error(`Apple Music API ${res.status} — ${path}`);
-  return res.json();
 }
 
-// ── Playlist → songs loader ───────────────────────────────────────────────────
+/** Fetch all pages of a Deezer paginated endpoint */
+async function dzApiAll(startPath: string): Promise<any[]> {
+  const items: any[] = [];
+  let path: string | null = startPath;
 
-async function loadMaplogSongs(
-  developerToken: string,
-  userToken: string,
-): Promise<MaplogSong[]> {
-  const playlistsJson = await appleRequest(
-    '/v1/me/library/playlists?limit=100',
-    developerToken,
-    userToken,
+  while (path) {
+    const res = await dzApi(path);
+    items.push(...(res.data ?? []));
+    if (res.next) {
+      try {
+        const url = new URL(res.next);
+        path = url.pathname + url.search;
+      } catch {
+        path = null;
+      }
+    } else {
+      path = null;
+    }
+  }
+
+  return items;
+}
+
+/** Load all songs from "Maplog · *" playlists */
+async function loadMaplogSongs(): Promise<MaplogSong[]> {
+  const playlists = await dzApiAll('/user/me/playlists?limit=100');
+
+  const maplogPlaylists = playlists.filter((p: any) =>
+    isMaplogPlaylist(p.title ?? ''),
   );
-  const allPlaylists: any[] = playlistsJson.data ?? [];
-  const maplogPlaylists = allPlaylists.filter(
-    p => isMaplogPlaylist(p.attributes?.name ?? ''),
-  );
+
   if (maplogPlaylists.length === 0) return [];
 
   const songMap = new Map<string, MaplogSong>();
 
   await Promise.all(
-    maplogPlaylists.map(async playlist => {
-      const rarity = rarityFromPlaylistName(playlist.attributes.name);
+    maplogPlaylists.map(async (playlist: any) => {
+      const rarity = rarityFromPlaylistName(playlist.title);
       if (!rarity) return;
 
-      let url: string | null =
-        `/v1/me/library/playlists/${playlist.id}/tracks?limit=300`;
+      const tracks = await dzApiAll(`/playlist/${playlist.id}/tracks?limit=100`);
 
-      while (url) {
-        const tracksJson = await appleRequest(url, developerToken, userToken);
-        const tracks: any[] = tracksJson.data ?? [];
-        const nextUrl: string | null = tracksJson.next ?? null;
+      for (const track of tracks) {
+        const songId = String(track.id);
+        const artworkUrl: string =
+          track.album?.cover_xl ?? track.album?.cover_big ?? track.album?.cover ?? '';
 
-        for (const track of tracks) {
-          const attrs = track.attributes ?? {};
-          const songId: string = track.id;
-          const artworkUrl = attrs.artwork?.url
-            ? resolveArtwork(attrs.artwork.url, 500)
-            : '';
+        const card: MaplogCard = {
+          id: `${songId}::${rarity.slug}`,
+          artworkUrl: artworkUrl || null,
+          rarityType: rarity,
+          variantLabel: null,
+        };
 
-          const card: MaplogCard = {
-            id: `${songId}::${rarity.slug}`,
-            artworkUrl: artworkUrl || null,
-            rarityType: rarity,
-            variantLabel: null,
-          };
-
-          const existing = songMap.get(songId);
-          if (existing) {
-            existing.cards.push(card);
-          } else {
-            songMap.set(songId, {
-              id: songId,
-              title: attrs.name ?? 'Unknown',
-              artist: attrs.artistName ?? 'Unknown Artist',
-              album: attrs.albumName ?? '',
-              genre: attrs.genreNames?.[0],
-              durationMs: attrs.durationInMillis ?? 0,
-              artworkUrl,
-              cards: [card],
-            });
-          }
+        const existing = songMap.get(songId);
+        if (existing) {
+          existing.cards.push(card);
+        } else {
+          songMap.set(songId, {
+            id: songId,
+            title: track.title ?? 'Unknown',
+            artist: track.artist?.name ?? 'Unknown Artist',
+            album: track.album?.title ?? '',
+            genre: null,
+            durationMs: (track.duration ?? 0) * 1000,
+            artworkUrl,
+            previewUrl: track.preview ?? null,
+            cards: [card],
+          });
         }
-        url = nextUrl;
       }
     }),
   );
@@ -111,22 +121,31 @@ async function loadMaplogSongs(
 // ── Context types ─────────────────────────────────────────────────────────────
 
 interface MusicKitContextType {
+  /** True when an App ID is saved OR demo mode is active */
   hasToken: boolean;
+  /** SDK initialised and ready */
   isReady: boolean;
+  /** User has authorised Deezer access */
   isAuthorized: boolean;
+  /** Playlists are being loaded */
   isLoading: boolean;
+  /** Error message, if any */
   error: string | null;
+  /** Songs loaded from Deezer playlists */
   songs: MaplogSong[];
+  /** Look up a single song by its Deezer track ID */
   getSong: (id: string) => MaplogSong | undefined;
-  authorize: () => Promise<void>;
+  /** Open Deezer OAuth login popup */
+  authorize: () => void;
+  /** Reload songs from playlists */
   refresh: () => Promise<void>;
-  setDeveloperToken: (token: string) => void;
-  developerToken: string;
-  /** True when running with mock data instead of a real Apple Music account */
+  /** Save a Deezer App ID and initialise the SDK */
+  setAppId: (id: string) => void;
+  /** The stored Deezer App ID */
+  appId: string;
+  /** True when running with mock data (no real Deezer account) */
   isDemoMode: boolean;
-  /** Activate demo mode (no token needed) */
   enterDemoMode: () => void;
-  /** Clear demo mode (returns to Setup screen) */
   exitDemoMode: () => void;
 }
 
@@ -135,18 +154,18 @@ const MusicKitContext = createContext<MusicKitContextType | null>(null);
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function MusicKitProvider({ children }: { children: React.ReactNode }) {
-  const [developerToken, setTokenState] = useState<string>(
-    () => import.meta.env.VITE_MUSICKIT_TOKEN || localStorage.getItem(TOKEN_STORAGE_KEY) || '',
+  const [appId, setAppIdState] = useState<string>(
+    () => import.meta.env.VITE_DEEZER_APP_ID || localStorage.getItem(APP_ID_KEY) || '',
   );
   const [isDemoMode, setIsDemoMode] = useState<boolean>(
     () => localStorage.getItem(DEMO_MODE_KEY) === 'true',
   );
-  const [isReady, setIsReady] = useState(false);
+  const [isReady, setIsReady]           = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [songs, setSongs] = useState<MaplogSong[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const loadedForToken = useRef<string>('');
+  const [isLoading, setIsLoading]       = useState(false);
+  const [songs, setSongs]               = useState<MaplogSong[]>([]);
+  const [error, setError]               = useState<string | null>(null);
+  const sdkInitialized                  = useRef(false);
 
   // ── Demo mode shortcut ───────────────────────────────────────────────────
   useEffect(() => {
@@ -155,45 +174,47 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
       setIsReady(true);
       setIsAuthorized(true);
       setIsLoading(false);
+      setError(null);
     }
   }, [isDemoMode]);
 
-  // ── SDK initialisation (real mode only) ──────────────────────────────────
+  // ── SDK init (real mode) ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!developerToken || isDemoMode) return;
+    if (!appId || isDemoMode || sdkInitialized.current) return;
 
-    const init = async () => {
-      try {
-        await waitForMusicKit();
-        await window.MusicKit.configure({
-          developerToken,
-          app: { name: 'Maplog', build: '1.0.0' },
-        });
-        const music = window.MusicKit.getInstance();
-        setIsReady(true);
-        setIsAuthorized(music.isAuthorized);
-      } catch (e: any) {
-        console.error('MusicKit init failed:', e);
-        setError('Failed to initialise MusicKit: ' + (e?.message ?? String(e)));
+    if (typeof DZ === 'undefined') {
+      setError('Deezer SDK failed to load. Refresh the page.');
+      return;
+    }
+
+    const base = import.meta.env.BASE_URL ?? '/';
+    const channelUrl = `${window.location.origin}${base}channel.html`;
+
+    DZ.init({
+      appId,
+      channelUrl,
+    });
+    sdkInitialized.current = true;
+    setIsReady(true);
+
+    // Check if already logged in from a previous session
+    DZ.getLoginStatus((res) => {
+      if (res.status === 'connected') {
+        setIsAuthorized(true);
       }
-    };
+    });
+  }, [appId, isDemoMode]);
 
-    init();
-  }, [developerToken, isDemoMode]);
-
-  // ── Load songs when authorised (real mode only) ──────────────────────────
+  // ── Load songs when authorised (real mode) ───────────────────────────────
   useEffect(() => {
-    if (isDemoMode || !isReady || !isAuthorized || !developerToken) return;
-    if (loadedForToken.current === developerToken) return;
+    if (isDemoMode || !isReady || !isAuthorized) return;
 
     const load = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const music = window.MusicKit.getInstance();
-        const loaded = await loadMaplogSongs(developerToken, music.musicUserToken);
+        const loaded = await loadMaplogSongs();
         setSongs(loaded);
-        loadedForToken.current = developerToken;
       } catch (e: any) {
         console.error('Playlist load failed:', e);
         setError('Could not load playlists: ' + (e?.message ?? String(e)));
@@ -203,52 +224,52 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     };
 
     load();
-  }, [isReady, isAuthorized, developerToken, isDemoMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthorized]);
 
   // ── Public methods ───────────────────────────────────────────────────────
 
-  const authorize = useCallback(async () => {
-    if (isDemoMode) return;
-    const music = window.MusicKit?.getInstance();
-    if (!music) return;
-    try {
-      await music.authorize();
-      setIsAuthorized(music.isAuthorized);
-    } catch (e: any) {
-      console.error('Authorization failed:', e);
-      setError('Authorization failed: ' + (e?.message ?? String(e)));
-    }
+  const authorize = useCallback(() => {
+    if (isDemoMode || typeof DZ === 'undefined') return;
+    DZ.login(
+      (res) => {
+        if (res.status === 'connected') {
+          setIsAuthorized(true);
+          setError(null);
+        } else {
+          setError('Deezer login was cancelled or failed. Please try again.');
+        }
+      },
+      { perms: 'basic_access,email,manage_library,listening_history,offline_access' },
+    );
   }, [isDemoMode]);
 
   const refresh = useCallback(async () => {
     if (isDemoMode) { setSongs([...DEMO_SONGS]); return; }
-    loadedForToken.current = '';
-    const music = window.MusicKit?.getInstance();
-    if (!music?.isAuthorized || !developerToken) return;
+    if (!isAuthorized) return;
     setIsLoading(true);
     setError(null);
     try {
-      const loaded = await loadMaplogSongs(developerToken, music.musicUserToken);
+      const loaded = await loadMaplogSongs();
       setSongs(loaded);
-      loadedForToken.current = developerToken;
     } catch (e: any) {
       setError('Refresh failed: ' + (e?.message ?? String(e)));
     } finally {
       setIsLoading(false);
     }
-  }, [developerToken, isDemoMode]);
+  }, [isDemoMode, isAuthorized]);
 
-  const setDeveloperToken = useCallback((token: string) => {
-    const clean = token.trim();
-    localStorage.setItem(TOKEN_STORAGE_KEY, clean);
-    // Leaving demo mode if they paste a real token
+  const setAppId = useCallback((id: string) => {
+    const clean = id.trim();
+    localStorage.setItem(APP_ID_KEY, clean);
     localStorage.removeItem(DEMO_MODE_KEY);
+    sdkInitialized.current = false;
     setIsDemoMode(false);
-    setTokenState(clean);
+    setAppIdState(clean);
     setIsReady(false);
     setIsAuthorized(false);
     setSongs([]);
-    loadedForToken.current = '';
+    setError(null);
   }, []);
 
   const enterDemoMode = useCallback(() => {
@@ -272,7 +293,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   return (
     <MusicKitContext.Provider
       value={{
-        hasToken: !!developerToken || isDemoMode,
+        hasToken: !!appId || isDemoMode,
         isReady,
         isAuthorized,
         isLoading,
@@ -281,8 +302,8 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         getSong,
         authorize,
         refresh,
-        setDeveloperToken,
-        developerToken,
+        setAppId,
+        appId,
         isDemoMode,
         enterDemoMode,
         exitDemoMode,
@@ -297,20 +318,4 @@ export function useMusicKit() {
   const ctx = useContext(MusicKitContext);
   if (!ctx) throw new Error('useMusicKit must be used within MusicKitProvider');
   return ctx;
-}
-
-// ── Utility: wait for MusicKit CDN script to load ─────────────────────────────
-
-function waitForMusicKit(timeout = 10000): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.MusicKit) { resolve(); return; }
-    const deadline = Date.now() + timeout;
-    const check = setInterval(() => {
-      if (window.MusicKit) { clearInterval(check); resolve(); return; }
-      if (Date.now() > deadline) {
-        clearInterval(check);
-        reject(new Error('MusicKit JS did not load within 10 s. Check your internet connection.'));
-      }
-    }, 100);
-  });
 }

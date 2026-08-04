@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useEffect, useReducer, useCallback, useRef } from 'react';
+import React, {
+  createContext, useContext, useEffect, useReducer, useCallback, useRef,
+} from 'react';
 import type { MaplogSong } from '@/lib/types';
 
 const DEMO_MODE_KEY = 'maplog:demoMode';
-// MusicKit PlaybackState.playing === 2
-const MK_PLAYING = 2;
 
 // ── State / Reducer ───────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ function reducer(state: PlayerState, action: PlayerAction): PlayerState {
       const q = newQueue ? [...newQueue] : [...state.queue];
       let idx = q.findIndex(s => s.id === song.id);
       if (idx === -1) { q.push(song); idx = q.length - 1; }
-      return { ...state, currentSong: song, queue: q, queueIndex: idx, isPlaying: true, currentTime: 0, activeCardIndex: 0 };
+      return { ...state, currentSong: song, queue: q, queueIndex: idx, isPlaying: true, currentTime: 0, duration: 0, activeCardIndex: 0 };
     }
     case 'SET_PLAYING':          return { ...state, isPlaying: action.payload };
     case 'SET_TIME':             return { ...state, currentTime: action.payload };
@@ -55,13 +55,13 @@ function reducer(state: PlayerState, action: PlayerAction): PlayerState {
     case 'NEXT': {
       const next = state.queueIndex + 1;
       if (next >= state.queue.length) return { ...state, isPlaying: false };
-      return { ...state, currentSong: state.queue[next], queueIndex: next, isPlaying: true, currentTime: 0, activeCardIndex: 0 };
+      return { ...state, currentSong: state.queue[next], queueIndex: next, isPlaying: true, currentTime: 0, duration: 0, activeCardIndex: 0 };
     }
     case 'PREV': {
       if (state.currentTime > 3) return { ...state, currentTime: 0 };
       const prev = state.queueIndex - 1;
       if (prev < 0) return { ...state, currentTime: 0 };
-      return { ...state, currentSong: state.queue[prev], queueIndex: prev, isPlaying: true, currentTime: 0, activeCardIndex: 0 };
+      return { ...state, currentSong: state.queue[prev], queueIndex: prev, isPlaying: true, currentTime: 0, duration: 0, activeCardIndex: 0 };
     }
     case 'SET_ACTIVE_CARD_INDEX': return { ...state, activeCardIndex: action.payload };
     default: return state;
@@ -84,24 +84,6 @@ type PlayerContextType = PlayerState & {
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
-// ── MusicKit helpers ──────────────────────────────────────────────────────────
-
-function getMusicKit(): MusicKit.MusicKitInstance | null {
-  try { return window.MusicKit?.getInstance() ?? null; }
-  catch { return null; }
-}
-
-async function mkPlay(songId: string) {
-  const m = getMusicKit();
-  if (!m) return;
-  try {
-    await m.setQueue({ song: songId });
-    await m.play();
-  } catch (e) {
-    console.error('[MusicKit] play error:', e);
-  }
-}
-
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
@@ -109,10 +91,89 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // Whether we're in demo mode — read once at mount, stable for the session
+  // Stable ref: whether we're in demo mode (no real audio source)
   const isDemoMode = useRef(localStorage.getItem(DEMO_MODE_KEY) === 'true');
 
-  // Demo mode: interval-based simulated playback
+  // ── HTML5 Audio (real Deezer preview mode) ───────────────────────────────
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (isDemoMode.current) return;
+
+    const audio = new Audio();
+    audio.preload = 'metadata';
+
+    const onTimeUpdate = () => {
+      dispatch({ type: 'SET_TIME', payload: audio.currentTime });
+    };
+    const onDuration = () => {
+      if (!isNaN(audio.duration) && audio.duration > 0) {
+        dispatch({ type: 'SET_DURATION', payload: audio.duration });
+      }
+    };
+    const onPlay  = () => dispatch({ type: 'SET_PLAYING', payload: true });
+    const onPause = () => dispatch({ type: 'SET_PLAYING', payload: false });
+    const onEnded = () => {
+      dispatch({ type: 'SET_PLAYING', payload: false });
+      // auto-advance to next song in queue
+      const s = stateRef.current;
+      const next = s.queueIndex + 1;
+      if (next < s.queue.length) {
+        dispatch({ type: 'NEXT' });
+        // The song-change effect will pick up the new currentSong and start playback
+      }
+    };
+    const onError = (e: Event) => {
+      console.warn('[AudioPlayer] preview load error', e);
+      dispatch({ type: 'SET_PLAYING', payload: false });
+    };
+
+    audio.addEventListener('timeupdate',     onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onDuration);
+    audio.addEventListener('durationchange', onDuration);
+    audio.addEventListener('play',           onPlay);
+    audio.addEventListener('pause',          onPause);
+    audio.addEventListener('ended',          onEnded);
+    audio.addEventListener('error',          onError);
+
+    audioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audio.src = '';
+      audio.removeEventListener('timeupdate',     onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onDuration);
+      audio.removeEventListener('durationchange', onDuration);
+      audio.removeEventListener('play',           onPlay);
+      audio.removeEventListener('pause',          onPause);
+      audio.removeEventListener('ended',          onEnded);
+      audio.removeEventListener('error',          onError);
+    };
+  }, []);
+
+  // When currentSong changes in real mode, load its preview URL and play
+  useEffect(() => {
+    if (isDemoMode.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const song = state.currentSong;
+    if (!song) { audio.pause(); audio.src = ''; return; }
+
+    if (song.previewUrl) {
+      audio.src = song.previewUrl;
+      if (state.isPlaying) {
+        audio.play().catch(err => console.warn('[AudioPlayer] play() blocked:', err));
+      }
+    } else {
+      // No preview available — advance queue or stop
+      audio.src = '';
+      dispatch({ type: 'SET_PLAYING', payload: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.currentSong?.id]);
+
+  // ── Demo mode: interval-based simulated playback ─────────────────────────
   const demoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearDemoTimer = useCallback(() => {
@@ -129,7 +190,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!s.isPlaying) return;
       const next = s.currentTime + 1;
       if (s.duration > 0 && next >= s.duration) {
-        // Song finished — advance queue
         clearDemoTimer();
         dispatch({ type: 'NEXT' });
       } else {
@@ -138,7 +198,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }, 1000);
   }, [clearDemoTimer]);
 
-  // When demo mode song changes, set duration and start timer
+  // Demo song change → reset duration and timer
   useEffect(() => {
     if (!isDemoMode.current) return;
     if (!state.currentSong) { clearDemoTimer(); return; }
@@ -146,117 +206,66 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const dur = Math.round((state.currentSong.durationMs ?? 0) / 1000);
     dispatch({ type: 'SET_DURATION', payload: dur || 180 });
     dispatch({ type: 'SET_TIME', payload: 0 });
-
-    if (state.isPlaying) {
-      startDemoTimer();
-    }
-
+    if (state.isPlaying) startDemoTimer();
     return clearDemoTimer;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentSong?.id]);
 
-  // Pause/resume in demo mode
+  // Demo play/pause toggle
   useEffect(() => {
     if (!isDemoMode.current) return;
-    if (state.isPlaying) {
-      startDemoTimer();
-    } else {
-      clearDemoTimer();
-    }
+    if (state.isPlaying) startDemoTimer();
+    else clearDemoTimer();
   }, [state.isPlaying, startDemoTimer, clearDemoTimer]);
-
-  // ── Wire MusicKit events → React state (real mode only) ─────────────────
-  useEffect(() => {
-    if (isDemoMode.current) return;
-
-    let cleanup: (() => void) | null = null;
-
-    const setup = () => {
-      const m = getMusicKit();
-      if (!m) return false;
-
-      const onTime = () => {
-        dispatch({ type: 'SET_TIME', payload: m.currentPlaybackTime });
-        if (m.currentPlaybackDuration > 0) {
-          dispatch({ type: 'SET_DURATION', payload: m.currentPlaybackDuration });
-        }
-      };
-
-      const onState = () => {
-        const playing = m.playbackState === MK_PLAYING;
-        dispatch({ type: 'SET_PLAYING', payload: playing });
-        if (m.playbackState === 5) {
-          const s = stateRef.current;
-          const next = s.queueIndex + 1;
-          if (next < s.queue.length) {
-            dispatch({ type: 'NEXT' });
-            mkPlay(s.queue[next].id);
-          }
-        }
-      };
-
-      m.addEventListener('playbackTimeDidChange', onTime);
-      m.addEventListener('playbackStateDidChange', onState);
-      cleanup = () => {
-        m.removeEventListener('playbackTimeDidChange', onTime);
-        m.removeEventListener('playbackStateDidChange', onState);
-      };
-      return true;
-    };
-
-    if (!setup()) {
-      const id = setInterval(() => { if (setup()) clearInterval(id); }, 500);
-      return () => { clearInterval(id); cleanup?.(); };
-    }
-    return () => cleanup?.();
-  }, []);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
   const play = useCallback((song: MaplogSong, queue?: MaplogSong[]) => {
     dispatch({ type: 'PLAY_SONG', payload: { song, queue } });
-    if (!isDemoMode.current) mkPlay(song.id);
-    // Demo timer starts via the useEffect watching currentSong.id
+    // Real mode: the currentSong useEffect handles loading + playing the audio
+    // Demo mode: the demo timer useEffect handles it
   }, []);
 
   const pause = useCallback(() => {
     dispatch({ type: 'SET_PLAYING', payload: false });
-    if (!isDemoMode.current) getMusicKit()?.pause();
+    if (!isDemoMode.current) audioRef.current?.pause();
   }, []);
 
   const resume = useCallback(() => {
     dispatch({ type: 'SET_PLAYING', payload: true });
-    if (!isDemoMode.current) getMusicKit()?.play().catch(console.error);
+    if (!isDemoMode.current) {
+      audioRef.current?.play().catch(err => console.warn('[AudioPlayer] resume blocked:', err));
+    }
   }, []);
 
   const seek = useCallback((time: number) => {
     dispatch({ type: 'SET_TIME', payload: time });
-    if (!isDemoMode.current) getMusicKit()?.seekToTime(time).catch(console.error);
+    if (!isDemoMode.current && audioRef.current) {
+      audioRef.current.currentTime = time;
+    }
   }, []);
 
   const skipNext = useCallback(() => {
     const s = stateRef.current;
-    const next = s.queueIndex + 1;
-    if (next >= s.queue.length) return;
+    if (s.queueIndex + 1 >= s.queue.length) return;
     dispatch({ type: 'NEXT' });
-    if (!isDemoMode.current) mkPlay(s.queue[next].id);
   }, []);
 
   const skipPrev = useCallback(() => {
     const s = stateRef.current;
     if (s.currentTime > 3) { seek(0); return; }
-    const prev = s.queueIndex - 1;
-    if (prev < 0) { seek(0); return; }
+    if (s.queueIndex - 1 < 0) { seek(0); return; }
     dispatch({ type: 'PREV' });
-    if (!isDemoMode.current) mkPlay(s.queue[prev].id);
   }, [seek]);
 
-  const setQueue          = useCallback((songs: MaplogSong[]) => dispatch({ type: 'SET_QUEUE', payload: songs }), []);
-  const enqueue           = useCallback((song: MaplogSong)    => dispatch({ type: 'ENQUEUE', payload: song }), []);
-  const setActiveCardIndex = useCallback((i: number)          => dispatch({ type: 'SET_ACTIVE_CARD_INDEX', payload: i }), []);
+  const setQueue           = useCallback((songs: MaplogSong[]) => dispatch({ type: 'SET_QUEUE',   payload: songs }), []);
+  const enqueue            = useCallback((song: MaplogSong)    => dispatch({ type: 'ENQUEUE',      payload: song  }), []);
+  const setActiveCardIndex = useCallback((i: number)           => dispatch({ type: 'SET_ACTIVE_CARD_INDEX', payload: i }), []);
 
   return (
-    <PlayerContext.Provider value={{ ...state, play, pause, resume, seek, skipNext, skipPrev, setQueue, enqueue, setActiveCardIndex }}>
+    <PlayerContext.Provider
+      value={{ ...state, play, pause, resume, seek, skipNext, skipPrev, setQueue, enqueue, setActiveCardIndex }}
+    >
       {children}
     </PlayerContext.Provider>
   );

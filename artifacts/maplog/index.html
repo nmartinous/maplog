@@ -13,11 +13,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    <!-- MusicKit JS v3 — must load before the app bundle -->
-    <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" data-web-components async></script>
   </head>
   <body>
     <div id="root"></div>
+    <!-- Required by Deezer SDK for its internal player widget (hidden — we use HTML5 audio) -->
+    <div id="dz-root" style="display:none;position:absolute;width:0;height:0;"></div>
+    <!-- Deezer JS SDK — loaded after dz-root so it can find the div on init -->
+    <script src="https://e-cdns-files.dzcdn.net/js/min/dz.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

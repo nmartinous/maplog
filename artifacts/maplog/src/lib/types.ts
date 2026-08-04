@@ -1,4 +1,4 @@
-// ── Core domain types (replaces backend API types) ──────────────────────────
+// ── Core domain types ────────────────────────────────────────────────────────
 
 export interface MaplogRarityType {
   slug: string;
@@ -19,19 +19,21 @@ export interface MaplogCard {
 }
 
 /**
- * A song in the Maplog collection, sourced from Apple Music playlists.
+ * A song in the Maplog collection, sourced from Deezer playlists.
  * A song can have multiple cards if it appears in more than one Maplog playlist.
  */
 export interface MaplogSong {
-  /** MusicKit library song ID, e.g. "i.XXXXXXXX" */
+  /** Deezer track ID as a string */
   id: string;
   title: string;
   artist: string;
   album: string;
-  genre?: string;
+  genre?: string | null;
   durationMs: number;
-  /** Resolved artwork URL (no {w}/{h} template vars) */
+  /** Full-size album artwork URL */
   artworkUrl: string;
+  /** 30-second Deezer preview MP3 URL (null when unavailable) */
+  previewUrl?: string | null;
   /** One card per Maplog playlist this song appears in, sorted tier desc */
   cards: MaplogCard[];
 }

@@ -1,45 +1,52 @@
 ---
-name: MusicKit Architecture
-description: How Maplog's Apple Music integration works — data flow, types, playlist conventions, and playback engine.
+name: Streaming Architecture
+description: How Maplog connects to a streaming service — currently Deezer. Covers data flow, types, playlist conventions, and the audio player.
 ---
 
-# MusicKit Architecture
+# Streaming Architecture (Deezer)
 
 ## Core principle
-No backend, no database. Apple Music playlists are the database. The frontend reads playlists named "Maplog · <RarityName>", maps songs to rarity cards, and streams audio via MusicKit JS.
+No backend, no database. Deezer playlists are the database. The frontend reads playlists named "Maplog · <RarityName>", maps songs to rarity cards, and streams 30-second previews via HTML5 Audio.
 
 ## Rarity convention
 Playlist name format: `Maplog · Common`, `Maplog · Rare`, `Maplog · Shiny Rare`, etc.
 Full map in `artifacts/maplog/src/lib/rarityMap.ts`.
 
 ## Key types (src/lib/types.ts)
-- `MaplogSong` — id (MusicKit library ID e.g. "i.XXX"), title, artist, album, genre, durationMs, artworkUrl, cards[]
+- `MaplogSong` — id (Deezer track ID as string), title, artist, album, genre, durationMs, artworkUrl, previewUrl (30s MP3), cards[]
 - `MaplogCard` — id, artworkUrl, rarityType (slug/name/category/tier), variantLabel
-- These REPLACE the old `Song`/`CollectedCard` from `@workspace/api-client-react`
 
 ## Context structure
-- `MusicKitContext` (src/context/MusicKitContext.tsx) — SDK init, auth, playlist loading, exposes songs[]
-- `AudioPlayerContext` (src/context/AudioPlayerContext.tsx) — wraps MusicKit player, same external API as before
+- `MusicKitContext` (src/context/MusicKitContext.tsx) — Deezer implementation behind the same exported names (`MusicKitProvider`, `useMusicKit`)
+  - Stores App ID in `localStorage('maplog:deezerAppId')` or `VITE_DEEZER_APP_ID` env var
+  - Init: `DZ.init({ appId, channelUrl })` where channelUrl = `${origin}${BASE_URL}channel.html`
+  - Auth: `DZ.login()` popup, `DZ.getLoginStatus()` on startup for session persistence
+  - API: promisified `DZ.api()` via JSONP — no CORS issues
+- `AudioPlayerContext` (src/context/AudioPlayerContext.tsx) — HTML5 Audio with `song.previewUrl`
 
-## Developer token
-- Stored in `localStorage('maplog:developerToken')` or `VITE_MUSICKIT_TOKEN` env var
-- If missing → Setup page shown (token entry with instructions)
-- Token is a JWT (ES256), valid up to 6 months, NOT a secret (it's in the JS bundle)
+## Deezer SDK setup requirements
+- `public/channel.html` must exist on the same domain (served by Vite from `public/`)
+- `<div id="dz-root" style="display:none">` must be in index.html (SDK looks for it)
+- SDK loads synchronously from `https://e-cdns-files.dzcdn.net/js/min/dz.js` (no async attr)
 
-## Playback engine
-- `getMusicKit()` returns `window.MusicKit.getInstance()` (singleton)
-- `play(song)` → `music.setQueue({ song: song.id })` + `music.play()`
-- Time/state updates come from MusicKit events (`playbackTimeDidChange`, `playbackStateDidChange`)
-- MusicKit PlaybackState.playing === 2, ended === 5
+## Deezer app registration (user must do this once)
+1. developers.deezer.com/myapps → Create Application
+2. Set Application domain + Redirect URL to the app's URL
+3. Copy App ID (a plain number) → paste into Maplog Setup screen
 
-## Artwork URLs
-Apple Music artwork URLs have `{w}` and `{h}` template vars — always replace before displaying:
-`url.replace('{w}', '500').replace('{h}', '500')`
+## Audio playback
+- Uses `track.preview` URL from Deezer API — a public 30-second MP3 CDN URL
+- Played via `new Audio()` in AudioPlayerContext; no DZ.player widget needed
+- Demo mode uses setInterval timer instead (no real audio)
 
-## Song IDs in URLs
-Library song IDs are strings like "i.XXXXXXXX" — must be `encodeURIComponent()` in links and `decodeURIComponent()` in route params.
+## Session persistence
+`DZ.getLoginStatus()` on SDK init checks for existing Deezer session (cookie-based).
+If `status === 'connected'`, user is already auth'd and songs load automatically.
 
-**Why:** `/song/:id` captures the raw path segment; special chars in MusicKit IDs break routing without encoding.
+## Migrated from Apple Music
+Previous architecture used MusicKit JS v3 + JWT developer token. Switched to Deezer because:
+- No paid developer enrollment required
+- Same-day free App ID
+- Same playlist-as-database pattern works identically
 
-## What was NOT removed
-The Express API server (`artifacts/api-server`) and PostgreSQL DB (`lib/db`) still exist but are no longer called from the frontend. They can be removed later if desired.
+**Why same exported names (`useMusicKit`, `MusicKitProvider`):** All consumers (Collection, SongDetail, App) required zero changes.
