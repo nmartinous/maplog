@@ -108,9 +108,9 @@ export function MiniPlayer() {
               </div>
             </div>
 
-            <div className="flex-1 flex items-center px-3 pb-2 sm:pb-3 gap-2 sm:gap-3 relative z-10">
+            <div className="flex-1 flex items-center px-3 sm:px-4 pb-3 pt-1 sm:pb-4 gap-2.5 sm:gap-3 relative z-10">
               <Link href={detailHref} className="shrink-0 cursor-pointer active:scale-95 transition-transform group" aria-label="Open card view">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/10 overflow-hidden relative shadow-md">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/10 overflow-hidden relative shadow-md">
                   {currentSong.artworkUrl
                     ? <img src={currentSong.artworkUrl} alt={currentSong.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     : <div className="w-full h-full flex items-center justify-center"><Music2 className="w-5 h-5 text-white/50" /></div>
@@ -128,8 +128,8 @@ export function MiniPlayer() {
               </Link>
 
               <Link href={detailHref} className="flex-1 min-w-0 cursor-pointer active:opacity-70 transition-opacity">
-                <p className="text-sm sm:text-base font-bold truncate text-white leading-tight">{currentSong.title}</p>
-                <p className="text-[11px] sm:text-xs text-white/60 truncate leading-tight mt-0.5">
+                <p className="text-[15px] sm:text-base font-bold truncate text-white leading-tight">{currentSong.title}</p>
+                <p className="text-xs sm:text-[13px] text-white/60 truncate leading-tight mt-0.5">
                   {currentSong.artist}
                 </p>
               </Link>
@@ -154,7 +154,7 @@ export function MiniPlayer() {
                 </Button>
                 <Button
                   variant="ghost" size="icon"
-                  className="h-10 w-10 bg-white text-black hover:bg-white/90 hover:scale-105 active:scale-95 rounded-full transition-all shadow-lg"
+                  className="h-11 w-11 bg-white text-black hover:bg-white/90 hover:scale-105 active:scale-95 rounded-full transition-all shadow-lg"
                   onClick={isPlaying ? pause : resume}
                   aria-label={isPlaying ? 'Pause' : 'Play'}
                 >

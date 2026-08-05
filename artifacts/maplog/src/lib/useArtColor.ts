@@ -58,6 +58,14 @@ function extractVibrantColor(img: CanvasImageSource): string {
  * Resolves asynchronously; starts as `fallback` (or the cached value if
  * we've already extracted from this URL — prevents re-flash on revisit).
  */
+/**
+ * Neutral color shown while extraction is pending on first sight of an
+ * artwork. Starting from the rarity fallback made every card flash its
+ * rarity color before "correcting" to the artwork color — starting neutral
+ * makes the resolve read as a subtle fade-in instead.
+ */
+const PENDING_NEUTRAL = 'rgb(63,63,70)';
+
 export function useArtColor(
   artworkUrl: string | null | undefined,
   fallback: string,
@@ -68,7 +76,9 @@ export function useArtColor(
     if (artworkUrl && artColorCache.has(artworkUrl)) {
       return artColorCache.get(artworkUrl)!;
     }
-    return fallback;
+    // No artwork → rarity fallback immediately; otherwise neutral until
+    // extraction resolves (fallback only applies on failure).
+    return artworkUrl ? PENDING_NEUTRAL : fallback;
   });
 
   // Keep a ref to avoid closure issues inside the img callback
@@ -86,6 +96,9 @@ export function useArtColor(
       setColor(artColorCache.get(artworkUrl)!);
       return;
     }
+
+    // New, uncached artwork — hold neutral while extraction runs
+    setColor(PENDING_NEUTRAL);
 
     let cancelled = false;
 

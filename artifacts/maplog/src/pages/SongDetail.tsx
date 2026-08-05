@@ -7,7 +7,7 @@ import { SoundmapCard } from '@/components/SoundmapCard';
 import { CardBackInfo } from '@/components/CardBackInfo';
 import { QueueSheet } from '@/components/QueueSheet';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, ArrowLeft, MoreVertical, Trash2, Disc3, ListEnd, Info, ListOrdered, Volume2 } from 'lucide-react';
+import { Play, ArrowLeft, MoreVertical, Trash2, Disc3, ListEnd, Info, ListOrdered } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { getSong, songs, removeFromCollection } = useMusicKit();
-  const { play, pause, resume, enqueue, currentSong, isPlaying } = usePlayer();
+  const { play, resume, enqueue, currentSong, isPlaying } = usePlayer();
 
   const songId = decodeURIComponent(id ?? '');
   // Fall back to the actively playing song so the mini player can always
@@ -42,9 +42,11 @@ export default function SongDetail() {
 
   useEffect(() => { setIsFlipped(false); }, [activeSnap, song?.id]);
 
-  const handlePlay = () => {
+  // Tapping the card starts playback but never pauses it — pausing lives in
+  // the mini player controls.
+  const handleCardTap = () => {
     if (!song) return;
-    if (isCurrent) { isPlaying ? pause() : resume(); return; }
+    if (isCurrent) { if (!isPlaying) resume(); return; }
     play(song, inCollection ? songs : undefined);
   };
 
@@ -167,7 +169,7 @@ export default function SongDetail() {
                         }
                       }}
                     >
-                      <div className="cursor-pointer group" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }} onClick={handlePlay}>
+                      <div className="cursor-pointer group" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }} onClick={handleCardTap}>
                         <SoundmapCard
                           card={card}
                           title={song.title}
@@ -176,12 +178,10 @@ export default function SongDetail() {
                           size="lg"
                           className="shadow-2xl"
                         />
-                        {!isFlipped && (
+                        {!isFlipped && !(isCurrent && isPlaying) && (
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl">
                             <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-[0_0_40px_rgba(255,60,0,0.6)] scale-75 group-hover:scale-100 transition-transform duration-300">
-                              {isCurrent && isPlaying
-                                ? <Pause className="w-10 h-10 text-white fill-white" />
-                                : <Play className="w-10 h-10 text-white fill-white ml-1.5" />}
+                              <Play className="w-10 h-10 text-white fill-white ml-1.5" />
                             </div>
                           </div>
                         )}
@@ -201,7 +201,7 @@ export default function SongDetail() {
               </div>
             </div>
             
-            <div className="h-10 mt-2 mb-6 flex items-center justify-center shrink-0">
+            <div className="h-10 mt-1 mb-1 flex items-center justify-center shrink-0">
               {cards.length > 1 && (
                 <div className="flex items-center gap-2 bg-black/20 backdrop-blur-xl px-4 py-2 rounded-full border border-white/5">
                   {cards.map((_, i) => (

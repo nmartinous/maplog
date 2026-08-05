@@ -3,6 +3,7 @@ import React, {
 } from 'react';
 import type { MaplogSong } from '@/lib/types';
 import { initMusicKit } from '@/lib/musicKit';
+import { useMusicKit } from '@/context/MusicKitContext';
 
 const DEMO_MODE_KEY = 'maplog:demoMode';
 const PREFS_KEY = 'maplog:playerPrefs';
@@ -162,6 +163,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Collection access for autoplay's "random song when the queue runs out"
+  const { songs: collectionSongs } = useMusicKit();
+  const collectionRef = useRef(collectionSongs);
+  collectionRef.current = collectionSongs;
+
   // Stable ref: whether we're in demo mode (no real audio source)
   const isDemoMode = useRef(localStorage.getItem(DEMO_MODE_KEY) === 'true');
 
@@ -259,13 +265,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
       return;
     }
-    if (!s.autoplay) {
-      dispatch({ type: 'SET_PLAYING', payload: false });
-      dispatch({ type: 'SET_TIME', payload: 0 });
+    // Always advance through the remaining queue; repeat-all wraps around.
+    const hasNext = s.queueIndex + 1 < s.queue.length;
+    if (hasNext || (s.repeat === 'all' && s.queue.length > 0)) {
+      dispatch({ type: 'NEXT' });
       return;
     }
-    // NEXT stops at the end of the queue unless repeat === 'all'
-    dispatch({ type: 'NEXT' });
+    // Queue expended: autoplay picks a random song from the collection,
+    // otherwise playback stops.
+    if (s.autoplay) {
+      const pool = collectionRef.current.filter(x => x.id !== s.currentSong?.id);
+      const pick = pool.length > 0
+        ? pool[Math.floor(Math.random() * pool.length)]
+        : null;
+      if (pick) {
+        dispatch({ type: 'PLAY_SONG', payload: { song: pick } });
+        return;
+      }
+    }
+    dispatch({ type: 'SET_PLAYING', payload: false });
+    dispatch({ type: 'SET_TIME', payload: 0 });
   }, []);
 
   useEffect(() => {

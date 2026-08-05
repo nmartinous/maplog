@@ -71,14 +71,14 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none" />
-      <div className="h-20 flex items-center justify-around px-2 relative z-10">
+      <div className="h-20 landscape-compact:h-12 flex items-center justify-around px-2 relative z-10">
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = isActive(href);
           return (
             <Link
               key={href}
               href={href}
-              className="relative flex flex-col items-center justify-center gap-1 py-2 px-3 flex-1 h-full"
+              className="relative flex flex-col items-center justify-center gap-1 landscape-compact:gap-0 py-2 landscape-compact:py-1 px-3 flex-1 h-full"
             >
               <div className="relative flex items-center justify-center w-12 h-8">
                 {active && (
@@ -97,7 +97,7 @@ export function MobileNav() {
                 />
               </div>
               <span className={cn(
-                'text-[10px] font-bold leading-none tracking-wide transition-colors truncate',
+                'text-[10px] font-bold leading-none tracking-wide transition-colors truncate landscape-compact:hidden',
                 active ? 'text-white' : 'text-muted-foreground',
               )}>
                 {label}

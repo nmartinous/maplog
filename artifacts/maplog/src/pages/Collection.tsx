@@ -67,11 +67,11 @@ export default function Collection() {
   return (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
-      className="h-full w-full flex flex-col overflow-hidden bg-background relative"
+      className="h-full w-full max-w-full flex flex-col overflow-hidden overflow-x-clip bg-background relative"
     >
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       
-      <div className="shrink-0 px-4 pt-8 pb-2 sm:px-6 relative z-10 w-full overflow-x-hidden">
+      <div className="shrink-0 px-4 pt-8 landscape-compact:pt-3 pb-2 sm:px-6 relative z-10 w-full overflow-x-hidden">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-display font-black tracking-tight text-white">Collection</h1>
@@ -129,7 +129,7 @@ export default function Collection() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 relative z-10 pb-20 w-full">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 relative z-10 pb-20 w-full">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 w-full">
             <div className="w-10 h-10 border-4 border-white/10 border-t-primary rounded-full animate-spin shadow-[0_0_15px_rgba(255,60,0,0.5)]" />

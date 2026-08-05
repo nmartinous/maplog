@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronUp, Music2, Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { RarityPlaylistSync } from '@/components/RarityPlaylistSync';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -275,6 +276,14 @@ export default function Settings() {
           <h1 className="text-3xl font-display font-black tracking-tight text-white mb-2">Settings</h1>
           <p className="text-base text-white/50">Configure your Maplog experience</p>
         </div>
+
+        <section className="space-y-4">
+          <h2 className="text-xs font-bold tracking-widest uppercase text-white/50 px-2 flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" />
+            Rarity Playlists
+          </h2>
+          <RarityPlaylistSync />
+        </section>
 
         {!isDemoMode && (
           <section className="space-y-4">
