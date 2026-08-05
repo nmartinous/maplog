@@ -7,6 +7,22 @@ import { useMusicKit } from '@/context/MusicKitContext';
 
 const DEMO_MODE_KEY = 'maplog:demoMode';
 const PREFS_KEY = 'maplog:playerPrefs';
+const HISTORY_KEY = 'maplog:recentlyPlayed';
+const HISTORY_MAX = 10;
+
+function loadHistory(): MaplogSong[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, HISTORY_MAX) : [];
+  } catch { return []; }
+}
+
+/** Prepend a finished song to history (dedup, cap at HISTORY_MAX). */
+function pushHistory(history: MaplogSong[], song: MaplogSong | null, nextId?: string): MaplogSong[] {
+  if (!song || song.id === nextId) return history;
+  return [song, ...history.filter(x => x.id !== song.id)].slice(0, HISTORY_MAX);
+}
 
 // ── Player preferences (persisted) ───────────────────────────────────────────
 
@@ -58,6 +74,10 @@ type PlayerState = {
   autoplay: boolean;
   /** Unshuffled queue order, kept while shuffle is on */
   originalQueue: MaplogSong[] | null;
+  /** Last 10 songs that finished (or were skipped past), most recent first */
+  history: MaplogSong[];
+  /** Pre-picked random song autoplay will play when the queue runs out */
+  autoplayNext: MaplogSong | null;
 };
 
 type PlayerAction =
@@ -72,7 +92,9 @@ type PlayerAction =
   | { type: 'SET_ACTIVE_CARD_INDEX'; payload: number }
   | { type: 'APPLY_QUEUE_ORDER'; payload: { queue: MaplogSong[]; queueIndex: number; shuffle: boolean; originalQueue: MaplogSong[] | null } }
   | { type: 'SET_REPEAT'; payload: RepeatMode }
-  | { type: 'SET_AUTOPLAY'; payload: boolean };
+  | { type: 'SET_AUTOPLAY'; payload: boolean }
+  | { type: 'SET_AUTOPLAY_NEXT'; payload: MaplogSong | null }
+  | { type: 'LOG_CURRENT_TO_HISTORY' };
 
 const prefs = loadPrefs();
 
@@ -88,6 +110,8 @@ const initial: PlayerState = {
   repeat: prefs.repeat,
   autoplay: prefs.autoplay,
   originalQueue: null,
+  history: loadHistory(),
+  autoplayNext: null,
 };
 
 function reducer(state: PlayerState, action: PlayerAction): PlayerState {
@@ -101,6 +125,8 @@ function reducer(state: PlayerState, action: PlayerAction): PlayerState {
         ...state, currentSong: song, queue: q, queueIndex: idx, isPlaying: true,
         currentTime: 0, duration: 0, activeCardIndex: 0,
         originalQueue: newQueue ? (originalQueue ?? null) : state.originalQueue,
+        history: pushHistory(state.history, state.currentSong, song.id),
+        autoplayNext: state.autoplayNext?.id === song.id ? null : state.autoplayNext,
       };
     }
     case 'SET_PLAYING':          return { ...state, isPlaying: action.payload };
@@ -118,7 +144,12 @@ function reducer(state: PlayerState, action: PlayerAction): PlayerState {
         if (state.repeat === 'all' && state.queue.length > 0) next = 0;
         else return { ...state, isPlaying: false };
       }
-      return { ...state, currentSong: state.queue[next], queueIndex: next, isPlaying: true, currentTime: 0, duration: 0, activeCardIndex: 0 };
+      const nextSong = state.queue[next];
+      return {
+        ...state, currentSong: nextSong, queueIndex: next, isPlaying: true, currentTime: 0, duration: 0, activeCardIndex: 0,
+        history: pushHistory(state.history, state.currentSong, nextSong.id),
+        autoplayNext: state.autoplayNext?.id === nextSong.id ? null : state.autoplayNext,
+      };
     }
     case 'PREV': {
       if (state.currentTime > 3) return { ...state, currentTime: 0 };
@@ -133,6 +164,8 @@ function reducer(state: PlayerState, action: PlayerAction): PlayerState {
     }
     case 'SET_REPEAT':   return { ...state, repeat: action.payload };
     case 'SET_AUTOPLAY': return { ...state, autoplay: action.payload };
+    case 'SET_AUTOPLAY_NEXT': return { ...state, autoplayNext: action.payload };
+    case 'LOG_CURRENT_TO_HISTORY': return { ...state, history: pushHistory(state.history, state.currentSong) };
     default: return state;
   }
 }
@@ -271,18 +304,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'NEXT' });
       return;
     }
-    // Queue expended: autoplay picks a random song from the collection,
-    // otherwise playback stops.
+    // Queue expended: autoplay plays the pre-picked random song (shown in the
+    // queue sheet), otherwise playback stops.
     if (s.autoplay) {
       const pool = collectionRef.current.filter(x => x.id !== s.currentSong?.id);
-      const pick = pool.length > 0
-        ? pool[Math.floor(Math.random() * pool.length)]
-        : null;
+      const pick = s.autoplayNext
+        ?? (pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null);
       if (pick) {
         dispatch({ type: 'PLAY_SONG', payload: { song: pick } });
         return;
       }
     }
+    dispatch({ type: 'LOG_CURRENT_TO_HISTORY' });
     dispatch({ type: 'SET_PLAYING', payload: false });
     dispatch({ type: 'SET_TIME', payload: 0 });
   }, []);
@@ -461,6 +494,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (state.isPlaying) startDemoTimer();
     else clearDemoTimer();
   }, [state.isPlaying, startDemoTimer, clearDemoTimer]);
+
+  // ── Recently played persistence ───────────────────────────────────────────
+  useEffect(() => {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history)); } catch { /* noop */ }
+  }, [state.history]);
+
+  // ── Autoplay preview: pre-pick the random song shown as "up next" when the
+  //    queue is about to run out (only when nothing else would play) ─────────
+  useEffect(() => {
+    const s = stateRef.current;
+    const upcomingEmpty = s.queueIndex >= s.queue.length - 1;
+    const eligible = s.autoplay && !!s.currentSong && upcomingEmpty && s.repeat !== 'all';
+    if (eligible) {
+      const pool = collectionSongs.filter(x => x.id !== s.currentSong!.id);
+      const stale = !s.autoplayNext
+        || s.autoplayNext.id === s.currentSong!.id
+        || !pool.some(x => x.id === s.autoplayNext!.id);
+      if (stale) {
+        dispatch({
+          type: 'SET_AUTOPLAY_NEXT',
+          payload: pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null,
+        });
+      }
+    } else if (s.autoplayNext) {
+      dispatch({ type: 'SET_AUTOPLAY_NEXT', payload: null });
+    }
+  }, [state.autoplay, state.currentSong?.id, state.queueIndex, state.queue.length, state.repeat, collectionSongs]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 

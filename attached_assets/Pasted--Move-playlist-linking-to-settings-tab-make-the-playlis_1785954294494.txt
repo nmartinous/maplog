@@ -1,0 +1,18 @@
+
+Move playlist linking to settings tab, make the playlist tab for user created lists of songs within collection. Cards flash the color of their rarity before being corrected, fix this visual bug. Auto play should automatically play a random song from the collection when queue is expended, if it is selected and the queue ends, the music should stop. Tapping the card should not pause the song. The Home Screen should display a random song if nothing is playing, there should be no back button at the top. The mini player can be a bit bigger, there’s a lot of space between it and the card. The now playing text on the Home Screen should say “DIVE IN?” when displaying a random song. The random card should cycle every 5 seconds with a swiping transition. The collection page allows for side to side scrolling, fix this. There’s also some elements that get cut off again, namely the nav bar. Do all of this and then do a polish pass to check for stuttery animations, but off elements, asymmetric design or spacing. 
+
+Then briefly tell me how viable the following implementations are while still keeping this hosted on GitHub: YouTube or Apple Music music video integration, rateyourmusic pulls for genres ratings etc., genius pulls for lyrics and lyric annotations
+
+
+Update rare icon, it’s to empty looking, make it more solid like uncommon and common. Make the text for all rarity badges match the ring around the badge for cohesive design language.
+
+Make the app icon have a similar design language to the official sound map one (I can provide a screenshot if need be). Instead of a an 8bit map, make the main element an 8bit CD. Change some of the colors for star background and aura at bottom, but make the two icons looks like they are from the same suite.
+
+Remove highest tier reached from profile, remove prized possessions from profile. Make the text “Collector” on this page editable so the user can add their name. Make the trophy icon editable so the user can add a profile picture. Make the text under “collector” editable as a short bio or motto, remove the green dot in it. For card distribution, let the user swipe through a few views, such as  pie chart to compare rarity counts. Also add a section for collection valuation, both total and per rarity. For now, each common will be worth 50, uncommon 200, rare 800. The currency is just a flat number, no $ or £ etc. 
+
+The Home Screen should not have a back button at the top, it should just show whatever is playing or the random card if audio is paused. The animation for random card swiping is also a little choppy. 
+
+If we can apply this all to a level of professional polish and fluidity, we can then move on to implementing more rarities.
+
+Update version as you see fit for now on.
+

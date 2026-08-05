@@ -27,26 +27,18 @@ const FlowerStar = ({ color }: { color: string }) => (
   </svg>
 );
 
-/** Basket-weave / over-under grid — Rare */
+/** Solid pixel gem — Rare (chunky 8-bit diamond, solid like the other tiers) */
 const PixelGem = ({ color }: { color: string }) => (
   <svg width="11" height="11" viewBox="0 0 11 11" fill="none" className="shrink-0" aria-hidden>
-    {/* outer frame */}
-    <rect x="0.6" y="0.6" width="9.8" height="9.8" rx="1.5" fill={color} fillOpacity="0.15" stroke={color} strokeWidth="0.9" />
-    {/* horizontal strands — pass over vertical at alternating cells */}
-    {/* row 1: cols 1&3 on top */}
-    <rect x="0.6" y="2.5" width="3.5" height="1.4" rx="0.3" fill={color} />
-    <rect x="6.9" y="2.5" width="3.5" height="1.4" rx="0.3" fill={color} />
-    {/* row 2: cols 2 on top */}
-    <rect x="3.7" y="5.3" width="3.6" height="1.4" rx="0.3" fill={color} />
-    {/* row 3: cols 1&3 on top */}
-    <rect x="0.6" y="8.1" width="3.5" height="1.4" rx="0.3" fill={color} />
-    <rect x="6.9" y="8.1" width="3.5" height="1.4" rx="0.3" fill={color} />
-    {/* vertical strands — behind the horizontals */}
-    <rect x="2.5" y="0.6" width="1.4" height="3.5" rx="0.3" fill={color} fillOpacity="0.6" />
-    <rect x="7.1" y="0.6" width="1.4" height="3.5" rx="0.3" fill={color} fillOpacity="0.6" />
-    <rect x="4.8" y="3.7" width="1.4" height="3.6" rx="0.3" fill={color} fillOpacity="0.6" />
-    <rect x="2.5" y="6.8" width="1.4" height="3.7" rx="0.3" fill={color} fillOpacity="0.6" />
-    <rect x="7.1" y="6.8" width="1.4" height="3.7" rx="0.3" fill={color} fillOpacity="0.6" />
+    {/* stepped 8-bit diamond, fully solid */}
+    <rect x="3.5" y="0.5" width="4" height="2" fill={color} />
+    <rect x="1.5" y="2.5" width="8" height="2" fill={color} />
+    <rect x="0.5" y="4.5" width="10" height="2" fill={color} />
+    <rect x="1.5" y="6.5" width="8" height="2" fill={color} />
+    <rect x="3.5" y="8.5" width="4" height="2" fill={color} />
+    {/* top-left glint */}
+    <rect x="3.5" y="1.5" width="2" height="1" fill="white" fillOpacity="0.35" />
+    <rect x="2.5" y="2.5" width="2" height="2" fill="white" fillOpacity="0.28" />
   </svg>
 );
 
@@ -112,44 +104,44 @@ const CONFIGS: Record<string, BadgeConfig> = {
   // ── Base rarities ──────────────────────────────────────────────────────────
   'regular-common': {
     icon: <CrystalGem color="#4ade80" />,
-    pill: 'bg-[#04120a]/95 text-green-400',
+    pill: 'bg-[#04120a]/95 text-[#4ade80]',
     label: 'Common',
-    borderColor: '#166534aa',
-    glow: '#16653440',
+    borderColor: '#4ade80aa',
+    glow: '#4ade8040',
   },
   'regular-uncommon': {
     icon: <FlowerStar color="#d946ef" />,
-    pill: 'bg-[#0e0520]/95 text-purple-300',
+    pill: 'bg-[#0e0520]/95 text-[#d946ef]',
     label: 'Uncommon',
-    borderColor: '#7e22ceaa',
-    glow: '#7e22ce38',
+    borderColor: '#d946efaa',
+    glow: '#d946ef38',
   },
   'regular-rare': {
     icon: <PixelGem color="#f97316" />,
-    pill: 'bg-[#160800]/95 text-orange-400',
+    pill: 'bg-[#160800]/95 text-[#f97316]',
     label: 'RARE',
-    borderColor: '#c2410caa',
-    glow: '#c2410c40',
+    borderColor: '#f97316aa',
+    glow: '#f9731640',
   },
 
   // ── Shiny modifier (same look as base, animated rainbow border) ────────────
   'shiny-common': {
     icon: <CrystalGem color="#4ade80" />,
-    pill: 'bg-[#04120a]/95 text-green-400',
+    pill: 'bg-[#04120a]/95 text-[#4ade80]',
     label: 'Common',
     borderColor: '#4ade80',
     shiny: true,
   },
   'shiny-uncommon': {
     icon: <FlowerStar color="#d946ef" />,
-    pill: 'bg-[#0e0520]/95 text-purple-300',
+    pill: 'bg-[#0e0520]/95 text-[#d946ef]',
     label: 'Uncommon',
     borderColor: '#d946ef',
     shiny: true,
   },
   'shiny-rare': {
     icon: <PixelGem color="#f97316" />,
-    pill: 'bg-[#160800]/95 text-orange-400',
+    pill: 'bg-[#160800]/95 text-[#f97316]',
     label: 'RARE',
     borderColor: '#f97316',
     shiny: true,
@@ -157,16 +149,16 @@ const CONFIGS: Record<string, BadgeConfig> = {
 
   // ── Epic family ────────────────────────────────────────────────────────────
   'epic': {
-    icon: <DiamondIcon color="white" />,
-    pill: 'text-amber-50',
+    icon: <DiamondIcon color="#eac54f" />,
+    pill: 'text-[#eac54f]',
     label: 'Epic',
     borderColor: '#b4840055',
     gradient: 'linear-gradient(90deg, #6b5800 0%, #4a2a00 100%)',
     glow: '#b4840050',
   },
   'epic-numbered': {
-    icon: <DiamondIcon color="white" />,
-    pill: 'text-amber-50',
+    icon: <DiamondIcon color="#eac54f" />,
+    pill: 'text-[#eac54f]',
     label: 'Epic',
     borderColor: '#b4840055',
     gradient: 'linear-gradient(90deg, #6b5800 0%, #4a2a00 100%)',
@@ -176,49 +168,49 @@ const CONFIGS: Record<string, BadgeConfig> = {
   // ── Special / retired epics (kept for existing data) ───────────────────────
   'special-edition': {
     icon: <FlowerStar color="#f472b6" />,
-    pill: 'bg-[#200616]/95 text-pink-300',
+    pill: 'bg-[#200616]/95 text-[#f472b6]',
     label: 'Special Ed.',
-    borderColor: '#be185daa',
-    glow: '#be185d40',
+    borderColor: '#f472b6aa',
+    glow: '#f472b640',
   },
   'special-epic': {
     icon: <DiamondIcon color="#fb7185" />,
-    pill: 'text-rose-100',
+    pill: 'text-[#fb7185]',
     label: 'Special Epic',
-    borderColor: '#e11d4855',
+    borderColor: '#fb718577',
     gradient: 'linear-gradient(90deg, #4c0519 0%, #3b0010 100%)',
     glow: '#e11d4850',
   },
   'streak-epic': {
     icon: <DiamondIcon color="#fdba74" />,
-    pill: 'text-orange-100',
+    pill: 'text-[#fdba74]',
     label: 'Streak Epic',
-    borderColor: '#ea580c55',
+    borderColor: '#fdba7477',
     gradient: 'linear-gradient(90deg, #431407 0%, #2b0e00 100%)',
     glow: '#ea580c50',
   },
 
   // ── Premium rarities ───────────────────────────────────────────────────────
   'radiant': {
-    icon: <SparkleIcon color="#e2d9f3" />,
-    pill: 'bg-[#0a0614]/95 text-violet-100',
+    icon: <SparkleIcon color="#a78bfa" />,
+    pill: 'bg-[#0a0614]/95 text-[#a78bfa]',
     label: 'Radiant',
-    borderColor: '#7c3aed66',
-    glow: '#7c3aed30',
+    borderColor: '#a78bfa88',
+    glow: '#a78bfa30',
   },
   'moment': {
     icon: <HeartIcon color="#ef4444" />,
-    pill: 'bg-[#060606]/95 text-white',
+    pill: 'bg-[#060606]/95 text-[#ef4444]',
     label: 'Moment',
-    borderColor: '#7f1d1d88',
+    borderColor: '#ef444488',
     glow: '#ef444420',
   },
   'lyric': {
     icon: <LyricsIcon color="#fbbf24" />,
-    pill: 'bg-[#0d0901]/95 text-amber-200/90',
+    pill: 'bg-[#0d0901]/95 text-[#fbbf24]',
     label: 'Lyrics',
-    borderColor: '#92400eaa',
-    glow: '#92400e30',
+    borderColor: '#fbbf24aa',
+    glow: '#fbbf2430',
   },
 };
 

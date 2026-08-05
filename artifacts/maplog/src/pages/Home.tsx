@@ -119,8 +119,10 @@ export default function Home() {
             initial={{ x: 320, opacity: 0, rotate: 4 }}
             animate={{ x: 0, opacity: 1, rotate: 0 }}
             exit={{ x: -320, opacity: 0, rotate: -4 }}
-            transition={{ type: 'spring', stiffness: 240, damping: 28 }}
-            className="cursor-pointer active:scale-95 transition-transform"
+            transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
+            whileTap={{ scale: 0.95 }}
+            style={{ willChange: 'transform' }}
+            className="cursor-pointer"
             onClick={() => play(song, songs)}
             role="button"
             aria-label={`Play ${song.title}`}
