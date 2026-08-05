@@ -10,6 +10,8 @@ function fmt(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
+const BASE = 'miniplayer bg-card/92 backdrop-blur-xl border-t border-white/8';
+
 export function MiniPlayer() {
   const { currentSong, isPlaying, pause, resume, skipNext, skipPrev, seek, currentTime, duration } = usePlayer();
   const barRef = useRef<HTMLDivElement>(null);
@@ -24,40 +26,41 @@ export function MiniPlayer() {
     seek(ratio * duration);
   };
 
-  // ── Idle state ──────────────────────────────────────────────────────────────
+  // ── Idle ───────────────────────────────────────────────────────────────────
   if (!currentSong) {
     return (
-      <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-md border-t border-border z-40 sm:z-50 px-5 flex items-center justify-between select-none">
-        <div className="flex items-center gap-3 opacity-35">
-          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-            <Music2 className="w-4 h-4 text-muted-foreground" />
+      <div className={BASE}>
+        <div className="h-full flex items-center justify-between px-5">
+          <div className="flex items-center gap-3 opacity-35">
+            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Music2 className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Nothing playing</p>
+              <p className="text-xs text-muted-foreground">Tap a card to play</p>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground">Nothing playing</span>
-            <span className="text-xs text-muted-foreground">Tap a card to play</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1 opacity-15 pointer-events-none">
-          <div className="h-9 w-9" />
-          <div className="h-9 w-9 flex items-center justify-center">
-            <Play className="h-4 w-4 ml-0.5" />
-          </div>
-          <div className="h-9 w-9 flex items-center justify-center">
-            <SkipForward className="h-4 w-4" />
+          <div className="flex items-center gap-1 opacity-15 pointer-events-none">
+            <div className="h-9 w-9" />
+            <div className="h-9 w-9 flex items-center justify-center">
+              <Play className="h-4 w-4 ml-0.5" />
+            </div>
+            <div className="h-9 w-9 flex items-center justify-center">
+              <SkipForward className="h-4 w-4" />
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── Active state ────────────────────────────────────────────────────────────
+  // ── Active ─────────────────────────────────────────────────────────────────
   return (
-    <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 h-16 bg-card/92 backdrop-blur-md border-t border-border z-40 sm:z-50 flex flex-col">
-
-      {/* Interactive scrubber */}
+    <div className={BASE + ' flex flex-col'}>
+      {/* Scrubber */}
       <div
         ref={barRef}
-        className="w-full h-1 bg-muted cursor-pointer group shrink-0 relative"
+        className="w-full h-[3px] bg-white/10 cursor-pointer group relative shrink-0"
         onClick={handleScrub}
         onTouchStart={handleScrub}
         role="progressbar"
@@ -66,51 +69,64 @@ export function MiniPlayer() {
         aria-valuemax={100}
         aria-label="Playback progress"
       >
-        <div className="h-full bg-primary transition-all duration-100 ease-linear" style={{ width: `${progress}%` }} />
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-primary shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-          style={{ left: `calc(${progress}% - 5px)` }}
+          className="h-full bg-primary transition-all duration-100 ease-linear"
+          style={{ width: `${progress}%` }}
         />
-        {/* Larger tap target */}
+        {/* Larger touch target */}
         <div className="absolute inset-x-0 -top-3 -bottom-3" />
       </div>
 
       {/* Content row */}
       <div className="flex-1 flex items-center px-3 gap-2 min-w-0">
-
-        {/* Artwork → opens full player */}
-        <Link href="/" className="shrink-0 cursor-pointer">
-          <div className="w-9 h-9 rounded-md bg-muted overflow-hidden">
-            {currentSong.artworkUrl ? (
-              <img src={currentSong.artworkUrl} alt={currentSong.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Music2 className="w-4 h-4 text-muted-foreground" />
-              </div>
-            )}
+        {/* Artwork → full player */}
+        <Link href="/" className="shrink-0 cursor-pointer active:opacity-70 transition-opacity">
+          <div className="w-9 h-9 rounded-lg bg-muted overflow-hidden">
+            {currentSong.artworkUrl
+              ? <img src={currentSong.artworkUrl} alt={currentSong.title} className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center"><Music2 className="w-4 h-4 text-muted-foreground" /></div>
+            }
           </div>
         </Link>
 
-        {/* Title + time → opens full player */}
-        <Link href="/" className="flex-1 min-w-0 cursor-pointer">
-          <p className="text-sm font-bold truncate text-foreground leading-tight">{currentSong.title}</p>
+        {/* Title + time → full player */}
+        <Link href="/" className="flex-1 min-w-0 cursor-pointer active:opacity-70 transition-opacity">
+          <p className="text-sm font-bold truncate leading-tight">{currentSong.title}</p>
           <p className="text-[11px] text-muted-foreground truncate leading-tight">
             {currentSong.artist}
             {duration > 0 && (
-              <span className="ml-1.5 opacity-60">{fmt(currentTime)} / {fmt(duration)}</span>
+              <span className="ml-1.5 opacity-50 tabular-nums">
+                {fmt(currentTime)} / {fmt(duration)}
+              </span>
             )}
           </p>
         </Link>
 
         {/* Transport */}
         <div className="flex items-center gap-0.5 shrink-0">
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={skipPrev} aria-label="Previous">
+          <Button
+            variant="ghost" size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-foreground active:scale-90 transition-transform"
+            onClick={skipPrev} aria-label="Previous"
+          >
             <SkipBack className="h-4 w-4 fill-current" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-foreground" onClick={isPlaying ? pause : resume} aria-label={isPlaying ? 'Pause' : 'Play'}>
-            {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current ml-0.5" />}
+          <Button
+            variant="ghost" size="icon"
+            className="h-10 w-10 text-foreground active:scale-90 transition-transform"
+            onClick={isPlaying ? pause : resume}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying
+              ? <Pause className="h-4 w-4 fill-current" />
+              : <Play  className="h-4 w-4 fill-current ml-0.5" />
+            }
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={skipNext} aria-label="Next">
+          <Button
+            variant="ghost" size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-foreground active:scale-90 transition-transform"
+            onClick={skipNext} aria-label="Next"
+          >
             <SkipForward className="h-4 w-4 fill-current" />
           </Button>
         </div>

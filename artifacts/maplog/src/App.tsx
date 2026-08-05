@@ -20,71 +20,63 @@ import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
 
-// Page transition variants — snappy iOS-style cross-fade with a subtle lift
 const pageVariants = {
-  initial: { opacity: 0, y: 7 },
+  initial: { opacity: 0, y: 6 },
   animate: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.2, ease: 'easeOut' as const },
+    opacity: 1, y: 0,
+    transition: { duration: 0.18, ease: 'easeOut' as const },
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.1, ease: 'easeIn' as const },
+    transition: { duration: 0.09, ease: 'easeIn' as const },
   },
 };
-
-// ── Inner shell — has access to MusicKit context ──────────────────────────────
 
 function AppShell() {
   const [location] = useLocation();
 
-  // Key by first path segment so tab switches animate,
-  // sub-navigation within a tab (e.g. /song/:id) also gets its own transition.
-  // Using full location gives each page its own key.
-  const pageKey = location;
-
   return (
-    <div className="min-h-[100dvh] flex flex-col sm:flex-row bg-background">
+    // Bare flex wrapper — no height set here; .app-main owns the viewport sizing
+    <div className="flex flex-col sm:flex-row bg-background">
+      {/* Fixed nav — not in flow */}
       <Navigation />
 
-      {/* Main content area — clears the fixed bottom nav on mobile */}
-      <main
-        className="flex-1 relative flex flex-col sm:ml-56 overflow-hidden"
-        style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
-      >
-        {/* Tailwind class handles desktop: override the padding */}
-        <style>{`@media (min-width: 640px) { main { padding-bottom: 0 !important; } }`}</style>
-
+      {/*
+        .app-main (index.css):
+          mobile  → height = 100dvh - nav(4rem + safe-area) - miniplayer(4rem)
+          desktop → height = 100dvh - miniplayer(4rem),  margin-left = 14rem (w-56)
+        Every page fills h-full and never overlaps chrome.
+      */}
+      <main className="app-main">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={pageKey}
+            key={location}
             variants={pageVariants}
             initial="initial"
             animate="animate"
             exit="exit"
-            className="flex-1 w-full mx-auto"
+            // Fill main completely — pages get a definite height via h-full
+            className="h-full flex flex-col min-h-0"
           >
             <Switch>
-              <Route path="/" component={Home} />
-              <Route path="/collection" component={Collection} />
-              <Route path="/song/:id" component={SongDetail} />
-              <Route path="/playlists" component={Playlists} />
+              <Route path="/"            component={Home} />
+              <Route path="/collection"  component={Collection} />
+              <Route path="/song/:id"    component={SongDetail} />
+              <Route path="/playlists"   component={Playlists} />
               <Route path="/playlists/:id" component={PlaylistDetail} />
-              <Route path="/profile" component={Profile} />
-              <Route path="/settings" component={Settings} />
+              <Route path="/profile"     component={Profile} />
+              <Route path="/settings"    component={Settings} />
               <Route component={NotFound} />
             </Switch>
           </motion.div>
         </AnimatePresence>
       </main>
 
+      {/* Fixed MiniPlayer — .miniplayer (index.css) handles responsive position */}
       <MiniPlayer />
     </div>
   );
 }
-
-// ── Root ──────────────────────────────────────────────────────────────────────
 
 function App() {
   return (
