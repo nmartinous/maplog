@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import deezerRouter from "./deezer";
+import appleMusicRouter from "./appleMusic";
 import songsRouter from "./songs";
 import rarityTypesRouter from "./rarityTypes";
 import collectedCardsRouter from "./collectedCards";
@@ -11,6 +12,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(deezerRouter);
+router.use(appleMusicRouter);
 router.use(songsRouter);
 router.use(rarityTypesRouter);
 router.use(collectedCardsRouter);
