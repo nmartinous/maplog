@@ -5,6 +5,42 @@ import type { MaplogSong } from '@/lib/types';
 import { initMusicKit } from '@/lib/musicKit';
 
 const DEMO_MODE_KEY = 'maplog:demoMode';
+const PREFS_KEY = 'maplog:playerPrefs';
+
+// ── Player preferences (persisted) ───────────────────────────────────────────
+
+export type RepeatMode = 'off' | 'all' | 'one';
+
+type PlayerPrefs = { shuffle: boolean; repeat: RepeatMode; autoplay: boolean };
+
+function loadPrefs(): PlayerPrefs {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      return {
+        shuffle: p.shuffle === true,
+        repeat: p.repeat === 'all' || p.repeat === 'one' ? p.repeat : 'off',
+        autoplay: p.autoplay !== false, // default on
+      };
+    }
+  } catch { /* corrupted prefs — use defaults */ }
+  return { shuffle: false, repeat: 'off', autoplay: true };
+}
+
+function savePrefs(p: PlayerPrefs) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* noop */ }
+}
+
+/** Fisher–Yates shuffle (copy) */
+function shuffled<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 // ── State / Reducer ───────────────────────────────────────────────────────────
 
@@ -16,10 +52,15 @@ type PlayerState = {
   queue: MaplogSong[];
   queueIndex: number;
   activeCardIndex: number;
+  shuffle: boolean;
+  repeat: RepeatMode;
+  autoplay: boolean;
+  /** Unshuffled queue order, kept while shuffle is on */
+  originalQueue: MaplogSong[] | null;
 };
 
 type PlayerAction =
-  | { type: 'PLAY_SONG'; payload: { song: MaplogSong; queue?: MaplogSong[] } }
+  | { type: 'PLAY_SONG'; payload: { song: MaplogSong; queue?: MaplogSong[]; originalQueue?: MaplogSong[] | null } }
   | { type: 'SET_PLAYING'; payload: boolean }
   | { type: 'SET_TIME'; payload: number }
   | { type: 'SET_DURATION'; payload: number }
@@ -27,7 +68,12 @@ type PlayerAction =
   | { type: 'ENQUEUE'; payload: MaplogSong }
   | { type: 'NEXT' }
   | { type: 'PREV' }
-  | { type: 'SET_ACTIVE_CARD_INDEX'; payload: number };
+  | { type: 'SET_ACTIVE_CARD_INDEX'; payload: number }
+  | { type: 'APPLY_QUEUE_ORDER'; payload: { queue: MaplogSong[]; queueIndex: number; shuffle: boolean; originalQueue: MaplogSong[] | null } }
+  | { type: 'SET_REPEAT'; payload: RepeatMode }
+  | { type: 'SET_AUTOPLAY'; payload: boolean };
+
+const prefs = loadPrefs();
 
 const initial: PlayerState = {
   currentSong: null,
@@ -37,25 +83,40 @@ const initial: PlayerState = {
   queue: [],
   queueIndex: -1,
   activeCardIndex: 0,
+  shuffle: prefs.shuffle,
+  repeat: prefs.repeat,
+  autoplay: prefs.autoplay,
+  originalQueue: null,
 };
 
 function reducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
     case 'PLAY_SONG': {
-      const { song, queue: newQueue } = action.payload;
+      const { song, queue: newQueue, originalQueue } = action.payload;
       const q = newQueue ? [...newQueue] : [...state.queue];
       let idx = q.findIndex(s => s.id === song.id);
       if (idx === -1) { q.push(song); idx = q.length - 1; }
-      return { ...state, currentSong: song, queue: q, queueIndex: idx, isPlaying: true, currentTime: 0, duration: 0, activeCardIndex: 0 };
+      return {
+        ...state, currentSong: song, queue: q, queueIndex: idx, isPlaying: true,
+        currentTime: 0, duration: 0, activeCardIndex: 0,
+        originalQueue: newQueue ? (originalQueue ?? null) : state.originalQueue,
+      };
     }
     case 'SET_PLAYING':          return { ...state, isPlaying: action.payload };
     case 'SET_TIME':             return { ...state, currentTime: action.payload };
     case 'SET_DURATION':         return { ...state, duration: action.payload };
-    case 'SET_QUEUE':            return { ...state, queue: action.payload };
-    case 'ENQUEUE':              return { ...state, queue: [...state.queue, action.payload] };
+    case 'SET_QUEUE':            return { ...state, queue: action.payload, originalQueue: null };
+    case 'ENQUEUE':              return {
+      ...state,
+      queue: [...state.queue, action.payload],
+      originalQueue: state.originalQueue ? [...state.originalQueue, action.payload] : null,
+    };
     case 'NEXT': {
-      const next = state.queueIndex + 1;
-      if (next >= state.queue.length) return { ...state, isPlaying: false };
+      let next = state.queueIndex + 1;
+      if (next >= state.queue.length) {
+        if (state.repeat === 'all' && state.queue.length > 0) next = 0;
+        else return { ...state, isPlaying: false };
+      }
       return { ...state, currentSong: state.queue[next], queueIndex: next, isPlaying: true, currentTime: 0, duration: 0, activeCardIndex: 0 };
     }
     case 'PREV': {
@@ -65,6 +126,12 @@ function reducer(state: PlayerState, action: PlayerAction): PlayerState {
       return { ...state, currentSong: state.queue[prev], queueIndex: prev, isPlaying: true, currentTime: 0, duration: 0, activeCardIndex: 0 };
     }
     case 'SET_ACTIVE_CARD_INDEX': return { ...state, activeCardIndex: action.payload };
+    case 'APPLY_QUEUE_ORDER': {
+      const { queue, queueIndex, shuffle, originalQueue } = action.payload;
+      return { ...state, queue, queueIndex, shuffle, originalQueue };
+    }
+    case 'SET_REPEAT':   return { ...state, repeat: action.payload };
+    case 'SET_AUTOPLAY': return { ...state, autoplay: action.payload };
     default: return state;
   }
 }
@@ -81,6 +148,9 @@ type PlayerContextType = PlayerState & {
   setQueue: (songs: MaplogSong[]) => void;
   enqueue: (song: MaplogSong) => void;
   setActiveCardIndex: (index: number) => void;
+  toggleShuffle: () => void;
+  cycleRepeat: () => void;
+  toggleAutoplay: () => void;
 };
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -101,6 +171,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const mkActiveRef = useRef(false);
   // Monotonic id so only the latest song-change async flow may touch MusicKit
   const playReqRef = useRef(0);
+  // True while a track change is switching MusicKit queues. During that window
+  // 'stopped'/'paused' events belong to the *old* track (mk.stop() fires them
+  // asynchronously) and must not clobber the play intent of the new track —
+  // that race made skips/rewinds silently fail to start playback.
+  const mkTransitionRef = useRef(false);
   // Bumped when MusicKit becomes ready or auth changes, to re-route playback
   const [mkTick, setMkTick] = useState(0);
 
@@ -132,11 +207,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           const ps = mk.playbackState;
           const S = MK?.PlaybackStates ?? MK?.PlaybackState ?? {};
           if (ps === S.playing) dispatch({ type: 'SET_PLAYING', payload: true });
-          else if (ps === S.paused || ps === S.stopped) dispatch({ type: 'SET_PLAYING', payload: false });
-          else if (ps === S.ended || ps === S.completed) {
+          else if (ps === S.paused || ps === S.stopped) {
+            // Ignore stale stop/pause events emitted while switching tracks
+            if (mkTransitionRef.current) return;
             dispatch({ type: 'SET_PLAYING', payload: false });
-            const s = stateRef.current;
-            if (s.queueIndex + 1 < s.queue.length) dispatch({ type: 'NEXT' });
+          }
+          else if (ps === S.ended || ps === S.completed) {
+            if (mkTransitionRef.current) return;
+            handleTrackEnd('musickit');
           }
         };
         mk.addEventListener('playbackTimeDidChange', onTime);
@@ -150,10 +228,45 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const mk = mkRef.current;
       if (mk) for (const [ev, fn] of listeners) mk.removeEventListener(ev, fn);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── HTML5 Audio (30-second preview fallback) ─────────────────────────────
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Shared end-of-track behavior for all engines: respects autoplay,
+  // repeat-one, repeat-all (queue wrap handled by the NEXT reducer).
+  const handleTrackEnd = useCallback((engine: 'musickit' | 'html5' | 'demo') => {
+    const s = stateRef.current;
+    if (s.repeat === 'one') {
+      // Restart the same track on the active engine
+      if (engine === 'demo') {
+        dispatch({ type: 'SET_TIME', payload: 0 });
+      } else if (engine === 'musickit') {
+        const mk = mkRef.current;
+        try {
+          mk?.seekToTime?.(0);
+          mk?.play()?.catch?.(() => { /* noop */ });
+        } catch { /* noop */ }
+        dispatch({ type: 'SET_TIME', payload: 0 });
+      } else {
+        const audio = audioRef.current;
+        if (audio) {
+          audio.currentTime = 0;
+          audio.play().catch(() => { /* noop */ });
+        }
+        dispatch({ type: 'SET_TIME', payload: 0 });
+      }
+      return;
+    }
+    if (!s.autoplay) {
+      dispatch({ type: 'SET_PLAYING', payload: false });
+      dispatch({ type: 'SET_TIME', payload: 0 });
+      return;
+    }
+    // NEXT stops at the end of the queue unless repeat === 'all'
+    dispatch({ type: 'NEXT' });
+  }, []);
 
   useEffect(() => {
     if (isDemoMode.current) return;
@@ -170,17 +283,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     };
     const onPlay  = () => dispatch({ type: 'SET_PLAYING', payload: true });
-    const onPause = () => dispatch({ type: 'SET_PLAYING', payload: false });
-    const onEnded = () => {
+    const onPause = () => {
+      // 'pause' also fires on 'ended' and when swapping src — let those flows decide
+      if (audio.ended) return;
       dispatch({ type: 'SET_PLAYING', payload: false });
-      // auto-advance to next song in queue
-      const s = stateRef.current;
-      const next = s.queueIndex + 1;
-      if (next < s.queue.length) {
-        dispatch({ type: 'NEXT' });
-        // The song-change effect will pick up the new currentSong and start playback
-      }
     };
+    const onEnded = () => handleTrackEnd('html5');
     const onError = (e: Event) => {
       // Ignore errors from clearing src (empty-string load aborts)
       if (!audio.src || audio.src === window.location.href) return;
@@ -209,7 +317,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('ended',          onEnded);
       audio.removeEventListener('error',          onError);
     };
-  }, []);
+  }, [handleTrackEnd]);
 
   // When currentSong changes in real mode (or MusicKit becomes ready/authed),
   // route to MusicKit (full songs) or the HTML5 preview player
@@ -222,32 +330,40 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const mk = mkRef.current;
     const reqId = ++playReqRef.current;
 
+    // Capture play intent NOW — async engine events (e.g. the stopped event
+    // from mk.stop() below) must not be able to cancel this track change.
+    const shouldPlay = stateRef.current.isPlaying;
+
     // Stop whichever engine was previously active
     if (mkActiveRef.current && mk) {
+      mkTransitionRef.current = true;
       try { mk.stop(); } catch { /* noop */ }
     }
     mkActiveRef.current = false;
 
-    if (!song) { audio.pause(); audio.src = ''; return; }
+    if (!song) { mkTransitionRef.current = false; audio.pause(); audio.src = ''; return; }
 
     // Full-song playback via MusicKit for Apple-sourced songs when authorized
     if (song.source === 'apple' && mk?.isAuthorized) {
       audio.pause();
       audio.src = '';
       mkActiveRef.current = true;
+      mkTransitionRef.current = true;
       dispatch({ type: 'SET_DURATION', payload: (song.durationMs ?? 0) / 1000 });
       (async () => {
         try {
           await mk.setQueue({ songs: [song.id.replace(/^apple:/, '')] });
           if (playReqRef.current !== reqId) return; // superseded by a newer song change
-          if (stateRef.current.isPlaying) await mk.play();
+          if (shouldPlay) await mk.play();
+          if (playReqRef.current === reqId) mkTransitionRef.current = false;
         } catch (err) {
           if (playReqRef.current !== reqId) return;
+          mkTransitionRef.current = false;
           console.warn('[AudioPlayer] MusicKit playback failed, falling back to preview:', err);
           mkActiveRef.current = false;
           if (song.previewUrl) {
             audio.src = song.previewUrl;
-            if (stateRef.current.isPlaying) {
+            if (shouldPlay || stateRef.current.isPlaying) {
               audio.play().catch(e => console.warn('[AudioPlayer] play() blocked:', e));
             }
           } else {
@@ -258,13 +374,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    mkTransitionRef.current = false;
+
     if (song.previewUrl) {
       // Avoid restarting the preview if it's already the active source
       // (mkTick can retrigger this effect mid-playback)
       const alreadyPlayingThis = audio.src === song.previewUrl && !audio.paused;
       if (!alreadyPlayingThis) {
         audio.src = song.previewUrl;
-        if (state.isPlaying) {
+        if (shouldPlay) {
           audio.play().catch(err => console.warn('[AudioPlayer] play() blocked:', err));
         }
       }
@@ -294,12 +412,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const next = s.currentTime + 1;
       if (s.duration > 0 && next >= s.duration) {
         clearDemoTimer();
-        dispatch({ type: 'NEXT' });
+        handleTrackEnd('demo');
+        // repeat-one / continuing playback restarts the timer via the
+        // song-change or play/pause effects; restart manually for repeat-one
+        // since the song id doesn't change
+        if (stateRef.current.isPlaying) startDemoTimer();
       } else {
         dispatch({ type: 'SET_TIME', payload: next });
       }
     }, 1000);
-  }, [clearDemoTimer]);
+  }, [clearDemoTimer, handleTrackEnd]);
 
   // Demo song change → reset duration and timer
   useEffect(() => {
@@ -324,6 +446,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // ── Actions ───────────────────────────────────────────────────────────────
 
   const play = useCallback((song: MaplogSong, queue?: MaplogSong[]) => {
+    const s = stateRef.current;
+    if (queue && s.shuffle) {
+      // Shuffle is on: play the chosen song first, shuffle the rest
+      const rest = queue.filter(x => x.id !== song.id);
+      dispatch({
+        type: 'PLAY_SONG',
+        payload: { song, queue: [song, ...shuffled(rest)], originalQueue: [...queue] },
+      });
+      return;
+    }
     dispatch({ type: 'PLAY_SONG', payload: { song, queue } });
     // Real mode: the currentSong useEffect handles loading + playing the audio
     // Demo mode: the demo timer useEffect handles it
@@ -358,7 +490,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const skipNext = useCallback(() => {
     const s = stateRef.current;
-    if (s.queueIndex + 1 >= s.queue.length) return;
+    if (s.queueIndex + 1 >= s.queue.length && s.repeat !== 'all') return;
     dispatch({ type: 'NEXT' });
   }, []);
 
@@ -373,9 +505,54 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const enqueue            = useCallback((song: MaplogSong)    => dispatch({ type: 'ENQUEUE',      payload: song  }), []);
   const setActiveCardIndex = useCallback((i: number)           => dispatch({ type: 'SET_ACTIVE_CARD_INDEX', payload: i }), []);
 
+  const persistPrefs = useCallback((partial: Partial<PlayerPrefs>) => {
+    const s = stateRef.current;
+    savePrefs({ shuffle: s.shuffle, repeat: s.repeat, autoplay: s.autoplay, ...partial });
+  }, []);
+
+  const toggleShuffle = useCallback(() => {
+    const s = stateRef.current;
+    if (!s.shuffle) {
+      // Turn shuffle ON: current song stays put; everything after plays randomly
+      const current = s.currentSong;
+      const rest = current ? s.queue.filter(x => x.id !== current.id) : [...s.queue];
+      const newQueue = current ? [current, ...shuffled(rest)] : shuffled(rest);
+      dispatch({
+        type: 'APPLY_QUEUE_ORDER',
+        payload: { queue: newQueue, queueIndex: current ? 0 : -1, shuffle: true, originalQueue: [...s.queue] },
+      });
+      persistPrefs({ shuffle: true });
+    } else {
+      // Turn shuffle OFF: restore the original order
+      const original = s.originalQueue ?? s.queue;
+      const idx = s.currentSong ? original.findIndex(x => x.id === s.currentSong!.id) : -1;
+      dispatch({
+        type: 'APPLY_QUEUE_ORDER',
+        payload: { queue: [...original], queueIndex: idx, shuffle: false, originalQueue: null },
+      });
+      persistPrefs({ shuffle: false });
+    }
+  }, [persistPrefs]);
+
+  const cycleRepeat = useCallback(() => {
+    const order: RepeatMode[] = ['off', 'all', 'one'];
+    const next = order[(order.indexOf(stateRef.current.repeat) + 1) % order.length];
+    dispatch({ type: 'SET_REPEAT', payload: next });
+    persistPrefs({ repeat: next });
+  }, [persistPrefs]);
+
+  const toggleAutoplay = useCallback(() => {
+    const next = !stateRef.current.autoplay;
+    dispatch({ type: 'SET_AUTOPLAY', payload: next });
+    persistPrefs({ autoplay: next });
+  }, [persistPrefs]);
+
   return (
     <PlayerContext.Provider
-      value={{ ...state, play, pause, resume, seek, skipNext, skipPrev, setQueue, enqueue, setActiveCardIndex }}
+      value={{
+        ...state, play, pause, resume, seek, skipNext, skipPrev, setQueue, enqueue,
+        setActiveCardIndex, toggleShuffle, cycleRepeat, toggleAutoplay,
+      }}
     >
       {children}
     </PlayerContext.Provider>

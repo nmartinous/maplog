@@ -20,3 +20,6 @@ description: Data layer, auth, and playback approach for Maplog (Apple Music + p
 
 ## History
 - Apple MusicKit (original plan, blocked on enrollment) → Deezer OAuth (registration closed) → Deezer public API + previews → **Apple Music (current, Aug 2026)** once the developer account activated.
+
+## Track-transition race (skip/rewind bug)
+MusicKit's `stop()` emits an async `stopped` playbackState event that can arrive AFTER the next track is already active, clobbering `isPlaying`. **Rule:** guard playbackState handlers with a transition flag during track changes, and capture "should play" intent BEFORE any awaits — never re-read live state after them. Same class of bug in HTML5: ignore `pause` events when `audio.ended`.

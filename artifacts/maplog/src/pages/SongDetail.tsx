@@ -4,8 +4,10 @@ import { useMusicKit } from '@/context/MusicKitContext';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import useEmblaCarousel from 'embla-carousel-react';
 import { SoundmapCard } from '@/components/SoundmapCard';
+import { CardBackInfo } from '@/components/CardBackInfo';
+import { QueueSheet } from '@/components/QueueSheet';
 import { Button } from '@/components/ui/button';
-import { Play, ArrowLeft, MoreVertical, Trash2, Disc3, ListEnd } from 'lucide-react';
+import { Play, Pause, ArrowLeft, MoreVertical, Trash2, Disc3, ListEnd, Info, ListOrdered, Volume2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -15,15 +17,21 @@ export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { getSong, songs, removeFromCollection } = useMusicKit();
-  const { play, enqueue } = usePlayer();
+  const { play, pause, resume, enqueue, currentSong, isPlaying } = usePlayer();
 
   const songId = decodeURIComponent(id ?? '');
-  const song = getSong(songId);
+  // Fall back to the actively playing song so the mini player can always
+  // open a card view, even for songs not (or no longer) in the collection.
+  const song = getSong(songId) ?? (currentSong?.id === songId ? currentSong : undefined);
+  const isCurrent = currentSong?.id === song?.id;
+  const inCollection = !!getSong(songId);
 
   const multiCard = (song?.cards?.length ?? 0) > 1;
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, watchDrag: multiCard });
   const [activeSnap, setActiveSnap] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -32,8 +40,12 @@ export default function SongDetail() {
     return () => { emblaApi.off('select', onSelect); };
   }, [emblaApi]);
 
+  useEffect(() => { setIsFlipped(false); }, [activeSnap, song?.id]);
+
   const handlePlay = () => {
-    if (song) { play(song, songs); setLocation('/'); }
+    if (!song) return;
+    if (isCurrent) { isPlaying ? pause() : resume(); return; }
+    play(song, inCollection ? songs : undefined);
   };
 
   const handleAddToQueue = () => {
@@ -90,24 +102,42 @@ export default function SongDetail() {
         )}
       </AnimatePresence>
 
-      <div className="relative z-50 flex items-center justify-between px-5 pt-8 pb-2 shrink-0 pointer-events-auto">
+      <div className="relative z-50 flex items-center justify-between px-5 pt-8 pb-2 shrink-0 pointer-events-auto gap-2">
         <Button
           variant="ghost" size="icon"
           onClick={() => { if (window.history.length > 1) window.history.back(); else setLocation('/collection'); }}
-          className="w-12 h-12 rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white shadow-lg"
+          className="w-11 h-11 rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white shadow-lg"
         >
-          <ArrowLeft className="h-6 w-6" />
+          <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] font-black tracking-widest uppercase text-white/50">Detail</span>
+        {isCurrent && (
+          <div className="flex flex-col items-center min-w-0">
+            <span className="text-[9px] font-black tracking-[0.25em] uppercase text-primary">Now Playing</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon"
+            className={cn(
+              'w-11 h-11 rounded-full glass-panel transition-colors shadow-lg active:scale-90',
+              isFlipped ? 'bg-white/20 text-primary border-primary/50' : 'hover:bg-white/10 text-white/80'
+            )}
+            onClick={() => setIsFlipped(f => !f)} aria-label="Card info">
+            <Info className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon"
+            className="w-11 h-11 rounded-full glass-panel hover:bg-white/10 transition-colors active:scale-90 shadow-lg"
+            onClick={() => setIsQueueOpen(true)} aria-label="Queue">
+            <ListOrdered className="h-5 w-5 text-white/80" />
+          </Button>
+          <Button
+            variant="ghost" size="icon"
+            onClick={() => setMenuOpen(true)}
+            className="w-11 h-11 rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white shadow-lg"
+            aria-label="More options"
+          >
+            <MoreVertical className="h-5 w-5" />
+          </Button>
         </div>
-        <Button
-          variant="ghost" size="icon"
-          onClick={() => setMenuOpen(true)}
-          className="w-12 h-12 rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white shadow-lg"
-        >
-          <MoreVertical className="h-6 w-6" />
-        </Button>
       </div>
 
       <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-4 w-full">
@@ -119,26 +149,51 @@ export default function SongDetail() {
                   <div key={card.id} className="flex-[0_0_100%] min-w-0 flex justify-center items-center perspective-[1000px]">
                     <motion.div
                       animate={{ 
-                        scale: i === activeSnap ? 1 : 0.85,
+                        scale: i === activeSnap ? (isFlipped ? 1.05 : 1) : 0.85,
                         opacity: i === activeSnap ? 1 : 0.4,
+                        rotateX: isFlipped && i === activeSnap ? 180 : 0,
                         rotateY: i === activeSnap ? 0 : (i < activeSnap ? 15 : -15),
                       }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      className="relative cursor-pointer group"
-                      onClick={handlePlay}
+                      transition={{ type: "spring", stiffness: 260, damping: 25 }}
+                      className="relative"
+                      style={{ transformStyle: 'preserve-3d', zIndex: i === activeSnap ? 50 : 0, touchAction: 'pan-x' }}
+                      onPanEnd={(e, info) => {
+                        if (i !== activeSnap) return;
+                        // Vertical swipe toggles the flip; ignore mostly-horizontal
+                        // pans so embla keeps card-to-card swiping.
+                        if (Math.abs(info.offset.y) <= Math.abs(info.offset.x)) return;
+                        if (Math.abs(info.offset.y) > 40 || Math.abs(info.velocity.y) > 200) {
+                          setIsFlipped(f => !f);
+                        }
+                      }}
                     >
-                      <SoundmapCard
-                        card={card}
-                        title={song.title}
-                        artist={song.artist}
-                        genre={song.genre}
-                        size="lg"
-                        className="shadow-2xl"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl">
-                        <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-[0_0_40px_rgba(255,60,0,0.6)] scale-75 group-hover:scale-100 transition-transform duration-300">
-                          <Play className="w-10 h-10 text-white fill-white ml-1.5" />
-                        </div>
+                      <div className="cursor-pointer group" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }} onClick={handlePlay}>
+                        <SoundmapCard
+                          card={card}
+                          title={song.title}
+                          artist={song.artist}
+                          genre={song.genre}
+                          size="lg"
+                          className="shadow-2xl"
+                        />
+                        {!isFlipped && (
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl">
+                            <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-[0_0_40px_rgba(255,60,0,0.6)] scale-75 group-hover:scale-100 transition-transform duration-300">
+                              {isCurrent && isPlaying
+                                ? <Pause className="w-10 h-10 text-white fill-white" />
+                                : <Play className="w-10 h-10 text-white fill-white ml-1.5" />}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div 
+                        className="absolute inset-0 rounded-[1.5rem] sm:rounded-[2rem] glass-panel bg-card/95 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden pointer-events-none"
+                        style={{ 
+                          backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+                          transform: 'rotateX(180deg)' 
+                        }}
+                      >
+                        <CardBackInfo trackId={song.id} song={song} />
                       </div>
                     </motion.div>
                   </div>
@@ -170,41 +225,7 @@ export default function SongDetail() {
         )}
       </div>
 
-      <div className="relative z-10 text-center px-6 pb-12 shrink-0">
-        <motion.p 
-          key={`title-${song.id}`}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="font-display font-black text-2xl sm:text-3xl text-white leading-tight truncate"
-        >
-          {song.title}
-        </motion.p>
-        <motion.p 
-          key={`artist-${song.id}`}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-base sm:text-lg text-primary font-semibold truncate mt-1"
-        >
-          {song.artist}
-        </motion.p>
-        
-        <div className="flex justify-center mt-6 h-6">
-          <AnimatePresence mode="wait">
-            {activeCard && (
-              <motion.p 
-                key={activeCard.rarityType.name}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="text-xs text-white/50 font-bold tracking-[0.2em] uppercase bg-white/5 px-4 py-1.5 rounded-full border border-white/10 shadow-inner"
-              >
-                {activeCard.rarityType.name} Tier
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+      <QueueSheet open={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
 
       <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
         <DialogContent className="sm:max-w-sm rounded-[2rem] bg-card border border-white/10 p-6 z-50">
@@ -221,15 +242,17 @@ export default function SongDetail() {
               </div>
               <span className="font-semibold text-white">Add to Queue</span>
             </button>
-            <button
-              onClick={handleRemove}
-              className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-destructive/5 hover:bg-destructive/15 transition-colors text-left w-full group text-destructive"
-            >
-              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <span className="font-semibold">Remove from Collection</span>
-            </button>
+            {inCollection && (
+              <button
+                onClick={handleRemove}
+                className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-destructive/5 hover:bg-destructive/15 transition-colors text-left w-full group text-destructive"
+              >
+                <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <span className="font-semibold">Remove from Collection</span>
+              </button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
