@@ -43,7 +43,7 @@ export default defineConfig({
         description: 'Soundmap card collection archive & music player',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '.',
+        start_url: basePath,
         background_color: '#09090b',
         theme_color: '#09090b',
         icons: [

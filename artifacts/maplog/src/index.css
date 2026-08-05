@@ -38,6 +38,18 @@
 html, body, #root {
   height: 100dvh;
   overflow: hidden;
+  /* Prevent iOS rubber-band overscroll from shifting the in-flow nav */
+  overscroll-behavior: none;
+}
+
+/* Suppress blue tap highlight on all tappable elements (iOS Safari default) */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent long-press callout on interactive elements */
+button, a, [role="button"] {
+  -webkit-touch-callout: none;
 }
 
 /* ── Rare card breathing glow ───────────────────────────────────────────── */
