@@ -25,12 +25,19 @@
      └──────┴───────────┘
    ────────────────────────────────────────────────────────────────────────── */
 
-html, body {
+/*
+  iOS PWA safe-area strategy:
+  ─ html + body are locked to exactly 100dvh with no padding.
+    Adding padding here causes the root div (h-dvh) to overflow by the inset
+    amount and clip the nav off the bottom of the screen on iOS.
+  ─ #root inherits height so that h-full on the app shell resolves correctly.
+  ─ Bottom safe area is handled directly on MobileNav via paddingBottom.
+  ─ Top safe area (status bar) is dark/transparent on this app — acceptable.
+    Per-page insets can be added later with pt-safe if needed.
+*/
+html, body, #root {
   height: 100dvh;
-  /* Prevent the document from scrolling — only inner containers scroll */
   overflow: hidden;
-  /* Respect safe-area on iOS PWA */
-  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
 }
 
 /* ── Rare card breathing glow ───────────────────────────────────────────── */
