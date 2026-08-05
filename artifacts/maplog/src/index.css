@@ -3,6 +3,9 @@
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
+/* Short landscape viewport — phone rotated sideways (height < 500px) */
+@custom-variant landscape-compact (@media (max-height: 500px) and (orientation: landscape));
+
 /* ─────────────────────────────────────────────────────────────────────────
    APP SHELL LAYOUT
    ─────────────────────────────────────────────────────────────────────────

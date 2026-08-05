@@ -62,7 +62,7 @@ export default function Home() {
       </div>
 
       {/* Top bar */}
-      <div className="relative z-10 flex items-center justify-between px-5 pt-8 pb-2 shrink-0">
+      <div className="relative z-10 flex items-center justify-between px-5 pt-8 landscape-compact:pt-2 pb-2 shrink-0">
         <Button variant="ghost" size="icon"
           className="w-9 h-9 rounded-full text-white/50 hover:text-white hover:bg-white/10" asChild>
           <Link href="/collection">
@@ -81,7 +81,7 @@ export default function Home() {
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-sm mx-auto min-h-0 px-2">
         {cards.length > 0 ? (
           <>
-            <div className="w-full [overflow-x:clip] py-6 px-10" ref={emblaRef}>
+            <div className="w-full [overflow-x:clip] py-6 landscape-compact:py-2 px-10 landscape-compact:px-6" ref={emblaRef}>
               <div className="flex touch-pan-y">
                 {cards.map((card, i) => (
                   <div key={card.id} className="flex-[0_0_100%] min-w-0 flex justify-center items-center">

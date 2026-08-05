@@ -115,7 +115,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
     sm:   'w-24 rounded-xl',
     md:   'w-40 rounded-2xl',
     lg:   'w-64 rounded-2xl',
-    hero: 'w-[280px] sm:w-[320px] rounded-3xl',
+    hero: 'w-[280px] sm:w-[320px] landscape-compact:w-[160px] rounded-3xl',
   };
 
   const artRadius = {
