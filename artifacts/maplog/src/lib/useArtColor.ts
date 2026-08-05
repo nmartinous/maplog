@@ -11,7 +11,7 @@ const artColorCache = new Map<string, string>();
  * (highly-saturated, mid-brightness) pixel color as an rgb() string.
  * Falls back to `fallback` on CORS failure or no image.
  */
-function extractVibrantColor(img: HTMLImageElement): string {
+function extractVibrantColor(img: CanvasImageSource): string {
   try {
     const size = 40;
     const canvas = document.createElement('canvas');
@@ -88,24 +88,51 @@ export function useArtColor(
     }
 
     let cancelled = false;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
 
-    img.onload = () => {
-      if (cancelled) return;
-      const extracted = extractVibrantColor(img);
-      const result = extracted || fallbackRef.current;
-      artColorCache.set(artworkUrl, result);
-      setColor(result);
-    };
-    img.onerror = () => {
-      if (!cancelled) {
-        artColorCache.set(artworkUrl, fallbackRef.current);
-        setColor(fallbackRef.current);
+    // Use fetch + createImageBitmap instead of an <img> element. Safari
+    // sometimes serves a cached non-CORS copy of the same artwork URL to a
+    // crossOrigin <img> (the artwork is also rendered as a plain <img>
+    // elsewhere), which taints the canvas and made every card fall back to
+    // its rarity color. A CORS-mode fetch has its own cache entry and always
+    // yields readable pixels.
+    (async () => {
+      try {
+        const res = await fetch(artworkUrl, { mode: 'cors' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        let extracted = '';
+        if (typeof createImageBitmap === 'function') {
+          const bitmap = await createImageBitmap(blob);
+          if (cancelled) { bitmap.close(); return; }
+          extracted = extractVibrantColor(bitmap);
+          bitmap.close();
+        } else {
+          // Older Safari fallback: decode via an <img> from a same-origin
+          // blob URL (never taints the canvas).
+          const objectUrl = URL.createObjectURL(blob);
+          try {
+            const img = new Image();
+            img.src = objectUrl;
+            await img.decode();
+            if (cancelled) return;
+            extracted = extractVibrantColor(img);
+          } finally {
+            URL.revokeObjectURL(objectUrl);
+          }
+        }
+        if (extracted) {
+          // Only cache successful extractions — a transient failure shouldn't
+          // pin the fallback color for the rest of the session.
+          artColorCache.set(artworkUrl, extracted);
+          if (!cancelled) setColor(extracted);
+        } else if (!cancelled) {
+          setColor(fallbackRef.current);
+        }
+      } catch {
+        if (!cancelled) setColor(fallbackRef.current);
       }
-    };
+    })();
 
-    img.src = artworkUrl;
     return () => { cancelled = true; };
   }, [artworkUrl]); // fallback is stable per slug, ref handles any change
 

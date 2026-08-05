@@ -196,15 +196,6 @@ router.get("/apple-music/song/:id", async (req, res) => {
   }
 });
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-export interface AppleTrack {
-  title: string;
-  artist: string;
-  album: string;
-  artworkUrl: string | null;
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 /** Replace {w}/{h} template vars from Apple's artwork URL format */
@@ -216,183 +207,101 @@ function resolveArtwork(url: string | undefined, size = 300): string | null {
     .replace("{f}", "jpg");
 }
 
-/**
- * Walk any parsed JSON blob and collect objects that look like Apple Music tracks:
- * they must have a non-empty `name` string + a non-empty `artistName` string.
- * Limits depth to avoid runaway recursion on deeply nested structures.
- */
-function extractTracks(obj: unknown, depth = 0, seen = new WeakSet()): AppleTrack[] {
-  if (depth > 25 || obj === null || typeof obj !== "object") return [];
-  if (seen.has(obj as object)) return [];
-  seen.add(obj as object);
-
-  const tracks: AppleTrack[] = [];
-  const o = obj as Record<string, unknown>;
-
-  // Check if this node IS a track (attributes-wrapped or flat)
-  const attrs = (o.attributes ?? o) as Record<string, unknown>;
-  const name = attrs.name;
-  const artistName = attrs.artistName;
-
-  if (
-    typeof name === "string" && name.length > 0 &&
-    typeof artistName === "string" && artistName.length > 0
-  ) {
-    const artwork = attrs.artwork as Record<string, unknown> | undefined;
-    tracks.push({
-      title: name,
-      artist: artistName,
-      album: typeof attrs.albumName === "string" ? attrs.albumName : "",
-      artworkUrl: resolveArtwork(artwork?.url as string | undefined),
-    });
-    // Don't recurse further into a track node
-    return tracks;
-  }
-
-  // Recurse into arrays and plain-object values
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      for (const t of extractTracks(item, depth + 1, seen)) tracks.push(t);
-    }
-  } else {
-    for (const val of Object.values(o)) {
-      for (const t of extractTracks(val, depth + 1, seen)) tracks.push(t);
-    }
-  }
-
-  return tracks;
+function mapSong(s: any) {
+  const a = s?.attributes ?? {};
+  return {
+    id: String(s.id),
+    title: a.name ?? "Unknown",
+    artist: a.artistName ?? "Unknown Artist",
+    album: a.albumName ?? "",
+    genre: Array.isArray(a.genreNames) ? a.genreNames[0] ?? null : null,
+    durationMs: a.durationInMillis ?? 0,
+    artworkUrl: resolveArtwork(a.artwork?.url, 1000) ?? "",
+    previewUrl: a.previews?.[0]?.url ?? null,
+    releaseDate: a.releaseDate ?? null,
+  };
 }
 
-function deduplicateTracks(tracks: AppleTrack[]): AppleTrack[] {
-  const seen = new Set<string>();
-  return tracks.filter((t) => {
-    const key = `${t.artist.toLowerCase()}::${t.title.toLowerCase()}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-/** Pull the playlist/album display name from the page <title> or og:title */
-function extractPageTitle(html: string): string {
-  const og = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
-  if (og?.[1]) return og[1];
-  const title = html.match(/<title>([^<]+)<\/title>/i);
-  if (title?.[1]) {
-    return title[1]
-      .replace(/\s*[|–-]\s*Apple Music\s*$/i, "")
-      .trim();
-  }
-  return "Apple Music Playlist";
-}
-
-// ── Route ──────────────────────────────────────────────────────────────────────
+// ── Playlist import ────────────────────────────────────────────────────────────
 
 /**
- * GET /api/apple-music/playlist?url=<encoded Apple Music playlist URL>
+ * GET /api/apple-music/playlist?url=<Apple Music playlist URL>
  *
- * Fetches a public Apple Music playlist page server-side (bypassing CORS),
- * parses the embedded JSON to extract the track list, and returns:
- *   { name: string, tracks: AppleTrack[] }
+ * Resolves a music.apple.com playlist link through the official Apple Music
+ * API (paginating through all tracks) and returns:
+ *   { name: string, songs: NormalizedSong[] }
  *
- * No Apple developer token required — only works for publicly shared playlists.
+ * Works for any public/catalog playlist (pl.xxx) and shared user playlists
+ * (pl.u-xxx).
  */
 router.get("/apple-music/playlist", async (req, res) => {
   const url = String(req.query.url ?? "").trim();
 
-  // Strict validation to prevent SSRF: https only, exact host, no credentials
-  let parsed: URL;
+  // Strict validation: https, exact host, no credentials (SSRF-safe), and a
+  // playlist id we can hand to the Apple API.
+  let playlistId: string | null = null;
   try {
-    parsed = new URL(url);
+    const parsed = new URL(url);
+    if (
+      parsed.protocol === "https:" &&
+      parsed.hostname === "music.apple.com" &&
+      parsed.username === "" &&
+      parsed.password === ""
+    ) {
+      const match = parsed.pathname.match(/(pl\.u-[A-Za-z0-9]+|pl\.[A-Za-z0-9-]+)/);
+      playlistId = match?.[1] ?? null;
+    }
   } catch {
-    return void res
-      .status(400)
-      .json({ error: "Provide a valid music.apple.com playlist URL." });
+    /* handled below */
   }
-  if (
-    parsed.protocol !== "https:" ||
-    parsed.hostname !== "music.apple.com" ||
-    parsed.username !== "" ||
-    parsed.password !== ""
-  ) {
-    return void res
-      .status(400)
-      .json({ error: "Provide a valid music.apple.com playlist URL." });
+  if (!playlistId) {
+    return void res.status(400).json({
+      error:
+        "Provide a valid music.apple.com playlist link (it should contain a 'pl.…' id).",
+    });
   }
 
-  let html: string;
   try {
-    const response = await fetch(url, {
-      headers: {
-        // Realistic browser headers so Apple serves the full SSR HTML
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
-          "AppleWebKit/537.36 (KHTML, like Gecko) " +
-          "Chrome/124.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-      },
-      redirect: "follow",
-    });
-    if (!response.ok) {
+    const metaRes = await appleFetch(`/catalog/${STOREFRONT}/playlists/${playlistId}`);
+    if (metaRes.status === 404) {
+      return void res.status(404).json({
+        error: "Playlist not found. Make sure it's public and shared from Apple Music.",
+      });
+    }
+    if (!metaRes.ok) {
       return void res
         .status(502)
-        .json({ error: `Apple Music returned HTTP ${response.status}.` });
+        .json({ error: `Apple Music API returned HTTP ${metaRes.status}.` });
     }
-    html = await response.text();
+    const meta = (await metaRes.json()) as any;
+    const name = meta?.data?.[0]?.attributes?.name ?? "Apple Music Playlist";
+
+    // Paginate through all tracks (100 per page, capped at 1000 for safety)
+    const songs: any[] = [];
+    let offset = 0;
+    for (let page = 0; page < 10; page++) {
+      const trackRes = await appleFetch(
+        `/catalog/${STOREFRONT}/playlists/${playlistId}/tracks?limit=100&offset=${offset}`
+      );
+      if (!trackRes.ok) break;
+      const json = (await trackRes.json()) as any;
+      const batch = (json?.data ?? []).filter((t: any) => t?.type === "songs");
+      songs.push(...batch.map(mapSong));
+      if (!json?.next || (json?.data ?? []).length === 0) break;
+      offset += 100;
+    }
+
+    if (!songs.length) {
+      return void res.status(422).json({
+        error: "No songs found in this playlist.",
+      });
+    }
+
+    res.json({ name, songs });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return void res.status(502).json({ error: `Fetch failed: ${msg}` });
+    res.status(502).json({ error: msg });
   }
-
-  // ── Extract the embedded JSON ──────────────────────────────────────────────
-
-  let allTracks: AppleTrack[] = [];
-
-  // Strategy 1 — the main SSR data blob Apple embeds in every page
-  const serverDataMatch = html.match(
-    /<script[^>]+id="serialized-server-data"[^>]*>([\s\S]*?)<\/script>/i
-  );
-  if (serverDataMatch?.[1]) {
-    try {
-      const parsed = JSON.parse(serverDataMatch[1]);
-      allTracks = extractTracks(parsed);
-    } catch {
-      /* JSON parse failed — fall through */
-    }
-  }
-
-  // Strategy 2 — any other application/json script blocks
-  if (!allTracks.length) {
-    const jsonBlocks = html.matchAll(
-      /<script[^>]+type="application\/json"[^>]*>([\s\S]*?)<\/script>/gi
-    );
-    for (const block of jsonBlocks) {
-      try {
-        const parsed = JSON.parse(block[1]);
-        const found = extractTracks(parsed);
-        if (found.length > allTracks.length) allTracks = found;
-      } catch {
-        /* skip malformed blocks */
-      }
-    }
-  }
-
-  const tracks = deduplicateTracks(allTracks);
-
-  if (!tracks.length) {
-    return void res.status(422).json({
-      error:
-        "No tracks found. Make sure the playlist is public and the URL is " +
-        "a direct music.apple.com playlist link (not a short link).",
-    });
-  }
-
-  const name = extractPageTitle(html);
-  res.json({ name, tracks });
 });
 
 export default router;

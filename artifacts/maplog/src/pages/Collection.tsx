@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { useMusicKit } from '@/context/MusicKitContext';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
@@ -35,7 +35,11 @@ export default function Collection() {
   const { songs, isLoading, refresh, error, isDemoMode } = useMusicKit();
   const { play } = usePlayer();
   const [, setLocation] = useLocation();
-  const [search, setSearch] = useState('');
+  const searchString = useSearch();
+  // Pre-fill search from ?q=… (e.g. artist binder links)
+  const [search, setSearch] = useState(
+    () => new URLSearchParams(searchString).get('q') ?? '',
+  );
   const [activeRarity, setActiveRarity] = useState<string>('All');
   const [showAddSheet, setShowAddSheet] = useState(false);
 

@@ -1,30 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { useMusicKit } from '@/context/MusicKitContext';
 import type { MaplogSong } from '@/lib/types';
-import { DEMO_RARITIES, rarityFromLabel } from '@/lib/rarityMap';
+import { DEMO_RARITIES } from '@/lib/rarityMap';
 import {
   Trash2, Download, Upload, Sparkles, Shield, ExternalLink,
-  Info, ChevronRight, FileText, CheckCircle2, XCircle, Loader2,
+  Info, ChevronRight, CheckCircle2, XCircle, Loader2,
   ChevronDown, ChevronUp, Music2, Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-
-function findBestMatch(results: MaplogSong[], artist: string, title: string): MaplogSong {
-  const a = artist.toLowerCase(), t = title.toLowerCase();
-  return results.find(r => r.artist.toLowerCase() === a && r.title.toLowerCase() === t)
-    ?? results.find(r => r.title.toLowerCase().includes(t))
-    ?? results[0];
-}
-
-function parseLine(raw: string) {
-  const parts = raw.trim().replace(/\s*–\s*/g, ' - ').split(' - ');
-  if (parts.length < 3) return null;
-  const artist = parts[0].trim(), title = parts[1].trim(), rarityRaw = parts.slice(2).join(' - ').trim();
-  if (!artist || !title || !rarityRaw) return null;
-  return { artist, title, rarityRaw };
-}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -73,52 +58,7 @@ function Row({ icon: Icon, label, description, onClick, children, destructive }:
   );
 }
 
-// ── Shared import UI pieces ────────────────────────────────────────────────────
-
-type ImportPhase =
-  | { phase: 'idle' }
-  | { phase: 'importing'; total: number; done: number; added: number; failed: string[] }
-  | { phase: 'done'; total: number; added: number; failed: string[] };
-
-function ImportProgress({ status }: { status: Extract<ImportPhase, { phase: 'importing' }> }) {
-  return (
-    <div className="py-3 space-y-4">
-      <div className="flex items-center gap-3">
-        <Loader2 className="w-5 h-5 animate-spin text-primary shrink-0" />
-        <div className="flex-1">
-          <p className="text-sm font-bold text-white">Searching {status.done} of {status.total}…</p>
-          <p className="text-xs text-white/50 mt-0.5">{status.added} added · {status.failed.length} not found</p>
-        </div>
-      </div>
-      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-        <div className="h-full bg-primary rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(255,60,0,0.5)]"
-          style={{ width: `${Math.round((status.done / status.total) * 100)}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function ImportDone({ status, onReset }: { status: Extract<ImportPhase, { phase: 'done' }>; onReset: () => void }) {
-  return (
-    <div className={cn('rounded-2xl p-4 text-sm space-y-2', status.added > 0 ? 'bg-green-500/10 border border-green-500/20' : 'bg-white/5 border border-white/10')}>
-      <div className="flex items-center gap-2 font-bold text-white">
-        <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-        {status.added} of {status.total} songs added
-      </div>
-      {status.failed.slice(0, 5).map((f, i) => (
-        <div key={i} className="flex items-start gap-1.5 text-xs text-white/50">
-          <XCircle className="w-3.5 h-3.5 text-destructive/70 shrink-0 mt-0.5" /> {f}
-        </div>
-      ))}
-      {status.failed.length > 5 && (
-        <p className="text-xs text-white/50">…and {status.failed.length - 5} more not found</p>
-      )}
-      <Button variant="outline" size="sm" className="rounded-xl mt-1 bg-white/5 border-white/10 hover:bg-white/10 text-white" onClick={onReset}>
-        Import another
-      </Button>
-    </div>
-  );
-}
+// ── Rarity picker ──────────────────────────────────────────────────────────────
 
 function RarityPicker({ raritySlug, setRaritySlug }: { raritySlug: string; setRaritySlug: (s: string) => void }) {
   return (
@@ -139,54 +79,83 @@ function RarityPicker({ raritySlug, setRaritySlug }: { raritySlug: string; setRa
   );
 }
 
-function parseTrackLine(raw: string): { artist: string; title: string } | null {
-  const line = raw.trim();
-  if (!line) return null;
-  const dash = line.replace(/\s*[—–]\s*/g, ' - ').split(' - ');
-  if (dash.length >= 2) {
-    const [artist, ...rest] = dash;
-    const title = rest.join(' - ').trim();
-    if (artist.trim() && title) return { artist: artist.trim(), title };
-  }
-  return null;
-}
+// ── Playlist import (Apple Music playlist URL → full track list) ──────────────
 
-function AppleMusicImport({ searchDeezer, addToCollection }: { searchDeezer: (q: string) => Promise<MaplogSong[]>; addToCollection: (song: MaplogSong, rarity: any) => void; }) {
+type PlaylistPhase =
+  | { phase: 'idle' }
+  | { phase: 'fetching' }
+  | { phase: 'loaded'; name: string; songs: MaplogSong[] }
+  | { phase: 'done'; name: string; added: number; skipped: number };
+
+function PlaylistImport({ addToCollection, collection }: {
+  addToCollection: (song: MaplogSong, rarity: any) => void;
+  collection: MaplogSong[];
+}) {
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState('');
+  const [url, setUrl] = useState('');
   const [raritySlug, setRaritySlug] = useState(DEMO_RARITIES[0].slug);
-  const [status, setStatus] = useState<ImportPhase>({ phase: 'idle' });
+  const [status, setStatus] = useState<PlaylistPhase>({ phase: 'idle' });
+  const [error, setError] = useState<string | null>(null);
 
   const selectedRarity = DEMO_RARITIES.find(r => r.slug === raritySlug) ?? DEMO_RARITIES[0];
-  const isRunning = status.phase === 'importing';
-  const parsedLines = text.split('\n').map(parseTrackLine).filter((x): x is { artist: string; title: string } => x !== null);
 
-  const handleImport = async () => {
-    if (!parsedLines.length) return;
-    setStatus({ phase: 'importing', total: parsedLines.length, done: 0, added: 0, failed: [] });
-    let added = 0; const failed: string[] = [];
-    for (let i = 0; i < parsedLines.length; i++) {
-      const { artist, title } = parsedLines[i];
-      try {
-        const results = await searchDeezer(`${artist} ${title}`);
-        if (!results.length) { failed.push(`"${title}" — not found`); setStatus(p => p.phase === 'importing' ? { ...p, done: i + 1, failed } : p); continue; }
-        addToCollection(findBestMatch(results, artist, title), selectedRarity);
-        added++; setStatus(p => p.phase === 'importing' ? { ...p, done: i + 1, added } : p);
-      } catch { failed.push(`"${title}" — search error`); setStatus(p => p.phase === 'importing' ? { ...p, done: i + 1, failed } : p); }
-      if (i < parsedLines.length - 1) await new Promise(r => setTimeout(r, 350));
+  const handleFetch = async () => {
+    setError(null);
+    setStatus({ phase: 'fetching' });
+    try {
+      const res = await fetch(`/api/apple-music/playlist?url=${encodeURIComponent(url.trim())}`);
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error ?? 'Could not load the playlist.');
+      const songs: MaplogSong[] = (data.songs ?? []).map((t: any): MaplogSong => ({
+        id: `apple:${t.id}`,
+        source: 'apple',
+        title: t.title,
+        artist: t.artist,
+        album: t.album,
+        genre: t.genre ?? null,
+        durationMs: t.durationMs ?? 0,
+        artworkUrl: t.artworkUrl ?? '',
+        previewUrl: t.previewUrl ?? null,
+        cards: [],
+      }));
+      setStatus({ phase: 'loaded', name: data.name, songs });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load the playlist.');
+      setStatus({ phase: 'idle' });
     }
-    setStatus({ phase: 'done', total: parsedLines.length, added, failed });
   };
+
+  const handleImport = () => {
+    if (status.phase !== 'loaded') return;
+    // Skip songs that already have a card of the chosen rarity — seed from
+    // the current collection, then track additions made during this run so
+    // duplicate tracks within the playlist can't double-add.
+    const ownedAtRarity = new Set(
+      collection
+        .filter(s => s.cards.some(c => c.rarityType.slug === selectedRarity.slug))
+        .map(s => s.id),
+    );
+    let added = 0, skipped = 0;
+    for (const song of status.songs) {
+      if (ownedAtRarity.has(song.id)) { skipped++; continue; }
+      addToCollection(song, selectedRarity);
+      ownedAtRarity.add(song.id);
+      added++;
+    }
+    setStatus({ phase: 'done', name: status.name, added, skipped });
+  };
+
+  const reset = () => { setStatus({ phase: 'idle' }); setUrl(''); setError(null); };
 
   return (
     <div className="glass-panel rounded-[2rem] overflow-hidden">
-      <button className="w-full flex items-center gap-5 px-6 py-5 text-left hover:bg-white/5 active:bg-white/10 transition-colors group" onClick={() => setOpen(!open)} disabled={isRunning}>
-        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+      <button className="w-full flex items-center gap-5 px-6 py-5 text-left hover:bg-white/5 active:bg-white/10 transition-colors group" onClick={() => setOpen(!open)}>
+        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
           <Music2 className="h-6 w-6 text-white/70 group-hover:text-primary transition-colors" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-base text-white mb-1">Apple Music Import</p>
-          <p className="text-sm text-white/50 mt-0.5">Paste playlist tracks</p>
+          <p className="font-bold text-base text-white mb-1">Playlist Import</p>
+          <p className="text-sm text-white/50 mt-0.5">Paste an Apple Music playlist link</p>
         </div>
         <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
           {open ? <ChevronUp className="h-5 w-5 text-white/70" /> : <ChevronDown className="h-5 w-5 text-white/70" />}
@@ -196,123 +165,63 @@ function AppleMusicImport({ searchDeezer, addToCollection }: { searchDeezer: (q:
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-white/5 overflow-hidden">
             <div className="px-6 py-6 space-y-6">
-              {status.phase === 'importing' && <ImportProgress status={status} />}
-              {status.phase === 'done' && <ImportDone status={status} onReset={() => { setStatus({ phase: 'idle' }); setText(''); }} />}
-              {status.phase === 'idle' && (
-                <>
-                  <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4 space-y-2">
-                    <p className="text-xs font-bold text-white/70">How to get your track list</p>
-                    <ul className="text-xs text-white/50 space-y-1 leading-relaxed">
-                      <li><span className="text-white/70 font-semibold">Mac:</span> Open playlist → select all → copy → paste below</li>
-                      <li><span className="text-white/70 font-semibold">iOS Shortcut:</span> "Get Playlist" → format as "Artist — Title" → share as text</li>
-                    </ul>
-                    <p className="text-xs text-white/50">Each line: <code className="bg-white/10 px-1.5 py-0.5 rounded font-mono">Artist — Title</code></p>
+              {status.phase === 'done' ? (
+                <div className={cn('rounded-2xl p-4 text-sm space-y-2', status.added > 0 ? 'bg-green-500/10 border border-green-500/20' : 'bg-white/5 border border-white/10')}>
+                  <div className="flex items-center gap-2 font-bold text-white">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                    {status.added} song{status.added !== 1 ? 's' : ''} added from "{status.name}"
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-white/50 uppercase tracking-widest">
-                      Paste tracks {parsedLines.length > 0 && <span className="text-primary normal-case">· {parsedLines.length} detected</span>}
-                    </label>
-                    <textarea
-                      className="w-full h-32 rounded-2xl bg-white/5 border border-white/10 px-4 py-4 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none leading-relaxed"
-                      placeholder={"Taylor Swift — Shake It Off\nThe Weeknd — Blinding Lights"}
-                      value={text} onChange={e => setText(e.target.value)} />
+                  {status.skipped > 0 && (
+                    <p className="text-xs text-white/50">{status.skipped} already in your binder with this rarity — skipped.</p>
+                  )}
+                  <Button variant="outline" size="sm" className="rounded-xl mt-1 bg-white/5 border-white/10 hover:bg-white/10 text-white" onClick={reset}>
+                    Import another
+                  </Button>
+                </div>
+              ) : status.phase === 'loaded' ? (
+                <>
+                  <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4">
+                    <p className="text-sm font-bold text-white">{status.name}</p>
+                    <p className="text-xs text-white/50 mt-1">{status.songs.length} track{status.songs.length !== 1 ? 's' : ''} found</p>
                   </div>
                   <RarityPicker raritySlug={raritySlug} setRaritySlug={setRaritySlug} />
-                  <Button className="w-full rounded-xl font-bold h-12 text-base" onClick={handleImport} disabled={parsedLines.length === 0}>
-                    {parsedLines.length > 0 ? `Import ${parsedLines.length} track${parsedLines.length !== 1 ? 's' : ''}` : 'Paste tracks above to import'}
-                  </Button>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ── Batch text import ("Artist - Title - Rarity" lines) ───────────────────────
-
-function BatchImport({ searchDeezer, addToCollection }: {
-  searchDeezer: (q: string) => Promise<MaplogSong[]>;
-  addToCollection: (song: MaplogSong, rarity: any) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState('');
-  const [status, setStatus] = useState<ImportPhase>({ phase: 'idle' });
-
-  const isRunning = status.phase === 'importing';
-
-  const handleImport = async () => {
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    if (!lines.length) return;
-    setStatus({ phase: 'importing', total: lines.length, done: 0, added: 0, failed: [] });
-
-    let added = 0; const failed: string[] = [];
-    for (let i = 0; i < lines.length; i++) {
-      const parsed = parseLine(lines[i]);
-      if (!parsed) {
-        failed.push(`Line ${i + 1}: bad format — use "Artist - Title - Rarity"`);
-        setStatus(p => p.phase === 'importing' ? { ...p, done: i + 1, failed: [...failed] } : p);
-        continue;
-      }
-      const rarity = rarityFromLabel(parsed.rarityRaw);
-      if (!rarity) {
-        failed.push(`Line ${i + 1}: unknown rarity "${parsed.rarityRaw}"`);
-        setStatus(p => p.phase === 'importing' ? { ...p, done: i + 1, failed: [...failed] } : p);
-        continue;
-      }
-      try {
-        const results = await searchDeezer(`${parsed.artist} ${parsed.title}`);
-        if (!results.length) {
-          failed.push(`Line ${i + 1}: "${parsed.title}" not found`);
-          setStatus(p => p.phase === 'importing' ? { ...p, done: i + 1, failed: [...failed] } : p);
-          continue;
-        }
-        addToCollection(findBestMatch(results, parsed.artist, parsed.title), rarity);
-        added++;
-        setStatus(p => p.phase === 'importing' ? { ...p, done: i + 1, added } : p);
-      } catch {
-        failed.push(`Line ${i + 1}: search failed`);
-        setStatus(p => p.phase === 'importing' ? { ...p, done: i + 1, failed: [...failed] } : p);
-      }
-      if (i < lines.length - 1) await new Promise(r => setTimeout(r, 350));
-    }
-    setStatus({ phase: 'done', total: lines.length, added, failed });
-  };
-
-  return (
-    <div className="glass-panel rounded-[2rem] overflow-hidden">
-      <button className="w-full flex items-center gap-5 px-6 py-5 text-left hover:bg-white/5 active:bg-white/10 transition-colors group" onClick={() => setOpen(!open)} disabled={isRunning}>
-        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-          <FileText className="h-6 w-6 text-white/70 group-hover:text-primary transition-colors" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-base text-white mb-1">List Import</p>
-          <p className="text-sm text-white/50 mt-0.5">Paste "Artist - Title - Rarity" lines</p>
-        </div>
-        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-          {open ? <ChevronUp className="h-5 w-5 text-white/70" /> : <ChevronDown className="h-5 w-5 text-white/70" />}
-        </div>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-white/5 overflow-hidden">
-            <div className="px-6 py-6 space-y-6">
-              {status.phase === 'importing' && <ImportProgress status={status} />}
-              {status.phase === 'done' && <ImportDone status={status} onReset={() => { setStatus({ phase: 'idle' }); setText(''); }} />}
-              {status.phase === 'idle' && (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-white/50 uppercase tracking-widest">One entry per line — Artist · Title · Rarity</label>
-                    <textarea
-                      className="w-full h-32 rounded-2xl bg-white/5 border border-white/10 px-4 py-4 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none leading-relaxed"
-                      placeholder={"Queen - Bohemian Rhapsody - Rare\nThe Beatles - Hey Jude - Uncommon\nDaft Punk - Get Lucky - Common"}
-                      value={text} onChange={e => setText(e.target.value)} />
+                  <div className="flex gap-3">
+                    <Button variant="outline" className="rounded-xl h-12 bg-white/5 border-white/10 hover:bg-white/10 text-white" onClick={reset}>
+                      Cancel
+                    </Button>
+                    <Button className="flex-1 rounded-xl font-bold h-12 text-base" onClick={handleImport}>
+                      Add {status.songs.length} track{status.songs.length !== 1 ? 's' : ''} as {selectedRarity.name}
+                    </Button>
                   </div>
-                  <p className="text-xs text-white/50">Valid rarities: <span className="font-mono text-white/70">Common · Uncommon · Rare</span></p>
-                  <Button className="w-full rounded-xl font-bold h-12 text-base" onClick={handleImport} disabled={!text.trim()}>
-                    Import songs
+                </>
+              ) : (
+                <>
+                  <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4 space-y-2">
+                    <p className="text-xs font-bold text-white/70">How it works</p>
+                    <ul className="text-xs text-white/50 space-y-1 leading-relaxed">
+                      <li>In Apple Music: open the playlist → Share → Copy Link</li>
+                      <li>Paste the link below — every track imports automatically</li>
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-white/50 uppercase tracking-widest">Playlist link</label>
+                    <input
+                      type="url"
+                      inputMode="url"
+                      className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 px-4 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      placeholder="https://music.apple.com/us/playlist/…"
+                      value={url} onChange={e => setUrl(e.target.value)} />
+                  </div>
+                  {error && (
+                    <div className="flex items-start gap-2 text-xs text-destructive">
+                      <XCircle className="w-4 h-4 shrink-0" /> {error}
+                    </div>
+                  )}
+                  <Button className="w-full rounded-xl font-bold h-12 text-base" onClick={handleFetch}
+                    disabled={!url.trim().includes('music.apple.com') || status.phase === 'fetching'}>
+                    {status.phase === 'fetching'
+                      ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading playlist…</span>
+                      : 'Load playlist'}
                   </Button>
                 </>
               )}
@@ -325,7 +234,7 @@ function BatchImport({ searchDeezer, addToCollection }: {
 }
 
 export default function Settings() {
-  const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection, searchDeezer, hasToken, isAuthorized, authorize } = useMusicKit();
+  const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection, hasToken, isAuthorized, authorize } = useMusicKit();
   const importRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -374,8 +283,7 @@ export default function Settings() {
               Import
             </h2>
             <div className="space-y-4">
-              <AppleMusicImport searchDeezer={searchDeezer} addToCollection={addToCollection} />
-              <BatchImport searchDeezer={searchDeezer} addToCollection={addToCollection} />
+              <PlaylistImport addToCollection={addToCollection} collection={songs} />
             </div>
           </section>
         )}

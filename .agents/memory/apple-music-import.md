@@ -1,12 +1,15 @@
 ---
-name: Apple Music import limitations
-description: Why Apple Music playlists cannot be scraped and how Maplog imports them instead
+name: Apple Music Import
+description: How playlist import works now (official API) and why scraping/paste flows were abandoned.
 ---
 
-# Apple Music playlist import
+# Apple Music Import
 
-**Rule:** Do not attempt to scrape music.apple.com playlist pages server-side.
+## Current approach (Aug 2026)
+Playlist import goes through the official Apple Music API using the developer token: the api-server's `/api/apple-music/playlist?url=` endpoint parses the `pl.…` id out of a music.apple.com link, fetches playlist metadata, and paginates tracks (100/page, capped at 1000), returning songs in the same normalized shape as `/apple-music/search` (including `releaseDate`). The client (Settings → Playlist Import) maps them to `id: 'apple:<catalogId>'` + `source: 'apple'` and bulk-adds with a chosen rarity, skipping songs already owned at that rarity (a mutable set is seeded from the collection and updated during the run so in-playlist duplicates can't double-add).
 
-**Why:** Verified Aug 2026 — the Apple Music web player is a fully client-side SPA: the page HTML is an empty Vite shell with no embedded track JSON (no usable `serialized-server-data`). The embed player is the same, and `amp-api.music.apple.com` returns 401 without a signed developer JWT. Every scraping path is a dead end until the user's Apple developer enrollment clears.
+**Why:** scraping music.apple.com is a dead end (CSR SPA + token-gated API), and paste-lines flows were error-prone (search matching). Once a working developer token existed, the API path made both obsolete — the old `AppleMusicImport`/`BatchImport` paste forms were removed.
 
-**How to apply:** The working bridge is the "paste track lines" flow in Settings — user pastes "Artist — Title" lines (em-dash or hyphen), picks a rarity for the batch, and each track is resolved against Deezer for its 30s preview. An unused `/api/apple-music/playlist` route exists in api-server and can be repurposed for real MusicKit API calls once a developer token exists.
+**How to apply:** any future Apple catalog features (albums, artist pages) should go through api-server proxy endpoints with the cached developer token, never scraping or client-side Apple API calls.
+
+Single-song adds remain via the Collection page "+" (AddSongSheet: search → rarity → add).
