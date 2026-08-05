@@ -1,11 +1,75 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import crypto from "node:crypto";
 
 const router = Router();
 
 // ── Developer token (ES256 JWT signed with the MusicKit .p8 key) ──────────────
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
+
+/**
+ * Normalize a MusicKit .p8 private key that may have been mangled when pasted
+ * (lost newlines, literal \n sequences, or lookalike-character corruption in
+ * the non-essential DER fields). Strategy:
+ *   1. Rebuild a canonical PEM from the base64 body and try to parse it.
+ *   2. If parsing fails, extract the raw P-256 private scalar from the DER
+ *      (the 32 bytes following the `04 20` octet-string header), derive the
+ *      public key from it, and rebuild a clean PKCS#8 key via JWK. This
+ *      recovers keys whose curve-OID or embedded-public-key bytes were
+ *      corrupted, as long as the scalar itself survived.
+ */
+function normalizePrivateKey(raw: string): string {
+  const body = raw
+    .replace(/\\n/g, "\n")
+    .replace(/-----BEGIN [^-]+-----/, "")
+    .replace(/-----END [^-]+-----/, "")
+    .replace(/\s+/g, "");
+
+  const pem =
+    "-----BEGIN PRIVATE KEY-----\n" +
+    (body.match(/.{1,64}/g) ?? []).join("\n") +
+    "\n-----END PRIVATE KEY-----\n";
+
+  try {
+    crypto.createPrivateKey(pem);
+    return pem;
+  } catch {
+    // Fall through to scalar-based recovery
+  }
+
+  const der = Buffer.from(body, "base64");
+  const hex = der.toString("hex");
+  // PKCS#8-wrapped SEC1 EC key: scalar is the 32 bytes after `020101 0420`
+  const marker = "0201010420";
+  const idx = hex.indexOf(marker);
+  if (idx === -1) {
+    throw new Error(
+      "APPLE_MUSICKIT_PRIVATE_KEY could not be parsed. Re-paste the .p8 file contents exactly."
+    );
+  }
+  const scalarHex = hex.slice(idx + marker.length, idx + marker.length + 64);
+  const scalar = Buffer.from(scalarHex, "hex");
+  if (scalar.length !== 32) {
+    throw new Error("APPLE_MUSICKIT_PRIVATE_KEY is truncated. Re-paste the .p8 file contents.");
+  }
+
+  const ecdh = crypto.createECDH("prime256v1");
+  ecdh.setPrivateKey(scalar);
+  const pub = ecdh.getPublicKey();
+  const b64u = (b: Buffer) => b.toString("base64url");
+  const keyObj = crypto.createPrivateKey({
+    key: {
+      kty: "EC",
+      crv: "P-256",
+      d: b64u(scalar),
+      x: b64u(pub.subarray(1, 33)),
+      y: b64u(pub.subarray(33, 65)),
+    },
+    format: "jwk",
+  });
+  return keyObj.export({ format: "pem", type: "pkcs8" }).toString();
+}
 
 function getDeveloperToken(): string {
   const now = Date.now();
@@ -23,17 +87,7 @@ function getDeveloperToken(): string {
     );
   }
 
-  // Secrets pasted through UIs often lose newlines or contain literal \n
-  // sequences. Rebuild a canonical PEM from the base64 body.
-  privateKey = privateKey.replace(/\\n/g, "\n").trim();
-  const body = privateKey
-    .replace(/-----BEGIN [^-]+-----/, "")
-    .replace(/-----END [^-]+-----/, "")
-    .replace(/\s+/g, "");
-  privateKey =
-    "-----BEGIN PRIVATE KEY-----\n" +
-    (body.match(/.{1,64}/g) ?? []).join("\n") +
-    "\n-----END PRIVATE KEY-----\n";
+  privateKey = normalizePrivateKey(privateKey);
 
   const expiresInSeconds = 60 * 60 * 24 * 30; // 30 days (Apple max is 6 months)
   const token = jwt.sign({}, privateKey, {
@@ -246,7 +300,21 @@ function extractPageTitle(html: string): string {
 router.get("/apple-music/playlist", async (req, res) => {
   const url = String(req.query.url ?? "").trim();
 
-  if (!url || !url.includes("music.apple.com")) {
+  // Strict validation to prevent SSRF: https only, exact host, no credentials
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return void res
+      .status(400)
+      .json({ error: "Provide a valid music.apple.com playlist URL." });
+  }
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.hostname !== "music.apple.com" ||
+    parsed.username !== "" ||
+    parsed.password !== ""
+  ) {
     return void res
       .status(400)
       .json({ error: "Provide a valid music.apple.com playlist URL." });

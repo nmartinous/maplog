@@ -1,43 +1,44 @@
 /**
- * MusicKitContext — self-contained collection backed by localStorage.
- * Track search uses Deezer's public API (no auth required) via the API proxy.
+ * MusicKitContext — collection backed by localStorage, catalog powered by
+ * Apple Music. Search hits the Apple Music catalog via the API server proxy;
+ * MusicKit JS handles user authorization for full-song playback (30-second
+ * Apple previews remain the fallback for unauthorized sessions).
  * Keeps the same MusicKitProvider / useMusicKit exports so all consumers need zero changes.
  */
 
 import React, {
-  createContext, useContext, useState, useCallback,
+  createContext, useContext, useState, useCallback, useEffect,
 } from 'react';
 import type { MaplogSong, MaplogCard, MaplogRarityType } from '@/lib/types';
 import { DEMO_SONGS } from '@/lib/demoData';
+import { initMusicKit } from '@/lib/musicKit';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const COLLECTION_KEY = 'maplog:collection';
 const DEMO_MODE_KEY  = 'maplog:demoMode';
 
-// ── Deezer public search (via API proxy) ───────────────────────────────────────
+// ── Apple Music catalog search (via API proxy) ─────────────────────────────────
 
-function deezerTrackToSong(track: any): MaplogSong {
-  return {
-    id:         String(track.id),
-    title:      track.title      ?? 'Unknown',
-    artist:     track.artist?.name ?? 'Unknown Artist',
-    album:      track.album?.title ?? '',
-    genre:      null,
-    durationMs: (track.duration ?? 0) * 1000,
-    artworkUrl: track.album?.cover_xl ?? track.album?.cover_big ?? track.album?.cover ?? '',
-    previewUrl: track.preview ?? null,
-    cards:      [],
-  };
-}
-
-async function deezerSearch(query: string): Promise<MaplogSong[]> {
+async function appleSearch(query: string): Promise<MaplogSong[]> {
   if (!query.trim()) return [];
-  const res = await fetch(`/api/deezer/search?q=${encodeURIComponent(query)}&limit=25`);
+  const res = await fetch(`/api/apple-music/search?q=${encodeURIComponent(query)}&limit=25`);
   if (!res.ok) throw new Error('Search failed — please try again.');
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message ?? 'Deezer search error');
-  return (data.data ?? []).map(deezerTrackToSong);
+  if (data.error) throw new Error(data.error);
+  return (data.data ?? []).map((t: any): MaplogSong => ({
+    // Prefixed to avoid collisions with legacy Deezer numeric IDs
+    id:         `apple:${t.id}`,
+    source:     'apple',
+    title:      t.title,
+    artist:     t.artist,
+    album:      t.album,
+    genre:      t.genre ?? null,
+    durationMs: t.durationMs ?? 0,
+    artworkUrl: t.artworkUrl ?? '',
+    previewUrl: t.previewUrl ?? null,
+    cards:      [],
+  }));
 }
 
 // ── Local storage helpers ──────────────────────────────────────────────────────
@@ -58,16 +59,17 @@ function saveCollection(songs: MaplogSong[]): void {
 // ── Context types ──────────────────────────────────────────────────────────────
 
 export interface MusicKitContextType {
-  /** Always true — no setup required */
+  /** Whether the developer token was fetched and MusicKit configured */
   hasToken:     boolean;
   isReady:      boolean;
+  /** Whether the user has connected their Apple Music subscription (full-song playback) */
   isAuthorized: boolean;
   isLoading:    boolean;
   error:        string | null;
   songs:        MaplogSong[];
   getSong:      (id: string) => MaplogSong | undefined;
 
-  /** Search Deezer (no auth needed) */
+  /** Search the Apple Music catalog (name kept for interface compatibility) */
   searchDeezer: (query: string) => Promise<MaplogSong[]>;
 
   /** Add a song + rarity card to the local collection */
@@ -79,7 +81,7 @@ export interface MusicKitContextType {
   /** Reload collection from localStorage */
   refresh: () => void;
 
-  /** No-op — kept for interface compatibility */
+  /** Prompt the user to connect their Apple Music account */
   authorize: () => void;
 
   isDemoMode:    boolean;
@@ -98,6 +100,45 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   const [songs, setSongs] = useState<MaplogSong[]>(
     () => localStorage.getItem(DEMO_MODE_KEY) === 'true' ? DEMO_SONGS : loadCollection(),
   );
+
+  // ── MusicKit setup (developer token + user authorization) ─────────────────
+
+  const [hasToken, setHasToken]         = useState(false);
+  const [isReady, setIsReady]           = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [mkError, setMkError]           = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let cleanup: (() => void) | null = null;
+    initMusicKit()
+      .then((mk) => {
+        if (cancelled) return;
+        setHasToken(true);
+        setIsReady(true);
+        setIsAuthorized(!!mk.isAuthorized);
+        const onAuthChange = () => setIsAuthorized(!!mk.isAuthorized);
+        mk.addEventListener('authorizationStatusDidChange', onAuthChange);
+        cleanup = () => mk.removeEventListener('authorizationStatusDidChange', onAuthChange);
+        if (cancelled) cleanup();
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[MusicKit] init failed — preview-only mode:', err);
+        setMkError(err instanceof Error ? err.message : String(err));
+      });
+    return () => { cancelled = true; cleanup?.(); };
+  }, []);
+
+  const authorize = useCallback(() => {
+    initMusicKit()
+      .then((mk) => mk.authorize())
+      .then(() => {
+        const mk = (window as any).MusicKit?.getInstance();
+        if (mk) setIsAuthorized(!!mk.isAuthorized);
+      })
+      .catch((err: unknown) => console.warn('[MusicKit] authorize failed:', err));
+  }, []);
 
   // ── Collection mutations ──────────────────────────────────────────────────
 
@@ -178,18 +219,18 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   return (
     <MusicKitContext.Provider
       value={{
-        hasToken:            true,
-        isReady:             true,
-        isAuthorized:        true,
+        hasToken,
+        isReady,
+        isAuthorized,
         isLoading:           false,
-        error:               null,
+        error:               mkError,
         songs,
         getSong,
-        searchDeezer:        deezerSearch,
+        searchDeezer:        appleSearch,
         addToCollection,
         removeFromCollection,
         refresh,
-        authorize:           () => {},
+        authorize,
         isDemoMode,
         enterDemoMode,
         exitDemoMode,

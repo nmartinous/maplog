@@ -1,24 +1,22 @@
 ---
 name: MusicKit Architecture
-description: Data layer, auth, and playback approach for Maplog
+description: Data layer, auth, and playback approach for Maplog (Apple Music + preview fallback)
 ---
 
-## Current Architecture (self-contained, no streaming service account required)
+## Current Architecture
 
-**Data layer:** localStorage (`maplog:collection` key) stores `MaplogSong[]` directly in the browser. No external service login needed.
+**Data layer:** localStorage (`maplog:collection`) stores `MaplogSong[]` in the browser. Apple-sourced songs use prefixed IDs (`apple:<catalogId>`) + `source: 'apple'` to avoid collisions with legacy Deezer numeric IDs; legacy entries have no `source` field and keep working via previews.
 
-**Track search:** Deezer's public API (no auth, no App ID) via a thin CORS proxy at `/api/deezer/search?q=...` on the api-server. The proxy lives in `artifacts/api-server/src/routes/deezer.ts`.
+**Catalog:** Apple Music. The api-server signs an ES256 developer token from the `.p8` MusicKit key (secrets: `APPLE_TEAM_ID`, `APPLE_MUSICKIT_KEY_ID`, `APPLE_MUSICKIT_PRIVATE_KEY`) and proxies catalog search + song lookup. Exposing the developer token to the client is Apple's intended design for MusicKit JS.
 
-**Audio playback:** 30-second preview MP3s from `track.preview` on Deezer search results, played via HTML5 `<audio>` in `AudioPlayerContext`.
+**Playback:** dual engine in `AudioPlayerContext` — MusicKit JS v3 full-song playback for `source==='apple'` when the user has authorized their Apple Music subscription; HTML5 `<audio>` 30s previews otherwise (and as error fallback). Routing effect keys on song id + a "MusicKit ready/auth" tick so playback upgrades when auth arrives; a monotonic request id guards rapid song-change races (never let stale `setQueue` flows call `play`).
 
-**Why:** Deezer requires new app registrations (closed periods), and Spotify was rejected by the user. The public Deezer API requires no registration and returns preview URLs freely. CORS blocked direct browser calls, so the proxy is the only required server-side piece.
+**Auth:** `MusicKitContext` loads MusicKit JS dynamically (index.html untouched), configures with the server token, exposes real `hasToken`/`isReady`/`isAuthorized` + `authorize()`. Settings has a "Connect Apple Music" row. The search function is still named `searchDeezer` for interface compatibility but hits the Apple catalog.
 
-**How to apply:**
-- `MusicKitContext` exports `addToCollection(song, rarity)`, `removeFromCollection(songId)`, `searchDeezer(query)` — all self-contained.
-- `hasToken`, `isReady`, `isAuthorized` are always `true` — no setup screen shown.
-- Demo mode still works via `isDemoMode` / `enterDemoMode` / `exitDemoMode`.
+## Hard-won lessons
+- **Pasted .p8 keys get corrupted**: users retype or OCR keys → Cyrillic lookalike chars, lost newlines. The server's `normalizePrivateKey` rebuilds PEM and, if parsing still fails, recovers the raw P-256 scalar from the DER (`0201010420` marker) and rebuilds PKCS#8 via JWK — the scalar often survives even when OID/pubkey bytes are mangled. Verify a repaired key against Apple's live API (401 = bad token; 404/200 = auth OK).
+- SSRF: the playlist-scrape endpoint must validate URL with strict `new URL()` parsing (https, exact `music.apple.com` host, no credentials) — `includes()` checks are bypassable.
+- Deezer proxy routes still exist for legacy entries' card-back info (`/api/deezer/track/:id`); don't remove while legacy songs may exist in user collections.
 
-## History (for reference)
-- Originally: Apple Music / MusicKit JS (requires Apple Developer enrollment — still pending)
-- Then: Deezer SDK with OAuth (App ID required, registration closed)
-- Now: Deezer public API + localStorage (no account of any kind)
+## History
+- Apple MusicKit (original plan, blocked on enrollment) → Deezer OAuth (registration closed) → Deezer public API + previews → **Apple Music (current, Aug 2026)** once the developer account activated.

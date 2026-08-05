@@ -23,8 +23,10 @@ export interface MaplogCard {
  * A song can have multiple cards if it appears in more than one Maplog playlist.
  */
 export interface MaplogSong {
-  /** Deezer track ID as a string */
+  /** Track ID as a string — Apple Music catalog ID ('apple') or Deezer ID (legacy) */
   id: string;
+  /** Which catalog the ID belongs to. Absent = legacy Deezer entry. */
+  source?: 'apple' | 'deezer';
   title: string;
   artist: string;
   album: string;

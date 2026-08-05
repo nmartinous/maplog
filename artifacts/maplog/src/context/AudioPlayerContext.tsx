@@ -1,7 +1,8 @@
 import React, {
-  createContext, useContext, useEffect, useReducer, useCallback, useRef,
+  createContext, useContext, useEffect, useReducer, useCallback, useRef, useState,
 } from 'react';
 import type { MaplogSong } from '@/lib/types';
+import { initMusicKit } from '@/lib/musicKit';
 
 const DEMO_MODE_KEY = 'maplog:demoMode';
 
@@ -94,7 +95,64 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // Stable ref: whether we're in demo mode (no real audio source)
   const isDemoMode = useRef(localStorage.getItem(DEMO_MODE_KEY) === 'true');
 
-  // ── HTML5 Audio (real Deezer preview mode) ───────────────────────────────
+  // ── MusicKit (full-song playback for Apple-sourced songs) ────────────────
+  const mkRef = useRef<any | null>(null);
+  // Whether the *current* song is being played through MusicKit
+  const mkActiveRef = useRef(false);
+  // Monotonic id so only the latest song-change async flow may touch MusicKit
+  const playReqRef = useRef(0);
+  // Bumped when MusicKit becomes ready or auth changes, to re-route playback
+  const [mkTick, setMkTick] = useState(0);
+
+  useEffect(() => {
+    if (isDemoMode.current) return;
+    let cancelled = false;
+    const listeners: Array<[string, () => void]> = [];
+
+    initMusicKit()
+      .then((mk) => {
+        if (cancelled) return;
+        mkRef.current = mk;
+        setMkTick(t => t + 1);
+        const onAuth = () => setMkTick(t => t + 1);
+        mk.addEventListener('authorizationStatusDidChange', onAuth);
+        listeners.push(['authorizationStatusDidChange', onAuth]);
+        const MK = (window as any).MusicKit;
+
+        const onTime = () => {
+          if (!mkActiveRef.current) return;
+          dispatch({ type: 'SET_TIME', payload: mk.currentPlaybackTime ?? 0 });
+          const dur = mk.currentPlaybackDuration;
+          if (dur && dur > 0 && Math.abs(dur - stateRef.current.duration) > 0.5) {
+            dispatch({ type: 'SET_DURATION', payload: dur });
+          }
+        };
+        const onState = () => {
+          if (!mkActiveRef.current) return;
+          const ps = mk.playbackState;
+          const S = MK?.PlaybackStates ?? MK?.PlaybackState ?? {};
+          if (ps === S.playing) dispatch({ type: 'SET_PLAYING', payload: true });
+          else if (ps === S.paused || ps === S.stopped) dispatch({ type: 'SET_PLAYING', payload: false });
+          else if (ps === S.ended || ps === S.completed) {
+            dispatch({ type: 'SET_PLAYING', payload: false });
+            const s = stateRef.current;
+            if (s.queueIndex + 1 < s.queue.length) dispatch({ type: 'NEXT' });
+          }
+        };
+        mk.addEventListener('playbackTimeDidChange', onTime);
+        mk.addEventListener('playbackStateDidChange', onState);
+        listeners.push(['playbackTimeDidChange', onTime], ['playbackStateDidChange', onState]);
+      })
+      .catch(() => { /* preview fallback handles playback */ });
+
+    return () => {
+      cancelled = true;
+      const mk = mkRef.current;
+      if (mk) for (const [ev, fn] of listeners) mk.removeEventListener(ev, fn);
+    };
+  }, []);
+
+  // ── HTML5 Audio (30-second preview fallback) ─────────────────────────────
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -124,6 +182,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     };
     const onError = (e: Event) => {
+      // Ignore errors from clearing src (empty-string load aborts)
+      if (!audio.src || audio.src === window.location.href) return;
       console.warn('[AudioPlayer] preview load error', e);
       dispatch({ type: 'SET_PLAYING', payload: false });
     };
@@ -151,19 +211,62 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // When currentSong changes in real mode, load its preview URL and play
+  // When currentSong changes in real mode (or MusicKit becomes ready/authed),
+  // route to MusicKit (full songs) or the HTML5 preview player
   useEffect(() => {
     if (isDemoMode.current) return;
     const audio = audioRef.current;
     if (!audio) return;
 
     const song = state.currentSong;
+    const mk = mkRef.current;
+    const reqId = ++playReqRef.current;
+
+    // Stop whichever engine was previously active
+    if (mkActiveRef.current && mk) {
+      try { mk.stop(); } catch { /* noop */ }
+    }
+    mkActiveRef.current = false;
+
     if (!song) { audio.pause(); audio.src = ''; return; }
 
+    // Full-song playback via MusicKit for Apple-sourced songs when authorized
+    if (song.source === 'apple' && mk?.isAuthorized) {
+      audio.pause();
+      audio.src = '';
+      mkActiveRef.current = true;
+      dispatch({ type: 'SET_DURATION', payload: (song.durationMs ?? 0) / 1000 });
+      (async () => {
+        try {
+          await mk.setQueue({ songs: [song.id.replace(/^apple:/, '')] });
+          if (playReqRef.current !== reqId) return; // superseded by a newer song change
+          if (stateRef.current.isPlaying) await mk.play();
+        } catch (err) {
+          if (playReqRef.current !== reqId) return;
+          console.warn('[AudioPlayer] MusicKit playback failed, falling back to preview:', err);
+          mkActiveRef.current = false;
+          if (song.previewUrl) {
+            audio.src = song.previewUrl;
+            if (stateRef.current.isPlaying) {
+              audio.play().catch(e => console.warn('[AudioPlayer] play() blocked:', e));
+            }
+          } else {
+            dispatch({ type: 'SET_PLAYING', payload: false });
+          }
+        }
+      })();
+      return;
+    }
+
     if (song.previewUrl) {
-      audio.src = song.previewUrl;
-      if (state.isPlaying) {
-        audio.play().catch(err => console.warn('[AudioPlayer] play() blocked:', err));
+      // Avoid restarting the preview if it's already the active source
+      // (mkTick can retrigger this effect mid-playback)
+      const alreadyPlayingThis = audio.src === song.previewUrl && !audio.paused;
+      if (!alreadyPlayingThis) {
+        audio.src = song.previewUrl;
+        if (state.isPlaying) {
+          audio.play().catch(err => console.warn('[AudioPlayer] play() blocked:', err));
+        }
       }
     } else {
       // No preview available — advance queue or stop
@@ -171,7 +274,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_PLAYING', payload: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.currentSong?.id]);
+  }, [state.currentSong?.id, mkTick]);
 
   // ── Demo mode: interval-based simulated playback ─────────────────────────
   const demoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -228,19 +331,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const pause = useCallback(() => {
     dispatch({ type: 'SET_PLAYING', payload: false });
-    if (!isDemoMode.current) audioRef.current?.pause();
+    if (isDemoMode.current) return;
+    if (mkActiveRef.current) mkRef.current?.pause();
+    else audioRef.current?.pause();
   }, []);
 
   const resume = useCallback(() => {
     dispatch({ type: 'SET_PLAYING', payload: true });
-    if (!isDemoMode.current) {
+    if (isDemoMode.current) return;
+    if (mkActiveRef.current) {
+      mkRef.current?.play()?.catch?.((err: unknown) => console.warn('[AudioPlayer] resume blocked:', err));
+    } else {
       audioRef.current?.play().catch(err => console.warn('[AudioPlayer] resume blocked:', err));
     }
   }, []);
 
   const seek = useCallback((time: number) => {
     dispatch({ type: 'SET_TIME', payload: time });
-    if (!isDemoMode.current && audioRef.current) {
+    if (isDemoMode.current) return;
+    if (mkActiveRef.current) {
+      mkRef.current?.seekToTime?.(time);
+    } else if (audioRef.current) {
       audioRef.current.currentTime = time;
     }
   }, []);

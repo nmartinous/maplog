@@ -325,7 +325,7 @@ function BatchImport({ searchDeezer, addToCollection }: {
 }
 
 export default function Settings() {
-  const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection, searchDeezer } = useMusicKit();
+  const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection, searchDeezer, hasToken, isAuthorized, authorize } = useMusicKit();
   const importRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -380,6 +380,23 @@ export default function Settings() {
           </section>
         )}
 
+        <Section title="Apple Music">
+          {isAuthorized ? (
+            <Row icon={Music2} label="Connected"
+              description="Full-song playback is active via your Apple Music subscription.">
+              <CheckCircle2 className="w-5 h-5 text-primary" />
+            </Row>
+          ) : (
+            <Row icon={Music2} label="Connect Apple Music"
+              description={hasToken
+                ? 'Sign in with your Apple Music subscription to unlock full-song playback.'
+                : 'Apple Music is unavailable right now — previews still work.'}
+              onClick={hasToken ? authorize : undefined}>
+              {hasToken && <ChevronRight className="w-5 h-5 text-white/30" />}
+            </Row>
+          )}
+        </Section>
+
         <Section title="Data & Backup">
           <Row icon={Download} label="Export Collection"
             description={`Backup your ${songs.length} song${songs.length !== 1 ? 's' : ''} to a JSON file`}
@@ -398,8 +415,8 @@ export default function Settings() {
             label={isDemoMode ? 'Exit Demo Mode' : 'Enter Demo Mode'}
             description={isDemoMode ? 'Return to your actual saved collection' : 'Explore the app with premium sample data'}
             onClick={isDemoMode ? exitDemoMode : enterDemoMode} />
-          <Row icon={Info} label="Audio Previews"
-            description="30-second previews are powered by Deezer's public API. No login required." />
+          <Row icon={Info} label="Playback"
+            description="Songs stream in full from Apple Music when connected; otherwise 30-second previews play." />
         </Section>
 
         <Section title="About Maplog">

@@ -11,10 +11,11 @@ import { useQuery } from '@tanstack/react-query';
 import type { MaplogSong } from '@/lib/types';
 
 function CardBackInfo({ trackId, song }: { trackId: string, song: MaplogSong }) {
+  const isApple = song.source === 'apple';
   const { data, isLoading, error } = useQuery({
-    queryKey: ['deezer-track', trackId],
+    queryKey: ['track-info', isApple ? 'apple' : 'deezer', trackId],
     queryFn: async () => {
-      const res = await fetch(`/api/deezer/track/${trackId}`);
+      const res = await fetch(isApple ? `/api/apple-music/song/${trackId}` : `/api/deezer/track/${trackId}`);
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
     },
