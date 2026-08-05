@@ -10,7 +10,9 @@ function fmt(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-const BASE = 'miniplayer bg-card/92 backdrop-blur-xl border-t border-white/8';
+// In-flow element: shrink-0 keeps it at a fixed height inside the flex column.
+// No position:fixed — the shell layout places it directly above the mobile nav.
+const BASE = 'shrink-0 h-16 bg-card/92 backdrop-blur-xl border-t border-white/8';
 
 export function MiniPlayer() {
   const { currentSong, isPlaying, pause, resume, skipNext, skipPrev, seek, currentTime, duration } = usePlayer();

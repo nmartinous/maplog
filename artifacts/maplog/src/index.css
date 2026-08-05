@@ -7,59 +7,30 @@
    APP SHELL LAYOUT
    ─────────────────────────────────────────────────────────────────────────
 
-   Architecture (mobile):
-     Fixed @ bottom:  Navigation  (64px + safe-area inset)
-     Fixed above nav: MiniPlayer  (64px)
-     Everything else: .app-main fills exactly 100dvh - nav - player
+   The shell is a pure flex layout — no position:fixed anywhere in the shell.
+   html + body lock to the visual viewport so the document never scrolls;
+   all scrolling happens inside individual page containers (overflow-y-auto).
 
-   Architecture (desktop, sm:):
-     Fixed @ left:    Sidebar nav (224px = w-56)
-     Fixed @ bottom:  MiniPlayer  (64px, left-aligned with content)
-     Everything else: .app-main fills 100dvh - player height, ml-56
+   Mobile (flex-col):
+     ┌──────────────────┐  ← flex-1  page content (scrolls internally)
+     ├──────────────────┤  ← shrink-0 h-16  MiniPlayer
+     ├──────────────────┤  ← shrink-0       MobileNav (h-16 + safe-area pad)
+     └──────────────────┘
 
-   Because .app-main height is pre-computed to exclude chrome, every page
-   that fills h-full is already correctly sized — no pb-chrome hacks needed.
+   Desktop (flex-row, sm+):
+     ┌──────┬───────────┐
+     │  Nav │  content  │  ← flex-1 page content
+     │ w-56 ├───────────┤
+     │      │ MiniPlayer│  ← shrink-0 h-16
+     └──────┴───────────┘
    ────────────────────────────────────────────────────────────────────────── */
 
-/*
-  Main content pane — fixed to the viewport, pinned above the chrome.
-  Using position:fixed (like the nav + miniplayer) eliminates all flex-height
-  ambiguity: edges are absolute pixel positions, not derived from flex math.
-*/
-.app-main {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  /* Mobile: clear nav (4rem + safe-area) + miniplayer (4rem) */
-  bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
+html, body {
+  height: 100dvh;
+  /* Prevent the document from scrolling — only inner containers scroll */
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-@media (min-width: 640px) {
-  .app-main {
-    /* Desktop: clear only the miniplayer; sidebar handled by left offset */
-    bottom: 4rem;
-    left: 14rem; /* = w-56 */
-  }
-}
-
-/* MiniPlayer — sits between content and nav on mobile; at screen bottom on desktop */
-.miniplayer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  height: 4rem;
-  z-index: 40;
-  /* Mobile: float above the nav (nav height + safe area) */
-  bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
-}
-@media (min-width: 640px) {
-  .miniplayer {
-    bottom: 0;
-    left: 14rem; /* align with sidebar width */
-  }
+  /* Respect safe-area on iOS PWA */
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
 }
 
 /* ── Rare card breathing glow ───────────────────────────────────────────── */

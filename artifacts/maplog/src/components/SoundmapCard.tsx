@@ -142,6 +142,8 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
       )}
       style={{
         border: `2px solid ${borderColor}`,
+        // Smooth color transition when vibrant color resolves from artwork extraction
+        transition: 'border-color 0.55s ease, box-shadow 0.55s ease, background-color 0.55s ease',
         ...(isRare ? {} : { boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22` }),
         background: `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
       }}

@@ -1,4 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+/**
+ * Module-level cache: artworkUrl → extracted color string.
+ * Prevents re-running canvas extraction on every re-mount / page navigation.
+ */
+const artColorCache = new Map<string, string>();
 
 /**
  * Samples a 40×40 downscale of the artwork and returns the most vibrant
@@ -49,17 +55,35 @@ function extractVibrantColor(img: HTMLImageElement): string {
 
 /**
  * Hook: returns the vibrant color extracted from `artworkUrl`.
- * Resolves asynchronously; starts as `fallback`.
+ * Resolves asynchronously; starts as `fallback` (or the cached value if
+ * we've already extracted from this URL — prevents re-flash on revisit).
  */
 export function useArtColor(
   artworkUrl: string | null | undefined,
   fallback: string,
 ): string {
-  const [color, setColor] = useState(fallback);
+  // Initialise directly from cache so the card renders at its final color
+  // on revisit with no visible transition.
+  const [color, setColor] = useState<string>(() => {
+    if (artworkUrl && artColorCache.has(artworkUrl)) {
+      return artColorCache.get(artworkUrl)!;
+    }
+    return fallback;
+  });
+
+  // Keep a ref to avoid closure issues inside the img callback
+  const fallbackRef = useRef(fallback);
+  fallbackRef.current = fallback;
 
   useEffect(() => {
     if (!artworkUrl) {
       setColor(fallback);
+      return;
+    }
+
+    // Already cached — apply immediately without spawning an Image
+    if (artColorCache.has(artworkUrl)) {
+      setColor(artColorCache.get(artworkUrl)!);
       return;
     }
 
@@ -70,15 +94,20 @@ export function useArtColor(
     img.onload = () => {
       if (cancelled) return;
       const extracted = extractVibrantColor(img);
-      setColor(extracted || fallback);
+      const result = extracted || fallbackRef.current;
+      artColorCache.set(artworkUrl, result);
+      setColor(result);
     };
     img.onerror = () => {
-      if (!cancelled) setColor(fallback);
+      if (!cancelled) {
+        artColorCache.set(artworkUrl, fallbackRef.current);
+        setColor(fallbackRef.current);
+      }
     };
 
     img.src = artworkUrl;
     return () => { cancelled = true; };
-  }, [artworkUrl, fallback]);
+  }, [artworkUrl]); // fallback is stable per slug, ref handles any change
 
   return color;
 }
