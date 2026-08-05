@@ -61,10 +61,13 @@ export default function Collection() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-background relative">
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
+      className="h-full w-full flex flex-col overflow-hidden bg-background relative"
+    >
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       
-      <div className="shrink-0 px-4 pt-8 pb-4 sm:px-6 relative z-10">
+      <div className="shrink-0 px-4 pt-8 pb-2 sm:px-6 relative z-10 w-full overflow-x-hidden">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-display font-black tracking-tight text-white">Collection</h1>
@@ -104,7 +107,7 @@ export default function Collection() {
           />
         </div>
 
-        <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 sm:-mx-6 sm:px-6">
           {DEMO_RARITY_NAMES.map(name => (
             <button
               key={name}
@@ -122,14 +125,14 @@ export default function Collection() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 relative z-10 pb-20">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 relative z-10 pb-20 w-full">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4">
+          <div className="flex flex-col items-center justify-center h-full gap-4 w-full">
             <div className="w-10 h-10 border-4 border-white/10 border-t-primary rounded-full animate-spin shadow-[0_0_15px_rgba(255,60,0,0.5)]" />
             <p className="text-sm font-semibold text-white/60">Loading collection…</p>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
+          <div className="flex flex-col items-center justify-center h-full text-center w-full">
             <div className="w-16 h-16 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-4">
               <Music2 className="w-8 h-8" />
             </div>
@@ -140,7 +143,7 @@ export default function Collection() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center h-full text-center"
+            className="flex flex-col items-center justify-center h-full text-center w-full"
           >
             <div className="w-24 h-24 rounded-[2rem] glass-panel flex items-center justify-center mb-6 shadow-2xl">
               <Library className="w-10 h-10 text-primary" />
@@ -156,7 +159,7 @@ export default function Collection() {
             )}
           </motion.div>
         ) : displayData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
+          <div className="flex flex-col items-center justify-center h-full text-center w-full">
             <Search className="w-12 h-12 text-white/20 mb-4" />
             <h2 className="text-xl font-bold mb-2 text-white">No matches found</h2>
             <p className="text-sm text-white/50 mb-6 max-w-xs">
@@ -167,7 +170,7 @@ export default function Collection() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 w-full">
             <AnimatePresence>
               {displayData.map(({ song, topCard }, i) => (
                 <motion.div
@@ -206,6 +209,6 @@ export default function Collection() {
       </div>
 
       <AddSongSheet open={showAddSheet} onOpenChange={setShowAddSheet} />
-    </div>
+    </motion.div>
   );
 }

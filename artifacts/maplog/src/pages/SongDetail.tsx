@@ -5,7 +5,7 @@ import { usePlayer } from '@/context/AudioPlayerContext';
 import useEmblaCarousel from 'embla-carousel-react';
 import { SoundmapCard } from '@/components/SoundmapCard';
 import { Button } from '@/components/ui/button';
-import { Play, ArrowLeft, MoreVertical, ListEnd, Trash2, Disc3 } from 'lucide-react';
+import { Play, ArrowLeft, MoreVertical, Trash2, Disc3, ListEnd } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,10 @@ export default function SongDetail() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (emblaApi) emblaApi.on('select', () => setActiveSnap(emblaApi.selectedScrollSnap()));
+    if (!emblaApi) return;
+    const onSelect = () => setActiveSnap(emblaApi.selectedScrollSnap());
+    emblaApi.on('select', onSelect);
+    return () => { emblaApi.off('select', onSelect); };
   }, [emblaApi]);
 
   const handlePlay = () => {
@@ -63,7 +66,10 @@ export default function SongDetail() {
   const activeCard = cards[activeSnap];
 
   return (
-    <div className="h-full flex flex-col overflow-hidden relative bg-background">
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
+      className="h-full flex flex-col overflow-hidden relative bg-background w-full"
+    >
       <AnimatePresence>
         {activeCard?.artworkUrl && (
           <motion.div 
@@ -84,13 +90,13 @@ export default function SongDetail() {
         )}
       </AnimatePresence>
 
-      <div className="relative z-10 flex items-center justify-between px-5 pt-8 pb-4 shrink-0">
+      <div className="relative z-50 flex items-center justify-between px-5 pt-8 pb-2 shrink-0 pointer-events-auto">
         <Button
           variant="ghost" size="icon"
           onClick={() => { if (window.history.length > 1) window.history.back(); else setLocation('/collection'); }}
-          className="rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white"
+          className="w-12 h-12 rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white shadow-lg"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-6 w-6" />
         </Button>
         <div className="flex flex-col items-center">
           <span className="text-[10px] font-black tracking-widest uppercase text-white/50">Detail</span>
@@ -98,17 +104,17 @@ export default function SongDetail() {
         <Button
           variant="ghost" size="icon"
           onClick={() => setMenuOpen(true)}
-          className="rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white"
+          className="w-12 h-12 rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white shadow-lg"
         >
-          <MoreVertical className="h-5 w-5" />
+          <MoreVertical className="h-6 w-6" />
         </Button>
       </div>
 
-      <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-4">
+      <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-4 w-full">
         {cards.length > 0 ? (
-          <div className="w-full flex flex-col items-center">
-            <div className="w-full max-w-[400px] [overflow-x:clip] py-6 px-4" ref={emblaRef}>
-              <div className="flex touch-pan-y items-center">
+          <div className="w-full flex flex-col items-center h-full justify-center">
+            <div className="w-full max-w-[400px] overflow-visible py-4 px-4 flex-1 flex flex-col justify-center" ref={emblaRef}>
+              <div className="flex touch-pan-y items-center overflow-visible">
                 {cards.map((card, i) => (
                   <div key={card.id} className="flex-[0_0_100%] min-w-0 flex justify-center items-center perspective-[1000px]">
                     <motion.div
@@ -118,6 +124,8 @@ export default function SongDetail() {
                         rotateY: i === activeSnap ? 0 : (i < activeSnap ? 15 : -15),
                       }}
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      className="relative cursor-pointer group"
+                      onClick={handlePlay}
                     >
                       <SoundmapCard
                         card={card}
@@ -127,13 +135,18 @@ export default function SongDetail() {
                         size="lg"
                         className="shadow-2xl"
                       />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl">
+                        <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-[0_0_40px_rgba(255,60,0,0.6)] scale-75 group-hover:scale-100 transition-transform duration-300">
+                          <Play className="w-10 h-10 text-white fill-white ml-1.5" />
+                        </div>
+                      </div>
                     </motion.div>
                   </div>
                 ))}
               </div>
             </div>
             
-            <div className="h-10 mt-4 flex items-center justify-center">
+            <div className="h-10 mt-2 mb-6 flex items-center justify-center shrink-0">
               {cards.length > 1 && (
                 <div className="flex items-center gap-2 bg-black/20 backdrop-blur-xl px-4 py-2 rounded-full border border-white/5">
                   {cards.map((_, i) => (
@@ -157,12 +170,12 @@ export default function SongDetail() {
         )}
       </div>
 
-      <div className="relative z-10 text-center px-6 py-4 shrink-0">
+      <div className="relative z-10 text-center px-6 pb-12 shrink-0">
         <motion.p 
           key={`title-${song.id}`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="font-display font-black text-2xl text-white leading-tight truncate"
+          className="font-display font-black text-2xl sm:text-3xl text-white leading-tight truncate"
         >
           {song.title}
         </motion.p>
@@ -171,12 +184,12 @@ export default function SongDetail() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-base text-primary font-semibold truncate mt-1"
+          className="text-base sm:text-lg text-primary font-semibold truncate mt-1"
         >
           {song.artist}
         </motion.p>
         
-        <div className="flex justify-center mt-4 h-6">
+        <div className="flex justify-center mt-6 h-6">
           <AnimatePresence mode="wait">
             {activeCard && (
               <motion.p 
@@ -184,7 +197,7 @@ export default function SongDetail() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="text-xs text-white/50 font-bold tracking-[0.2em] uppercase bg-white/5 px-4 py-1.5 rounded-full border border-white/10"
+                className="text-xs text-white/50 font-bold tracking-[0.2em] uppercase bg-white/5 px-4 py-1.5 rounded-full border border-white/10 shadow-inner"
               >
                 {activeCard.rarityType.name} Tier
               </motion.p>
@@ -193,25 +206,8 @@ export default function SongDetail() {
         </div>
       </div>
 
-      <div className="relative z-10 shrink-0 flex items-center justify-center gap-6 pb-8 pt-4">
-        <button
-          onClick={handlePlay}
-          className="w-20 h-20 rounded-full bg-primary text-white flex items-center justify-center shadow-[0_0_30px_rgba(255,60,0,0.4)] hover:scale-105 hover:bg-primary/90 active:scale-95 transition-all group"
-          aria-label="Play"
-        >
-          <Play className="w-8 h-8 fill-current ml-1 group-hover:scale-110 transition-transform" />
-        </button>
-        <button
-          onClick={handleAddToQueue}
-          className="w-14 h-14 rounded-full glass-panel flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all text-white/80"
-          aria-label="Add to queue"
-        >
-          <ListEnd className="w-6 h-6" />
-        </button>
-      </div>
-
       <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
-        <DialogContent className="sm:max-w-sm rounded-[2rem] bg-card border border-white/10 p-6">
+        <DialogContent className="sm:max-w-sm rounded-[2rem] bg-card border border-white/10 p-6 z-50">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-display font-bold text-white truncate">{song.title}</DialogTitle>
           </DialogHeader>
@@ -237,6 +233,6 @@ export default function SongDetail() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }
