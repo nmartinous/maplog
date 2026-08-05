@@ -82,7 +82,7 @@ export default function Playlists() {
                 key={list.id}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(index, 8) * 0.05, type: 'spring', damping: 22 }}
+                transition={{ delay: Math.min(index, 8) * 0.05, duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
                 onClick={() => setLocation(`/playlists/${list.id}`)}
                 className="w-full text-left glass-panel rounded-[1.75rem] p-4 flex items-center gap-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] cursor-pointer"
               >

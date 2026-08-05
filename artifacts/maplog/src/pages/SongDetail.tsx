@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const { getSong, songs, removeFromCollection } = useMusicKit();
+  const { getSong, removeFromCollection } = useMusicKit();
   const { play, resume, enqueue, currentSong, isPlaying } = usePlayer();
 
   const songId = decodeURIComponent(id ?? '');
@@ -47,7 +47,9 @@ export default function SongDetail() {
   const handleCardTap = () => {
     if (!song) return;
     if (isCurrent) { if (!isPlaying) resume(); return; }
-    play(song, inCollection ? songs : undefined);
+    // Playing a single song never queues the rest of the collection —
+    // autoplay decides what comes next.
+    play(song, [song]);
   };
 
   const handleAddToQueue = () => {

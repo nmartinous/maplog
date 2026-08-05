@@ -61,7 +61,7 @@ export default function Collection() {
 
   const handlePlay = (e: React.MouseEvent, song: MaplogSong) => {
     e.preventDefault(); e.stopPropagation();
-    play(song, songs); setLocation('/');
+    play(song, [song]); setLocation('/');
   };
 
   return (

@@ -123,7 +123,7 @@ export default function Home() {
             whileTap={{ scale: 0.95 }}
             style={{ willChange: 'transform' }}
             className="cursor-pointer"
-            onClick={() => play(song, songs)}
+            onClick={() => play(song, [song])}
             role="button"
             aria-label={`Play ${song.title}`}
           >

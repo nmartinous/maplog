@@ -118,7 +118,6 @@ export default function PlaylistDetail() {
           ) : (
             <button className="text-left group flex items-center gap-2 min-w-0 w-full" onClick={() => { setNameInput(list.name); setRenaming(true); }}>
               <h1 className="text-2xl font-display font-black tracking-tight text-white truncate">{list.name}</h1>
-              <Pencil className="w-4 h-4 text-white/30 group-hover:text-white/60 shrink-0 transition-colors" />
             </button>
           )}
           <p className="text-xs text-white/50 mt-0.5">{inList.length} song{inList.length !== 1 ? 's' : ''}</p>
@@ -172,7 +171,7 @@ export default function PlaylistDetail() {
                 key={song.id}
                 initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: Math.min(i, 10) * 0.03 }}
+                transition={{ delay: Math.min(i, 10) * 0.03, duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors group',
                   isCurrent ? 'bg-primary/10 border border-primary/20' : 'hover:bg-white/5',

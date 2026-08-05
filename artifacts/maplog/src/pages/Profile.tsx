@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useMusicKit } from '@/context/MusicKitContext';
-import { Disc3, Layers, Sparkles, Star, Trophy, Target, Check, Pencil, Coins } from 'lucide-react';
+import { Disc3, Layers, Sparkles, Star, Trophy, Target, Check, Coins, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
@@ -188,9 +188,9 @@ export default function Profile() {
         {/* ── Editable identity header ── */}
         <div className="flex items-center gap-5 mb-8">
           <motion.button
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', damping: 15 }}
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
             onClick={() => fileRef.current?.click()}
             aria-label="Change profile picture"
             className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-primary to-orange-500 flex items-center justify-center shrink-0 shadow-[0_0_30px_rgba(255,60,0,0.3)] relative overflow-hidden group active:scale-95 transition-transform"
@@ -204,7 +204,7 @@ export default function Profile() {
               </>
             )}
             <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity flex items-center justify-center">
-              <Pencil className="w-5 h-5 text-white" />
+              <Camera className="w-5 h-5 text-white" />
             </div>
           </motion.button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
@@ -239,7 +239,6 @@ export default function Profile() {
                 onClick={() => { setNameDraft(profile.name); setEditingName(true); }}
               >
                 <h1 className="text-3xl font-display font-black tracking-tight text-white truncate">{profile.name}</h1>
-                <Pencil className="w-4 h-4 text-white/25 group-hover:text-white/60 shrink-0 transition-colors" />
               </motion.button>
             )}
 
@@ -276,7 +275,6 @@ export default function Profile() {
                 <span className="text-xs font-bold text-white/70 uppercase tracking-wider truncate">
                   {profile.bio || 'Add a motto'}{isDemoMode ? ' · Demo' : ''}
                 </span>
-                <Pencil className="w-3 h-3 text-white/25 group-hover:text-white/60 shrink-0 transition-colors" />
               </motion.button>
             )}
           </div>
@@ -378,14 +376,15 @@ export default function Profile() {
                       <div
                         key={bucket}
                         className={cn(
-                          'rounded-2xl border px-3 py-3 flex flex-col gap-1',
+                          'rounded-2xl border px-3 pt-4 pb-3 flex flex-col gap-1 relative overflow-hidden',
                           RARITY_COLORS[label] ?? 'bg-white/5 border-white/10 text-white',
                         )}
                       >
-                        <span className="font-display font-black text-lg leading-none">{fmt(entry?.value ?? 0)}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
-                          {label} · {entry?.count ?? 0} × {RARITY_VALUES[bucket]}
+                        <span className="absolute top-0 right-0 px-2 py-1 rounded-bl-xl bg-white/10 text-[9px] font-black tracking-wide">
+                          {RARITY_VALUES[bucket]}<span className="opacity-60"> ea</span>
                         </span>
+                        <span className="font-display font-black text-lg leading-none">{fmt(entry?.value ?? 0)}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</span>
                       </div>
                     );
                   })}

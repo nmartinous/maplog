@@ -78,10 +78,10 @@ export function MiniPlayer() {
               )}
             </div>
 
-            {/* Scrub bar (interactive) */}
+            {/* Scrub bar (interactive) — track is inset from the edges;
+                barRef sits on the visible rail so seek math maps its ends to 0..1 */}
             <div
-              ref={barRef}
-              className="relative w-full h-5 z-30 cursor-pointer touch-none group flex items-center px-0"
+              className="relative w-full h-6 z-30 cursor-pointer touch-none group flex items-center px-4 pt-1"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -92,7 +92,7 @@ export function MiniPlayer() {
               aria-valuemax={Math.round(duration)}
               aria-valuenow={Math.round(dragRatio !== null ? dragRatio * duration : currentTime)}
             >
-              <div className={cn(
+              <div ref={barRef} className={cn(
                 'w-full bg-white/10 rounded-full overflow-visible relative transition-all',
                 dragRatio !== null ? 'h-[6px]' : 'h-[3px] group-hover:h-[5px]',
               )}>
@@ -108,9 +108,9 @@ export function MiniPlayer() {
               </div>
             </div>
 
-            <div className="flex-1 flex items-center px-3 sm:px-4 pb-3 pt-1 sm:pb-4 gap-2.5 sm:gap-3 relative z-10">
+            <div className="flex-1 flex items-center px-3 sm:px-4 pb-4 pt-1.5 sm:pb-5 gap-2.5 sm:gap-3 relative z-10">
               <Link href={detailHref} className="shrink-0 cursor-pointer active:scale-95 transition-transform group" aria-label="Open card view">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/10 overflow-hidden relative shadow-md">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white/10 overflow-hidden relative shadow-md">
                   {currentSong.artworkUrl
                     ? <img src={currentSong.artworkUrl} alt={currentSong.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     : <div className="w-full h-full flex items-center justify-center"><Music2 className="w-5 h-5 text-white/50" /></div>
@@ -138,7 +138,7 @@ export function MiniPlayer() {
                 <Button
                   variant="ghost" size="icon"
                   className={cn(
-                    'h-7 w-7 sm:h-8 sm:w-8 rounded-full active:scale-90 transition-all hover:bg-white/10',
+                    'h-8 w-8 sm:h-9 sm:w-9 rounded-full active:scale-90 transition-all hover:bg-white/10',
                     shuffle ? 'text-primary' : 'text-white/40 hover:text-white',
                   )}
                   onClick={toggleShuffle} aria-label="Shuffle" aria-pressed={shuffle}
@@ -147,14 +147,14 @@ export function MiniPlayer() {
                 </Button>
                 <Button
                   variant="ghost" size="icon"
-                  className="h-7 w-7 sm:h-8 sm:w-8 text-white/60 hover:text-white hover:bg-white/10 rounded-full active:scale-90 transition-all"
+                  className="h-8 w-8 sm:h-9 sm:w-9 text-white/60 hover:text-white hover:bg-white/10 rounded-full active:scale-90 transition-all"
                   onClick={skipPrev} aria-label="Previous"
                 >
                   <SkipBack className="h-4 w-4 fill-current" />
                 </Button>
                 <Button
                   variant="ghost" size="icon"
-                  className="h-11 w-11 bg-white text-black hover:bg-white/90 hover:scale-105 active:scale-95 rounded-full transition-all shadow-lg"
+                  className="h-12 w-12 bg-white text-black hover:bg-white/90 hover:scale-105 active:scale-95 rounded-full transition-all shadow-lg"
                   onClick={isPlaying ? pause : resume}
                   aria-label={isPlaying ? 'Pause' : 'Play'}
                 >
@@ -165,7 +165,7 @@ export function MiniPlayer() {
                 </Button>
                 <Button
                   variant="ghost" size="icon"
-                  className="h-7 w-7 sm:h-8 sm:w-8 text-white/60 hover:text-white hover:bg-white/10 rounded-full active:scale-90 transition-all"
+                  className="h-8 w-8 sm:h-9 sm:w-9 text-white/60 hover:text-white hover:bg-white/10 rounded-full active:scale-90 transition-all"
                   onClick={skipNext} aria-label="Next"
                 >
                   <SkipForward className="h-4 w-4 fill-current" />
@@ -173,7 +173,7 @@ export function MiniPlayer() {
                 <Button
                   variant="ghost" size="icon"
                   className={cn(
-                    'h-7 w-7 sm:h-8 sm:w-8 rounded-full active:scale-90 transition-all hover:bg-white/10 relative',
+                    'h-8 w-8 sm:h-9 sm:w-9 rounded-full active:scale-90 transition-all hover:bg-white/10 relative',
                     repeat !== 'off' ? 'text-primary' : 'text-white/40 hover:text-white',
                   )}
                   onClick={cycleRepeat}

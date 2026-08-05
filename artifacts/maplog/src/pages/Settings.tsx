@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useMusicKit } from '@/context/MusicKitContext';
 import type { MaplogSong } from '@/lib/types';
 import { DEMO_RARITIES } from '@/lib/rarityMap';
@@ -235,6 +235,8 @@ function PlaylistImport({ addToCollection, collection }: {
 }
 
 export default function Settings() {
+  const [rarityOpen, setRarityOpen] = useState<boolean>(() => localStorage.getItem('maplog:rarityOpen') !== '0');
+  useEffect(() => { localStorage.setItem('maplog:rarityOpen', rarityOpen ? '1' : '0'); }, [rarityOpen]);
   const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection, hasToken, isAuthorized, authorize } = useMusicKit();
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -278,11 +280,28 @@ export default function Settings() {
         </div>
 
         <section className="space-y-4">
-          <h2 className="text-xs font-bold tracking-widest uppercase text-white/50 px-2 flex items-center gap-2">
+          <button
+            onClick={() => setRarityOpen(o => !o)}
+            aria-expanded={rarityOpen}
+            className="w-full text-xs font-bold tracking-widest uppercase text-white/50 px-2 flex items-center gap-2 hover:text-white/80 transition-colors"
+          >
             <Target className="w-4 h-4 text-primary" />
             Rarity Playlists
-          </h2>
-          <RarityPlaylistSync />
+            <ChevronDown className={cn('w-4 h-4 ml-auto transition-transform duration-300', rarityOpen ? '' : '-rotate-90')} />
+          </button>
+          <AnimatePresence initial={false}>
+            {rarityOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+                className="overflow-hidden"
+              >
+                <RarityPlaylistSync />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </section>
 
         {!isDemoMode && (
