@@ -3,17 +3,14 @@ import { usePlayer } from '@/context/AudioPlayerContext';
 import { Link } from 'wouter';
 import { Play, Pause, SkipBack, SkipForward, Music2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 function fmt(s: number) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
-
-// In-flow element: shrink-0 keeps it at a fixed height inside the flex column.
-// No position:fixed — the shell layout places it directly above the mobile nav.
-// On short viewports (landscape phone) the player collapses to a compact 40px strip.
-const BASE = 'shrink-0 h-16 landscape-compact:h-10 bg-card/92 backdrop-blur-xl border-t border-white/8';
 
 export function MiniPlayer() {
   const { currentSong, isPlaying, pause, resume, skipNext, skipPrev, seek, currentTime, duration } = usePlayer();
@@ -29,111 +26,116 @@ export function MiniPlayer() {
     seek(ratio * duration);
   };
 
-  // ── Idle ───────────────────────────────────────────────────────────────────
-  if (!currentSong) {
-    return (
-      <div className={BASE}>
-        <div className="h-full flex items-center justify-between px-5">
-          <div className="flex items-center gap-3 opacity-35">
-            <div className="w-7 h-7 landscape-compact:w-6 landscape-compact:h-6 rounded-lg bg-muted flex items-center justify-center shrink-0">
-              <Music2 className="w-3.5 h-3.5 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm landscape-compact:text-xs font-semibold">Nothing playing</p>
-              <p className="text-xs landscape-compact:hidden text-muted-foreground">Tap a card to play</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 opacity-15 pointer-events-none">
-            <div className="h-7 w-7 landscape-compact:h-6 landscape-compact:w-6" />
-            <div className="h-7 w-7 landscape-compact:h-6 landscape-compact:w-6 flex items-center justify-center">
-              <Play className="h-3.5 w-3.5 ml-0.5" />
-            </div>
-            <div className="h-7 w-7 landscape-compact:h-6 landscape-compact:w-6 flex items-center justify-center">
-              <SkipForward className="h-3.5 w-3.5" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Active ─────────────────────────────────────────────────────────────────
   return (
-    <div className={BASE + ' flex flex-col'}>
-      {/* Scrubber — hidden in compact mode to save space */}
-      <div
-        ref={barRef}
-        className="w-full h-[3px] landscape-compact:h-[2px] bg-white/10 cursor-pointer group relative shrink-0"
-        onClick={handleScrub}
-        onTouchStart={handleScrub}
-        role="progressbar"
-        aria-valuenow={Math.round(progress)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Playback progress"
-      >
-        <div
-          className="h-full bg-primary transition-all duration-100 ease-linear"
-          style={{ width: `${progress}%` }}
-        />
-        {/* Larger touch target */}
-        <div className="absolute inset-x-0 -top-3 -bottom-3" />
-      </div>
-
-      {/* Content row */}
-      <div className="flex-1 flex items-center px-3 gap-2 min-w-0">
-        {/* Artwork → full player */}
-        <Link href="/" className="shrink-0 cursor-pointer active:opacity-70 transition-opacity">
-          <div className="w-7 h-7 landscape-compact:w-6 landscape-compact:h-6 rounded-md bg-muted overflow-hidden">
-            {currentSong.artworkUrl
-              ? <img src={currentSong.artworkUrl} alt={currentSong.title} className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center"><Music2 className="w-3.5 h-3.5 text-muted-foreground" /></div>
-            }
-          </div>
-        </Link>
-
-        {/* Title + time → full player */}
-        <Link href="/" className="flex-1 min-w-0 cursor-pointer active:opacity-70 transition-opacity">
-          <p className="text-sm landscape-compact:text-xs font-bold truncate leading-tight">{currentSong.title}</p>
-          <p className="text-[11px] landscape-compact:hidden text-muted-foreground truncate leading-tight">
-            {currentSong.artist}
-            {duration > 0 && (
-              <span className="ml-1.5 opacity-50 tabular-nums">
-                {fmt(currentTime)} / {fmt(duration)}
-              </span>
-            )}
-          </p>
-        </Link>
-
-        {/* Transport */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          <Button
-            variant="ghost" size="icon"
-            className="h-7 w-7 landscape-compact:h-6 landscape-compact:w-6 text-muted-foreground hover:text-foreground active:scale-90 transition-transform"
-            onClick={skipPrev} aria-label="Previous"
+    <div className="shrink-0 px-2 sm:px-4 py-2 sm:py-3 z-40 relative bg-transparent pointer-events-none">
+      <AnimatePresence mode="popLayout" initial={false}>
+        {!currentSong ? (
+          <motion.div 
+            key="empty"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="w-full h-14 sm:h-16 rounded-2xl glass-panel flex items-center justify-between px-4 pointer-events-auto"
           >
-            <SkipBack className="h-3.5 w-3.5 fill-current" />
-          </Button>
-          <Button
-            variant="ghost" size="icon"
-            className="h-8 w-8 landscape-compact:h-7 landscape-compact:w-7 text-foreground active:scale-90 transition-transform"
-            onClick={isPlaying ? pause : resume}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
+            <div className="flex items-center gap-3 opacity-40">
+              <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                <Music2 className="w-4 h-4 text-white" />
+              </div>
+              <p className="text-sm font-semibold">Nothing playing</p>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="playing"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.25 }}
+            className="w-full rounded-2xl glass-panel overflow-hidden pointer-events-auto shadow-2xl flex flex-col relative"
           >
-            {isPlaying
-              ? <Pause className="h-3.5 w-3.5 fill-current" />
-              : <Play  className="h-3.5 w-3.5 fill-current ml-0.5" />
-            }
-          </Button>
-          <Button
-            variant="ghost" size="icon"
-            className="h-7 w-7 landscape-compact:h-6 landscape-compact:w-6 text-muted-foreground hover:text-foreground active:scale-90 transition-transform"
-            onClick={skipNext} aria-label="Next"
-          >
-            <SkipForward className="h-3.5 w-3.5 fill-current" />
-          </Button>
-        </div>
-      </div>
+            {/* Scrubber Background */}
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-white/5 z-20">
+              <div 
+                className="h-full bg-primary relative transition-all duration-100 ease-linear"
+                style={{ width: `${progress}%` }}
+              >
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)] opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
+            
+            {/* Scrubber Hitbox */}
+            <div
+              ref={barRef}
+              className="absolute top-0 left-0 w-full h-4 -translate-y-2 z-30 cursor-pointer group"
+              onClick={handleScrub}
+              onTouchStart={handleScrub}
+            />
+
+            {/* Glowing background hint from artwork */}
+            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none mix-blend-screen">
+              {currentSong.artworkUrl && (
+                <img src={currentSong.artworkUrl} alt="" className="w-full h-full object-cover blur-2xl transform scale-150" />
+              )}
+            </div>
+
+            <div className="flex-1 flex items-center px-3 py-2 sm:py-3 gap-3 relative z-10">
+              <Link href="/" className="shrink-0 cursor-pointer active:scale-95 transition-transform group">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/10 overflow-hidden relative shadow-md">
+                  {currentSong.artworkUrl
+                    ? <img src={currentSong.artworkUrl} alt={currentSong.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    : <div className="w-full h-full flex items-center justify-center"><Music2 className="w-5 h-5 text-white/50" /></div>
+                  }
+                  {isPlaying && (
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-end gap-[2px] h-3">
+                        {[0, 1, 2].map(j => (
+                          <div key={j} className="w-1 bg-white rounded-full animate-[bounce_0.8s_ease-in-out_infinite]" style={{ height: `${6 + j * 3}px`, animationDelay: `${j * 0.15}s` }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Link>
+
+              <Link href="/" className="flex-1 min-w-0 cursor-pointer active:opacity-70 transition-opacity">
+                <p className="text-sm sm:text-base font-bold truncate text-white leading-tight">{currentSong.title}</p>
+                <p className="text-[11px] sm:text-xs text-white/60 truncate leading-tight mt-0.5">
+                  {currentSong.artist}
+                </p>
+              </Link>
+
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10 rounded-full active:scale-90 transition-all"
+                  onClick={skipPrev} aria-label="Previous"
+                >
+                  <SkipBack className="h-4 w-4 fill-current" />
+                </Button>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-10 w-10 bg-white text-black hover:bg-white/90 hover:scale-105 active:scale-95 rounded-full transition-all shadow-lg"
+                  onClick={isPlaying ? pause : resume}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying
+                    ? <Pause className="h-4 w-4 fill-current" />
+                    : <Play className="h-4 w-4 fill-current ml-0.5" />
+                  }
+                </Button>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10 rounded-full active:scale-90 transition-all"
+                  onClick={skipNext} aria-label="Next"
+                >
+                  <SkipForward className="h-4 w-4 fill-current" />
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
