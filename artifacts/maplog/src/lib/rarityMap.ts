@@ -42,3 +42,44 @@ export const ALL_CATEGORIES = [
 /** All rarity types in tier order (for pickers) */
 export const ALL_RARITIES: MaplogRarityType[] = Object.values(RARITY_MAP)
   .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+
+/** Parse a human-entered rarity label (case-insensitive, aliased) → rarity object */
+export function rarityFromLabel(label: string): MaplogRarityType | null {
+  const s = label.trim();
+  if (!s) return null;
+
+  // Exact case-insensitive key match
+  const exactKey = Object.keys(RARITY_MAP).find(k => k.toLowerCase() === s.toLowerCase());
+  if (exactKey) return RARITY_MAP[exactKey];
+
+  // Common aliases / abbreviations
+  const aliases: Record<string, string> = {
+    'common':          'Common',
+    'uncommon':        'Uncommon',
+    'rare':            'Rare',
+    'shiny':           'Shiny Rare',
+    'shiny common':    'Shiny Common',
+    'shiny uncommon':  'Shiny Uncommon',
+    'shiny rare':      'Shiny Rare',
+    'epic':            'Epic',
+    'se':              'Special Edition',
+    'special':         'Special Edition',
+    'special edition': 'Special Edition',
+    'special epic':    'Special Epic',
+    'streak':          'Streak Epic',
+    'streak epic':     'Streak Epic',
+    'moment':          'Moment',
+    'lyric':           'Lyric',
+    'radiant':         'Radiant',
+    'regular':         'Common',
+    'normal':          'Common',
+  };
+  const aliased = aliases[s.toLowerCase()];
+  if (aliased) return RARITY_MAP[aliased];
+
+  // Partial prefix match as last resort
+  const partialKey = Object.keys(RARITY_MAP).find(k => k.toLowerCase().startsWith(s.toLowerCase()));
+  if (partialKey) return RARITY_MAP[partialKey];
+
+  return null;
+}

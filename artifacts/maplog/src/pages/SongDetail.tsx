@@ -6,7 +6,7 @@ import { usePlayer } from '@/context/AudioPlayerContext';
 import useEmblaCarousel from 'embla-carousel-react';
 import { SoundmapCard } from '@/components/SoundmapCard';
 import { Button } from '@/components/ui/button';
-import { Play, ArrowLeft, MoreVertical, ListEnd, ListPlus, Disc3 } from 'lucide-react';
+import { Play, ArrowLeft, MoreVertical, ListEnd, Trash2, Disc3 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -16,10 +16,9 @@ export default function SongDetail() {
   useNoScroll();
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const { getSong, songs } = useMusicKit();
+  const { getSong, songs, removeFromCollection } = useMusicKit();
   const { play, enqueue } = usePlayer();
 
-  // Decode the ID (was URL-encoded in the link)
   const songId = decodeURIComponent(id ?? '');
   const song = getSong(songId);
 
@@ -27,7 +26,6 @@ export default function SongDetail() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, watchDrag: multiCard });
   const [activeSnap, setActiveSnap] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [actionsOpen, setActionsOpen] = useState(false);
 
   React.useEffect(() => {
     if (emblaApi) {
@@ -41,7 +39,16 @@ export default function SongDetail() {
 
   const handleAddToQueue = () => {
     if (song) { enqueue(song); toast.success('Added to queue'); }
-    setActionsOpen(false);
+    setMenuOpen(false);
+  };
+
+  const handleRemove = () => {
+    if (!song) return;
+    if (!confirm(`Remove "${song.title}" from your collection?`)) return;
+    removeFromCollection(song.id);
+    toast.success('Removed from collection');
+    setMenuOpen(false);
+    setLocation('/collection');
   };
 
   if (!song) {
@@ -86,7 +93,6 @@ export default function SongDetail() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-
         <Button
           variant="ghost" size="icon"
           onClick={() => setMenuOpen(true)}
@@ -100,7 +106,7 @@ export default function SongDetail() {
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center min-h-0">
         {cards.length > 0 ? (
           <>
-            <div className="w-full max-w-sm [overflow-x:clip] py-12 px-12" ref={emblaRef}>
+            <div className="w-full max-w-sm [overflow-x:clip] py-8 px-12" ref={emblaRef}>
               <div className="flex touch-pan-y">
                 {cards.map((card, i) => (
                   <div key={card.id} className="flex-[0_0_100%] min-w-0 flex justify-center items-center py-2">
@@ -118,7 +124,7 @@ export default function SongDetail() {
             </div>
 
             {cards.length > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-3 shrink-0">
+              <div className="flex items-center justify-center gap-2 mt-1 shrink-0">
                 {cards.map((_, i) => (
                   <div key={i}
                     className={`h-1.5 rounded-full transition-all duration-300 ${i === activeSnap ? 'w-6 bg-primary' : 'w-1.5 bg-border'}`}
@@ -134,10 +140,21 @@ export default function SongDetail() {
             <p className="text-sm text-muted-foreground">No cards collected for this song yet.</p>
           </div>
         )}
+
+        {/* Song info below card */}
+        <div className="text-center mt-3 px-6 shrink-0">
+          <p className="font-extrabold text-base leading-tight truncate">{song.title}</p>
+          <p className="text-sm text-muted-foreground truncate mt-0.5">{song.artist}</p>
+          {activeCard && (
+            <p className="text-xs text-primary/70 font-semibold mt-1 tracking-wide uppercase">
+              {activeCard.rarityType.name}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Action buttons */}
-      <div className="relative z-10 shrink-0 flex items-center justify-center gap-5 pb-24 pt-3">
+      <div className="relative z-10 shrink-0 flex items-center justify-center gap-5 pb-24 sm:pb-6 pt-4">
         <button
           onClick={handlePlay}
           className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform"
@@ -146,45 +163,34 @@ export default function SongDetail() {
           <Play className="w-7 h-7 fill-current ml-0.5" />
         </button>
         <button
-          onClick={() => setActionsOpen(true)}
+          onClick={handleAddToQueue}
           className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/15 active:scale-95 transition-all"
-          aria-label="More actions"
+          aria-label="Add to queue"
         >
-          <ListPlus className="w-5 h-5" />
+          <ListEnd className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Song menu */}
+      {/* ⋯ Menu */}
       <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
         <DialogContent className="sm:max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">{song.title}</DialogTitle>
+            <DialogTitle className="text-base font-bold truncate">{song.title}</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-1 pb-2">
-            <button
-              onClick={() => { setMenuOpen(false); setActionsOpen(true); }}
-              className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/8 transition-colors text-left w-full"
-            >
-              <ListEnd className="w-5 h-5 text-muted-foreground shrink-0" />
-              <span className="font-semibold">Add to Queue</span>
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Actions sheet */}
-      <Dialog open={actionsOpen} onOpenChange={setActionsOpen}>
-        <DialogContent className="sm:max-w-sm rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">{song.title}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-2 pb-2">
+          <div className="flex flex-col gap-0.5 pb-2">
             <button
               onClick={handleAddToQueue}
               className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/8 transition-colors text-left w-full"
             >
               <ListEnd className="w-5 h-5 text-muted-foreground shrink-0" />
-              <span className="font-semibold">Add to Queue</span>
+              <span className="font-semibold text-sm">Add to Queue</span>
+            </button>
+            <button
+              onClick={handleRemove}
+              className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-destructive/10 transition-colors text-left w-full text-destructive"
+            >
+              <Trash2 className="w-5 h-5 shrink-0" />
+              <span className="font-semibold text-sm">Remove from Collection</span>
             </button>
           </div>
         </DialogContent>
