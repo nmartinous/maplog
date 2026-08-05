@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Home, Library, Layers, User, Settings } from 'lucide-react';
+import { Home, Library, ListMusic, User, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
   { href: '/',           icon: Home,     label: 'Player'     },
   { href: '/collection', icon: Library,  label: 'Collection' },
-  { href: '/playlists',  icon: Layers,   label: 'Rarities'  },
+  { href: '/playlists',  icon: ListMusic, label: 'Playlists' },
   { href: '/profile',    icon: User,     label: 'Profile'    },
   { href: '/settings',   icon: Settings, label: 'Settings'   },
 ];

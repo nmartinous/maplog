@@ -78,6 +78,15 @@ export interface MusicKitContextType {
   /** Remove a song entirely from the collection */
   removeFromCollection: (songId: string) => void;
 
+  /**
+   * Sync one rarity tier against a playlist's track list:
+   * - songs in the playlist without a card of that rarity gain one
+   * - songs with that rarity card that left the playlist lose it
+   *   (and are dropped entirely when no cards remain)
+   * Returns counts of what changed. No-op in demo mode.
+   */
+  syncRarity: (rarity: MaplogRarityType, playlistSongs: MaplogSong[]) => { added: number; removed: number };
+
   /** Reload collection from localStorage */
   refresh: () => void;
 
@@ -144,7 +153,8 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
 
   const addToCollection = useCallback((song: MaplogSong, rarity: MaplogRarityType) => {
     if (isDemoMode) return; // demo is read-only
-    setSongs(prev => {
+    {
+      const prev = songsRef.current;
       const existing = prev.find(s => s.id === song.id);
       let updated: MaplogSong[];
 
@@ -176,19 +186,114 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
           .sort((a, b) => a.title.localeCompare(b.title));
       }
 
-      saveCollection(updated);
-      return updated;
-    });
+      commitCollection(updated);
+    }
   }, [isDemoMode]);
+
+  // Ref mirror so mutations in the same tick (e.g. refresh-all looping over
+  // rarities) each see the previous mutation's result instead of stale state.
+  const songsRef = React.useRef(songs);
+  useEffect(() => { songsRef.current = songs; }, [songs]);
+
+  /**
+   * All collection mutations read from and write to songsRef synchronously
+   * (JS is single-threaded, so read→compute→write is atomic per call), then
+   * publish via setSongs. This prevents lost updates when several mutations
+   * run in the same tick (e.g. refresh-all syncing multiple rarities).
+   */
+  const commitCollection = useCallback((updated: MaplogSong[]) => {
+    songsRef.current = updated;
+    saveCollection(updated);
+    setSongs(updated);
+  }, []);
+
+  const normKey = (s: { title: string; artist: string }) =>
+    `${s.title.trim().toLowerCase()}|${s.artist.trim().toLowerCase()}`;
+
+  const syncRarity = useCallback((rarity: MaplogRarityType, playlistSongs: MaplogSong[]) => {
+    if (isDemoMode) return { added: 0, removed: 0 };
+
+    const current = songsRef.current;
+
+    // Match playlist tracks to collection entries by exact id, falling back
+    // to normalized title+artist so legacy (Deezer-id) entries aren't
+    // misclassified as "left the playlist" and duplicated under Apple ids.
+    const byId = new Map(current.map(s => [s.id, s]));
+    const byTitleArtist = new Map<string, MaplogSong>();
+    for (const s of current) {
+      const k = normKey(s);
+      if (!byTitleArtist.has(k)) byTitleArtist.set(k, s);
+    }
+
+    // Playlist track → matched existing song (or null = new). Dedupe playlist
+    // tracks that resolve to the same target.
+    const presentIds = new Set<string>();
+    const toAdd: { track: MaplogSong; existing: MaplogSong | null }[] = [];
+    const claimedNew = new Set<string>();
+    for (const track of playlistSongs) {
+      const existing = byId.get(track.id) ?? byTitleArtist.get(normKey(track)) ?? null;
+      if (existing) {
+        if (presentIds.has(existing.id)) continue; // duplicate within playlist
+        presentIds.add(existing.id);
+        toAdd.push({ track, existing });
+      } else {
+        if (claimedNew.has(track.id)) continue;
+        claimedNew.add(track.id);
+        toAdd.push({ track, existing: null });
+      }
+    }
+
+    let added = 0, removed = 0;
+
+    // 1) Remove this rarity's cards from songs no longer in the playlist
+    let updated: MaplogSong[] = current
+      .map(s => {
+        const hasRarity = s.cards.some(c => c.rarityType.slug === rarity.slug);
+        if (!hasRarity || presentIds.has(s.id)) return s;
+        removed++;
+        return { ...s, cards: s.cards.filter(c => c.rarityType.slug !== rarity.slug) };
+      })
+      .filter(s => s.cards.length > 0);
+
+    // 2) Add missing songs / cards for playlist tracks
+    const bySongId = new Map(updated.map(s => [s.id, s]));
+    for (const { track, existing } of toAdd) {
+      if (existing) {
+        const live = bySongId.get(existing.id);
+        if (!live || live.cards.some(c => c.rarityType.slug === rarity.slug)) continue;
+        bySongId.set(existing.id, {
+          ...live,
+          cards: [...live.cards, {
+            id: `${live.id}::${rarity.slug}::${Date.now()}`,
+            artworkUrl: track.artworkUrl || live.artworkUrl,
+            rarityType: rarity,
+            variantLabel: null,
+          }].sort((a, b) => b.rarityType.tier - a.rarityType.tier),
+        });
+        added++;
+      } else {
+        bySongId.set(track.id, {
+          ...track,
+          cards: [{
+            id: `${track.id}::${rarity.slug}`,
+            artworkUrl: track.artworkUrl,
+            rarityType: rarity,
+            variantLabel: null,
+          }],
+        });
+        added++;
+      }
+    }
+
+    updated = [...bySongId.values()].sort((a, b) => a.title.localeCompare(b.title));
+    commitCollection(updated);
+    return { added, removed };
+  }, [isDemoMode, commitCollection]);
 
   const removeFromCollection = useCallback((songId: string) => {
     if (isDemoMode) return;
-    setSongs(prev => {
-      const updated = prev.filter(s => s.id !== songId);
-      saveCollection(updated);
-      return updated;
-    });
-  }, [isDemoMode]);
+    commitCollection(songsRef.current.filter(s => s.id !== songId));
+  }, [isDemoMode, commitCollection]);
 
   const refresh = useCallback(() => {
     if (isDemoMode) { setSongs([...DEMO_SONGS]); return; }
@@ -229,6 +334,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         searchDeezer:        appleSearch,
         addToCollection,
         removeFromCollection,
+        syncRarity,
         refresh,
         authorize,
         isDemoMode,
