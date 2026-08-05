@@ -3,6 +3,15 @@
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
+/* ── Safe-area nav clearance ────────────────────────────────────────────── */
+/*
+  Use .pb-nav on scrollable page containers so content isn't hidden behind
+  the fixed bottom tab bar + iOS home indicator inset.
+*/
+.pb-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* ── Rare card breathing glow ───────────────────────────────────────────── */
 @keyframes rare-breathe {
   0%, 100% {

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useMusicKit } from '@/context/MusicKitContext';
 import type { MaplogSong, MaplogRarityType } from '@/lib/types';
-import { ALL_RARITIES } from '@/lib/rarityMap';
+import { DEMO_RARITIES } from '@/lib/rarityMap';
 import { RarityBadge } from './RarityBadge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -199,7 +199,7 @@ export function AddSongSheet({ open, onOpenChange }: Props) {
             {/* Rarity grid */}
             <div className="flex-1 overflow-y-auto px-5 pb-3 min-h-0">
               <div className="grid grid-cols-2 gap-2">
-                {ALL_RARITIES.map(rarity => (
+                {DEMO_RARITIES.map(rarity => (
                   <button
                     key={rarity.slug}
                     onClick={() => setChosenRarity(rarity)}

@@ -43,6 +43,16 @@ export const ALL_CATEGORIES = [
 export const ALL_RARITIES: MaplogRarityType[] = Object.values(RARITY_MAP)
   .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
 
+/** Demo-phase rarities: only the three base tiers that are fully designed */
+export const DEMO_RARITIES: MaplogRarityType[] = [
+  RARITY_MAP['Common'],
+  RARITY_MAP['Uncommon'],
+  RARITY_MAP['Rare'],
+];
+
+/** Rarity name filter labels for the demo (used by Collection + Playlists) */
+export const DEMO_RARITY_NAMES = ['All', 'Common', 'Uncommon', 'Rare'] as const;
+
 /** Parse a human-entered rarity label (case-insensitive, aliased) → rarity object */
 export function rarityFromLabel(label: string): MaplogRarityType | null {
   const s = label.trim();

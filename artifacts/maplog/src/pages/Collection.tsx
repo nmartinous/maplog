@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { useMusicKit } from '@/context/MusicKitContext';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
-import { ALL_CATEGORIES } from '@/lib/rarityMap';
+import { DEMO_RARITY_NAMES } from '@/lib/rarityMap';
 import { RarityBadge } from '@/components/RarityBadge';
 import { AddSongSheet } from '@/components/AddSongSheet';
 import { Input } from '@/components/ui/input';
@@ -34,9 +34,9 @@ export default function Collection() {
   const { songs, isLoading, refresh, error, isDemoMode } = useMusicKit();
   const { play } = usePlayer();
   const [, setLocation] = useLocation();
-  const [search, setSearch]               = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [showAddSheet, setShowAddSheet]   = useState(false);
+  const [search, setSearch]           = useState('');
+  const [activeRarity, setActiveRarity] = useState<string>('All');
+  const [showAddSheet, setShowAddSheet] = useState(false);
 
   // ── Filter + sort ──────────────────────────────────────────────────────────
   const displayData = useMemo(() => {
@@ -44,18 +44,18 @@ export default function Collection() {
     return songs
       .filter(song => {
         if (q && !song.title.toLowerCase().includes(q) && !song.artist.toLowerCase().includes(q)) return false;
-        if (activeCategory !== 'All') {
-          if (!song.cards.some(c => c.rarityType.category === activeCategory)) return false;
+        if (activeRarity !== 'All') {
+          if (!song.cards.some(c => c.rarityType.name === activeRarity)) return false;
         }
         return true;
       })
       .map(song => {
-        const filtered = activeCategory === 'All'
+        const filtered = activeRarity === 'All'
           ? song.cards
-          : song.cards.filter(c => c.rarityType.category === activeCategory);
+          : song.cards.filter(c => c.rarityType.name === activeRarity);
         return { song, topCard: filtered[0] ?? song.cards[0] };
       });
-  }, [songs, search, activeCategory]);
+  }, [songs, search, activeRarity]);
 
   const handlePlay = (e: React.MouseEvent, song: MaplogSong) => {
     e.preventDefault();
@@ -66,7 +66,7 @@ export default function Collection() {
 
   // ── Main collection view ───────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full min-h-[100dvh] animate-in fade-in">
+    <div className="flex flex-col h-full min-h-[100dvh]">
 
       {/* Header */}
       <div className="px-4 pt-6 pb-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -112,26 +112,26 @@ export default function Collection() {
         </div>
       </div>
 
-      {/* Category chips */}
+      {/* Rarity filter chips */}
       <div className="flex overflow-x-auto pb-3 gap-2 px-4 sm:px-6 lg:px-8 scrollbar-hide shrink-0">
-        {ALL_CATEGORIES.map(cat => (
+        {DEMO_RARITY_NAMES.map(name => (
           <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
+            key={name}
+            onClick={() => setActiveRarity(name)}
             className={cn(
               'whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0',
-              activeCategory === cat
+              activeRarity === name
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-card/60 text-muted-foreground hover:bg-card hover:text-foreground border border-border/40'
             )}
           >
-            {cat}
+            {name}
           </button>
         ))}
       </div>
 
       {/* Song list */}
-      <div className="flex-1 overflow-y-auto pb-36 sm:pb-8">
+      <div className="flex-1 overflow-y-auto pb-nav sm:pb-8">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-6 h-6 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin" />
@@ -169,7 +169,7 @@ export default function Collection() {
             <p className="text-sm text-muted-foreground mb-6 max-w-xs">
               Try different search terms or clear the filter.
             </p>
-            <Button variant="outline" size="sm" onClick={() => { setSearch(''); setActiveCategory('All'); }}>
+            <Button variant="outline" size="sm" onClick={() => { setSearch(''); setActiveRarity('All'); }}>
               Clear filters
             </Button>
           </div>
