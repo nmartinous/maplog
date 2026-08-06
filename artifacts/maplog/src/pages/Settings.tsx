@@ -5,7 +5,8 @@ import { DEMO_RARITIES } from '@/lib/rarityMap';
 import {
   Trash2, Download, Upload, Sparkles, Shield, ExternalLink,
   Info, ChevronRight, CheckCircle2, XCircle, Loader2,
-  ChevronDown, ChevronUp, Music2, Target, AlertTriangle, Pencil
+  ChevronDown, ChevronUp, Music2, Target, AlertTriangle, Pencil,
+  Share2, CloudUpload,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -247,13 +248,37 @@ export default function Settings() {
   const importRef = useRef<HTMLInputElement>(null);
 
   // ── Backup export/import ──────────────────────────────────────────────────
-  const [exporting, setExporting] = useState(false);
+  type ExportState = 'idle' | 'building' | 'sharing' | 'uploading';
+  const [exportState, setExportState] = useState<ExportState>('idle');
   const [pending, setPending] = useState<ParsedBackup | null>(null);
   const [restoring, setRestoring] = useState(false);
 
+  // Drive connection status — fetched once on mount
+  type DriveStatus =
+    | { state: 'loading' }
+    | { state: 'connected'; email: string | null; csrfToken: string }
+    | { state: 'unavailable'; reason: string };
+  const [driveStatus, setDriveStatus] = useState<DriveStatus>({ state: 'loading' });
+
+  useEffect(() => {
+    fetch('/api/drive/status')
+      .then(r => r.json())
+      .then((d: any) => {
+        if (d.connected) {
+          setDriveStatus({ state: 'connected', email: d.email ?? null, csrfToken: d.csrfToken });
+        } else {
+          setDriveStatus({ state: 'unavailable', reason: d.reason ?? 'Google Drive is not configured.' });
+        }
+      })
+      .catch(() => setDriveStatus({ state: 'unavailable', reason: 'Could not reach the server.' }));
+  }, []);
+
+  const exporting = exportState !== 'idle';
+
+  /** Download the backup as a file (anchor-click). */
   const handleExport = async () => {
     if (exporting) return;
-    setExporting(true);
+    setExportState('building');
     try {
       const blob = await createBackupZip();
       const a = Object.assign(document.createElement('a'), {
@@ -262,11 +287,83 @@ export default function Settings() {
       });
       a.click();
       URL.revokeObjectURL(a.href);
-      toast.success('Backup exported — keep the file somewhere safe.');
+      toast.success('Backup downloaded — keep it somewhere safe.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't create the backup.");
     } finally {
-      setExporting(false);
+      setExportState('idle');
+    }
+  };
+
+  /** Share backup via the native OS share sheet (iOS, Android, desktop Chrome). */
+  const handleShare = async () => {
+    if (exporting) return;
+    setExportState('building');
+    try {
+      const blob = await createBackupZip();
+      const filename = backupFileName();
+      const file = new File([blob], filename, { type: 'application/zip' });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        setExportState('sharing');
+        await navigator.share({
+          files: [file],
+          title: 'Maplog Backup',
+          text: `Maplog backup — ${filename}`,
+        });
+        toast.success('Backup shared successfully.');
+      } else {
+        // Fallback: trigger a download
+        const url = URL.createObjectURL(blob);
+        const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Backup downloaded (share not supported on this browser).');
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast.error(err instanceof Error ? err.message : "Couldn't share the backup.");
+      }
+    } finally {
+      setExportState('idle');
+    }
+  };
+
+  /** Upload backup directly to the user's Google Drive using a CSRF-protected endpoint. */
+  const handleDriveUpload = async () => {
+    if (exporting) return;
+    if (driveStatus.state !== 'connected') {
+      toast.error('Google Drive is not connected. Check your Replit workspace settings.');
+      return;
+    }
+    setExportState('building');
+    try {
+      const blob = await createBackupZip();
+      const filename = backupFileName();
+      setExportState('uploading');
+      const form = new FormData();
+      form.append('backup', new File([blob], filename, { type: 'application/zip' }));
+      form.append('filename', filename);
+      const res = await fetch('/api/drive/upload', {
+        method: 'POST',
+        body: form,
+        headers: { 'X-Drive-Token': driveStatus.csrfToken },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Upload failed (${res.status})`);
+      // Refresh the token for the next upload (it rotates every 5 min)
+      setDriveStatus(prev => prev.state === 'connected' ? { ...prev, csrfToken: data.csrfToken ?? prev.csrfToken } : prev);
+      if (data.webViewLink) {
+        toast.success(
+          <span>Saved to Google Drive! <a href={data.webViewLink} target="_blank" rel="noopener noreferrer" className="underline font-bold">Open file ↗</a></span>
+        );
+      } else {
+        toast.success('Backup saved to Google Drive.');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't upload to Google Drive.");
+    } finally {
+      setExportState('idle');
     }
   };
 
@@ -386,9 +483,56 @@ export default function Settings() {
               profile — lives only on this device, so back it up here.
             </p>
           </div>
-          <Row icon={Download} label={exporting ? 'Exporting…' : 'Export Content'}
-            description="Download a complete backup file (data + uploaded media) to your device"
-            onClick={handleExport} />
+          {/* ── Download ── */}
+          <Row
+            icon={exportState === 'building' ? Loader2 : Download}
+            label={exportState === 'building' ? 'Building backup…' : 'Download Backup'}
+            description="Save a complete backup file to your device"
+            onClick={exportState === 'idle' ? handleExport : undefined}
+          >
+            {exportState === 'building' && <Loader2 className="w-5 h-5 text-white/40 animate-spin" />}
+          </Row>
+          {/* ── Share Sheet (iOS / Web Share API) ── */}
+          <Row
+            icon={exportState === 'sharing' ? Loader2 : Share2}
+            label={exportState === 'sharing' ? 'Waiting for share…' : 'Share Backup'}
+            description="Open the share sheet — save to Files, AirDrop, Google Drive app, and more"
+            onClick={exportState === 'idle' ? handleShare : undefined}
+          >
+            {exportState === 'sharing' && <Loader2 className="w-5 h-5 text-white/40 animate-spin" />}
+          </Row>
+          {/* ── Google Drive direct upload ── */}
+          {driveStatus.state === 'unavailable' ? (
+            <Row
+              icon={CloudUpload}
+              label="Save to Google Drive"
+              description={driveStatus.reason}
+            >
+              <XCircle className="w-5 h-5 text-white/20" />
+            </Row>
+          ) : (
+            <Row
+              icon={exportState === 'uploading' ? Loader2 : CloudUpload}
+              label={exportState === 'uploading' ? 'Uploading to Drive…' : 'Save to Google Drive'}
+              description={
+                driveStatus.state === 'loading'
+                  ? 'Checking Drive connection…'
+                  : driveStatus.email
+                    ? `Uploads to ${driveStatus.email}`
+                    : 'Upload directly to your Google Drive'
+              }
+              onClick={exportState === 'idle' && driveStatus.state === 'connected' ? handleDriveUpload : undefined}
+            >
+              {exportState === 'uploading'
+                ? <Loader2 className="w-5 h-5 text-white/40 animate-spin" />
+                : driveStatus.state === 'loading'
+                  ? <Loader2 className="w-5 h-5 text-white/20 animate-spin" />
+                  : driveStatus.state === 'connected'
+                    ? <CheckCircle2 className="w-5 h-5 text-primary" />
+                    : null}
+            </Row>
+          )}
+          {/* ── Import ── */}
           <Row icon={Upload} label="Import Content"
             description="Restore a Maplog backup file (older JSON exports work too)"
             onClick={() => importRef.current?.click()} />

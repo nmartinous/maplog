@@ -7,6 +7,7 @@ import rarityTypesRouter from "./rarityTypes";
 import collectedCardsRouter from "./collectedCards";
 import playlistsRouter from "./playlists";
 import statsRouter from "./stats";
+import driveRouter from "./drive";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(rarityTypesRouter);
 router.use(collectedCardsRouter);
 router.use(playlistsRouter);
 router.use(statsRouter);
+router.use(driveRouter);
 
 export default router;
