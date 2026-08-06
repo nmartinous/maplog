@@ -1,15 +1,15 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useMusicKit } from '@/context/MusicKitContext';
-import { Disc3, Layers, Sparkles, Star, Trophy, Target, Check, Coins, Camera } from 'lucide-react';
+import { Disc3, Layers, Sparkles, Star, Trophy, Target, Check, Coins, Camera, ChevronRight } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
-  loadProfile, saveProfile, fileToAvatar, RARITY_VALUES, rarityBucket, cardValue,
+  loadProfile, saveProfile, fileToAvatar, cardValue,
   type CollectorProfile,
 } from '@/lib/profile';
 import { toast } from 'sonner';
-import { HoldValue } from '@/components/HoldValue';
-import { abbreviateValue } from '@/lib/format';
+import { abbreviateValue, exactValue } from '@/lib/format';
 
 function StatCard({ label, value, icon: Icon, delay = 0 }: { label: string; value: string | number; icon: React.ElementType, delay?: number }) {
   return (
@@ -117,6 +117,7 @@ function RarityBars({ data }: { data: { name: string; count: number }[] }) {
 
 export default function Profile() {
   const { songs, isDemoMode } = useMusicKit();
+  const [, navigate] = useLocation();
 
   // ── Editable profile ────────────────────────────────────────────────────
   const [profile, setProfile] = useState<CollectorProfile>(() => loadProfile());
@@ -158,21 +159,12 @@ export default function Profile() {
       }, {}),
     ).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 
-    // Valuation: base rarity value × modifier multipliers (e.g. Shiny ×50)
-    const valuation: Record<string, { count: number; value: number }> = {};
+    // Valuation total (breakdown lives in the Vault)
     let totalValue = 0;
     for (const card of allCards) {
-      const value = cardValue(card);
-      if (value == null) continue;
-      const bucket = (['common', 'uncommon', 'rare'] as const)
-        .find(b => card.tags?.includes(b)) ?? rarityBucket(card.rarityType.slug);
-      if (!bucket) continue;
-      valuation[bucket] = valuation[bucket] ?? { count: 0, value: 0 };
-      valuation[bucket].count += 1;
-      valuation[bucket].value += value;
-      totalValue += value;
+      totalValue += cardValue(card) ?? 0;
     }
-    return { totalSongs, totalCards, byRarity, valuation, totalValue };
+    return { totalSongs, totalCards, byRarity, totalValue };
   }, [songs]);
 
   // ── Distribution carousel ───────────────────────────────────────────────
@@ -368,34 +360,35 @@ export default function Profile() {
                 <Coins className="w-5 h-5 text-primary" />
                 <h2 className="text-sm font-bold tracking-widest uppercase text-white/80">Collection Valuation</h2>
               </div>
-              <div className="glass-panel rounded-[1.75rem] p-5 relative overflow-hidden">
+              <button
+                onClick={() => navigate('/vault')}
+                data-testid="open-vault"
+                className="glass-panel rounded-[1.75rem] p-5 relative overflow-hidden w-full text-left active:scale-[0.98] transition-transform group"
+              >
                 <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-                <p className="text-4xl font-display font-black tracking-tight text-white mb-1">
-                  <HoldValue value={stats.totalValue} />
-                </p>
-                <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-5">Total value</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {(['common', 'uncommon', 'rare'] as const).map(bucket => {
-                    const entry = stats.valuation[bucket];
-                    const label = bucket.charAt(0).toUpperCase() + bucket.slice(1);
-                    return (
-                      <div
-                        key={bucket}
-                        className={cn(
-                          'rounded-2xl border px-3 pt-4 pb-3 flex flex-col gap-1 relative overflow-hidden',
-                          RARITY_COLORS[label] ?? 'bg-white/5 border-white/10 text-white',
-                        )}
-                      >
-                        <span className="absolute top-0 right-0 px-2 py-1 rounded-bl-xl bg-white/10 text-[9px] font-black tracking-wide">
-                          {abbreviateValue(RARITY_VALUES[bucket])}<span className="opacity-60"> ea</span>
-                        </span>
-                        <span className="font-display font-black text-lg leading-none"><HoldValue value={entry?.value ?? 0} /></span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</span>
-                      </div>
-                    );
-                  })}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-4xl font-display font-black tracking-tight text-white mb-1">
+                      {abbreviateValue(stats.totalValue)}
+                    </p>
+                    <p
+                      className="font-bold text-white/50 leading-none mb-2 truncate"
+                      style={{
+                        // size-adjusting: shrink as the exact number grows
+                        fontSize: `clamp(0.7rem, ${Math.max(11, 22 - exactValue(stats.totalValue).length)}px, 1rem)`,
+                      }}
+                    >
+                      {exactValue(stats.totalValue)}
+                    </p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-white/40">
+                      Total value · Open the Vault
+                    </p>
+                  </div>
+                  <div className="w-11 h-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0 group-active:bg-primary/20 transition-colors">
+                    <ChevronRight className="w-5 h-5 text-white/60" />
+                  </div>
                 </div>
-              </div>
+              </button>
             </section>
           </div>
         )}
