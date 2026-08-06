@@ -127,12 +127,20 @@ export function MiniPlayer() {
                 </div>
               </Link>
 
-              <Link href={detailHref} className="flex-1 min-w-0 cursor-pointer active:opacity-70 transition-opacity">
-                <p className="text-[15px] sm:text-base font-bold truncate text-white leading-tight">{currentSong.title}</p>
-                <p className="text-xs sm:text-[13px] text-white/60 truncate leading-tight mt-0.5">
-                  {currentSong.artist}
-                </p>
-              </Link>
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <Link href={detailHref} className="cursor-pointer active:opacity-70 transition-opacity">
+                  <p className="text-[15px] sm:text-base font-bold truncate text-white leading-tight">{currentSong.title}</p>
+                </Link>
+                <Link
+                  href={`/artists/${encodeURIComponent(currentSong.artist)}`}
+                  className="cursor-pointer active:opacity-70 transition-opacity"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <p className="text-xs sm:text-[13px] text-white/60 truncate leading-tight mt-0.5 hover:text-white/80 transition-colors">
+                    {currentSong.artist}
+                  </p>
+                </Link>
+              </div>
 
               <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
                 <Button

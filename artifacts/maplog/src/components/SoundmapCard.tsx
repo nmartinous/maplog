@@ -110,9 +110,10 @@ interface SoundmapCardProps {
   genre?: string | null;
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'hero';
+  onArtistClick?: () => void;
 }
 
-export function SoundmapCard({ card, title, artist, genre, className, size = 'md' }: SoundmapCardProps) {
+export function SoundmapCard({ card, title, artist, genre, className, size = 'md', onArtistClick }: SoundmapCardProps) {
   const fallbackBorder = rarityFallbackColor(card.rarityType.slug);
   const borderColor = useArtColor(card.artworkUrl ?? null, fallbackBorder);
 
@@ -223,7 +224,17 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
       {showInfo && (
         <div className="relative z-[2] px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center">
           <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>{title}</p>
-          <p className={cn('text-white/55 leading-tight truncate w-full', artistSize)}>{artist}</p>
+          {onArtistClick ? (
+            <button
+              type="button"
+              className={cn('text-white/55 leading-tight truncate w-full text-center hover:text-white/80 active:opacity-70 transition-colors', artistSize)}
+              onClick={e => { e.stopPropagation(); onArtistClick(); }}
+            >
+              {artist}
+            </button>
+          ) : (
+            <p className={cn('text-white/55 leading-tight truncate w-full', artistSize)}>{artist}</p>
+          )}
           {(presence === 'moment' || presence === 'lyrics') && card.flavorText && (
             <FlavorBubble text={card.flavorText} compact={size === 'md'} />
           )}

@@ -169,6 +169,7 @@ export default function SongDetail() {
                           genre={song.genre}
                           size="lg"
                           className="shadow-2xl"
+                          onArtistClick={() => setLocation(`/artists/${encodeURIComponent(song.artist)}`)}
                         />
                         {!isFlipped && !(isCurrent && isPlaying) && (
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl pointer-events-none">
