@@ -50,7 +50,7 @@ export default function Playlists() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-background pb-20">
-      <div className="px-4 sm:px-6 pt-8 landscape-compact:pt-3 pb-6 relative z-10 flex items-end justify-between gap-4">
+      <div className="page-top px-4 sm:px-6 pb-6 relative z-10 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-black tracking-tight text-white">Playlists</h1>
           <p className="text-sm text-white/50 mt-1">Your own mixes from the collection</p>

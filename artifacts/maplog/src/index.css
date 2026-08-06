@@ -5,6 +5,16 @@
 
 @custom-variant landscape-compact (@media (max-height: 500px) and (orientation: landscape));
 
+/* Safe-area-aware page header top padding.
+   Sits below the iOS status bar / notch / Dynamic Island with breathing room.
+   Falls back to 2rem on devices with no safe-area inset (desktop, Android). */
+.page-top {
+  padding-top: max(calc(env(safe-area-inset-top) + 0.75rem), 2rem);
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .page-top { padding-top: 0.75rem; }
+}
+
 html, body, #root {
   height: 100dvh;
   overflow: hidden;

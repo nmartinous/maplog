@@ -359,7 +359,7 @@ export default function Artist() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-background pb-20">
-      <div className="px-4 sm:px-6 pt-6 relative z-10">
+      <div className="page-top px-4 sm:px-6 relative z-10">
         {/* Search bar */}
         <div className="relative mb-6 z-30">
           <div className="relative">

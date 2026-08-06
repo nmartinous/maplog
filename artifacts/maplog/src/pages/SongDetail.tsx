@@ -96,7 +96,7 @@ export default function SongDetail() {
         )}
       </AnimatePresence>
 
-      <div className="relative z-50 flex items-center justify-between px-5 pt-8 pb-2 shrink-0 pointer-events-auto gap-2">
+      <div className="page-top relative z-50 flex items-center justify-between px-5 pb-2 shrink-0 pointer-events-auto gap-2">
         <Button
           variant="ghost" size="icon"
           onClick={() => { if (window.history.length > 1) window.history.back(); else setLocation('/collection'); }}

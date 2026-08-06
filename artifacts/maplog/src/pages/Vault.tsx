@@ -213,7 +213,7 @@ export default function Vault() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-background pb-20">
-      <div className="px-4 sm:px-6 pt-6 pb-6 relative z-10 max-w-2xl mx-auto">
+      <div className="page-top px-4 sm:px-6 pb-6 relative z-10 max-w-2xl mx-auto">
         {/* ── Header ── */}
         <div className="flex items-center gap-3 mb-6">
           <button

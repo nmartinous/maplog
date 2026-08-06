@@ -303,7 +303,7 @@ function ActiveView({
     >
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
-      <div className="shrink-0 px-4 pt-8 landscape-compact:pt-3 pb-2 sm:px-6 relative z-10 w-full overflow-x-hidden">
+      <div className="page-top shrink-0 px-4 pb-2 sm:px-6 relative z-10 w-full overflow-x-hidden">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-display font-black tracking-tight text-white">Collection</h1>

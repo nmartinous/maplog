@@ -417,7 +417,7 @@ export default function Settings() {
 
   return (
     <div className="h-full overflow-y-auto bg-background pb-24">
-      <div className="px-4 sm:px-6 pt-8 pb-8 space-y-10 max-w-2xl mx-auto">
+      <div className="page-top px-4 sm:px-6 pb-8 space-y-10 max-w-2xl mx-auto">
         <div className="relative z-10">
           <h1 className="text-3xl font-display font-black tracking-tight text-white mb-2">Settings</h1>
           <p className="text-base text-white/50">Configure your Maplog experience</p>

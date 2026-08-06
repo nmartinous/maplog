@@ -178,7 +178,7 @@ export default function Profile() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-background pb-20">
-      <div className="px-4 sm:px-6 pt-8 pb-6 relative z-10">
+      <div className="page-top px-4 sm:px-6 pb-6 relative z-10">
         {/* ── Editable identity header ── */}
         <div className="flex items-center gap-5 mb-8">
           <motion.button

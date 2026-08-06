@@ -91,7 +91,7 @@ export default function PlaylistDetail() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-background pb-20">
-      <div className="px-4 sm:px-6 pt-8 landscape-compact:pt-3 pb-4 flex items-center gap-3">
+      <div className="page-top px-4 sm:px-6 pb-4 flex items-center gap-3">
         <Button
           variant="ghost" size="icon"
           onClick={() => setLocation('/playlists')}
