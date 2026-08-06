@@ -64,7 +64,7 @@ export function MobileNav() {
   return (
     <nav
       className="sm:hidden shrink-0 bg-background/80 backdrop-blur-3xl border-t border-white/10 z-50 relative"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 20px)' }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none" />
       <div className="h-[60px] landscape-compact:h-12 flex items-center justify-around px-2 relative z-10">

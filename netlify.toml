@@ -9,7 +9,14 @@
   NODE_ENV     = "production"
   PORT         = "3000"
 
-# SPA fallback — all routes serve index.html
+# Non-function API routes → 404 (prevents SPA from serving index.html for /api/*)
+[[redirects]]
+  from   = "/api/*"
+  to     = "/404.html"
+  status = 404
+  force  = true
+
+# SPA fallback — non-API routes serve index.html
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
