@@ -325,6 +325,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const audio = new Audio();
     audio.preload = 'metadata';
+    // iOS requires the <audio> element to be attached to the DOM for the
+    // background media session to remain active when the app is backgrounded
+    // or the screen is locked. Appending it hidden keeps it alive.
+    audio.style.position = 'absolute';
+    audio.style.width = '0';
+    audio.style.height = '0';
+    audio.style.opacity = '0';
+    audio.setAttribute('playsinline', '');
+    document.body.appendChild(audio);
 
     const onTimeUpdate = () => {
       dispatch({ type: 'SET_TIME', payload: audio.currentTime });
@@ -368,6 +377,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('pause',          onPause);
       audio.removeEventListener('ended',          onEnded);
       audio.removeEventListener('error',          onError);
+      // Remove the element we appended for iOS background session
+      try { document.body.removeChild(audio); } catch { /* already removed */ }
     };
   }, [handleTrackEnd]);
 
@@ -637,6 +648,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [persistPrefs]);
 
   // ── Media Session: lock-screen / media-key controls + background metadata ──
+
+  /**
+   * Derive multiple artwork sizes from an Apple Music artwork URL.
+   * Apple Music image URLs support dynamic sizing via the trailing
+   * "{w}x{h}bb" segment.  We request three standard sizes so iOS picks
+   * the best one for the lock-screen card.
+   */
+  function buildArtworkList(url: string | undefined): MediaImage[] {
+    if (!url) return [];
+    // Replace a trailing dimensions segment like "512x512bb" or "100x100bb"
+    const base = url.replace(/\d+x\d+bb(\.\w+)$/, '{w}x{h}bb$1');
+    if (!base.includes('{w}') || base === url) {
+      // URL is not in Apple Music's parameterised form — use it as-is
+      return [{ src: url, sizes: '512x512', type: 'image/jpeg' }];
+    }
+    return ([512, 256, 96] as const).map(size => ({
+      src: base.replace('{w}', String(size)).replace('{h}', String(size)),
+      sizes: `${size}x${size}`,
+      type: 'image/jpeg',
+    }));
+  }
+
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     const song = state.currentSong;
@@ -644,9 +677,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.title,
       artist: song.artist,
-      artwork: song.artworkUrl
-        ? [{ src: song.artworkUrl, sizes: '512x512' }]
-        : [],
+      artwork: buildArtworkList(song.artworkUrl),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentSong?.id]);
@@ -659,6 +690,24 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.isPlaying, state.currentSong?.id]);
 
+  // Keep the lock-screen scrubber in sync by reporting position state.
+  // MusicKit tracks report their own duration from the song metadata; HTML5
+  // preview tracks report it from the audio element.
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    if (!state.currentSong) return;
+    const duration = state.duration;
+    if (!duration || duration <= 0) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: 1,
+        position: Math.min(state.currentTime, duration),
+      });
+    } catch { /* not all browsers support setPositionState */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.currentTime, state.duration, state.currentSong?.id]);
+
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     const ms = navigator.mediaSession;
@@ -669,9 +718,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     set('pause', () => pause());
     set('nexttrack', () => skipNext());
     set('previoustrack', () => skipPrev());
+    // 'seekto' — absolute position; supported on Chrome/Android and newer iOS
     set('seekto', (d) => { if (d.seekTime != null) seek(d.seekTime); });
+    // 'seekforward' / 'seekbackward' — relative; used by some iOS lock-screen
+    // controls and Bluetooth remotes that don't emit seekto
+    set('seekforward',  (d) => seek(Math.min(stateRef.current.duration, stateRef.current.currentTime + (d.seekOffset ?? 10))));
+    set('seekbackward', (d) => seek(Math.max(0, stateRef.current.currentTime - (d.seekOffset ?? 10))));
     return () => {
-      for (const a of ['play', 'pause', 'nexttrack', 'previoustrack', 'seekto'] as MediaSessionAction[]) set(a, null);
+      for (const a of ['play', 'pause', 'nexttrack', 'previoustrack', 'seekto', 'seekforward', 'seekbackward'] as MediaSessionAction[]) {
+        set(a, null);
+      }
     };
   }, [resume, pause, skipNext, skipPrev, seek]);
 
