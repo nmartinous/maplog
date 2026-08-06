@@ -8,6 +8,7 @@
  */
 
 // Type declarations for the CDN global live in ./musickit.d.ts
+import { DEVELOPER_TOKEN } from './developerToken';
 
 const SCRIPT_SRC = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
 
@@ -32,23 +33,21 @@ function loadScript(): Promise<void> {
 
 /**
  * Load + configure MusicKit once. Resolves with the shared instance.
- * Rejects if the token endpoint or the script fails — callers should fall
+ * Rejects if the token is missing or the script fails — callers should fall
  * back to preview playback.
  */
 export function initMusicKit(): Promise<any> {
   if (configurePromise) return configurePromise;
   configurePromise = (async () => {
-    const res = await fetch('/api/apple-music/token');
-    if (!res.ok) {
-      let msg = 'Could not fetch Apple Music developer token';
-      try { const body = await res.clone().json(); if (body?.error) msg = body.error; } catch {}
-      throw new Error(msg);
+    if (!DEVELOPER_TOKEN || DEVELOPER_TOKEN === 'REPLACE_ME') {
+      throw new Error(
+        'Apple Music developer token not configured. Run scripts/generate-musickit-token.mjs and paste the result into src/lib/developerToken.ts.'
+      );
     }
-    const { token } = await res.json();
 
     await loadScript();
     await window.MusicKit!.configure({
-      developerToken: token,
+      developerToken: DEVELOPER_TOKEN,
       app: { name: 'Maplog', build: '1.0.0' },
     });
     return window.MusicKit!.getInstance();
