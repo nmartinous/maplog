@@ -239,6 +239,87 @@ router.get("/apple-music/artist", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/apple-music/album-tracks?album=...&artist=...
+ * Searches the Apple Music catalog for the album and returns its full track
+ * listing (track number, title, duration, catalog id). The release type
+ * (album / ep / single) is inferred from track count.
+ */
+router.get("/apple-music/album-tracks", async (req, res) => {
+  const albumName = String(req.query.album ?? "").trim();
+  const artistName = String(req.query.artist ?? "").trim();
+  if (!albumName) return void res.status(400).json({ error: "Missing album name." });
+
+  try {
+    // Search for albums matching name + artist
+    const term = artistName ? `${albumName} ${artistName}` : albumName;
+    const searchRes = await appleFetch(
+      `/catalog/${STOREFRONT}/search?types=albums&limit=10&term=${encodeURIComponent(term)}`
+    );
+    if (!searchRes.ok) {
+      return void res.status(502).json({ error: `Apple Music API returned HTTP ${searchRes.status}.` });
+    }
+    const searchJson = (await searchRes.json()) as any;
+    const albums: any[] = searchJson?.results?.albums?.data ?? [];
+
+    // Prefer exact album name match (case-insensitive) from the right artist
+    const lowerAlbum = albumName.toLowerCase();
+    const lowerArtist = artistName.toLowerCase();
+    let hit =
+      albums.find(a => {
+        const attr = a?.attributes ?? {};
+        return String(attr.name ?? "").toLowerCase() === lowerAlbum &&
+               (!lowerArtist || String(attr.artistName ?? "").toLowerCase().includes(lowerArtist));
+      }) ??
+      albums.find(a => String(a?.attributes?.name ?? "").toLowerCase() === lowerAlbum) ??
+      albums[0];
+
+    if (!hit) return void res.status(404).json({ error: "Album not found in Apple Music catalog." });
+
+    const albumId = String(hit.id);
+
+    // Fetch full album with all tracks
+    const albumRes = await appleFetch(
+      `/catalog/${STOREFRONT}/albums/${albumId}?include=tracks&limit=300`
+    );
+    if (!albumRes.ok) {
+      return void res.status(502).json({ error: `Apple Music API returned HTTP ${albumRes.status}.` });
+    }
+    const albumJson = (await albumRes.json()) as any;
+    const albumData = albumJson?.data?.[0] ?? {};
+    const attr = albumData?.attributes ?? {};
+    const tracks: any[] = albumData?.relationships?.tracks?.data ?? [];
+
+    const trackCount = attr.trackCount ?? tracks.length;
+    const releaseType: "album" | "ep" | "single" =
+      trackCount === 1 ? "single" : trackCount <= 6 ? "ep" : "album";
+
+    res.json({
+      albumId,
+      name: attr.name ?? albumName,
+      artistName: attr.artistName ?? artistName,
+      artworkUrl: resolveArtwork(attr.artwork?.url, 600),
+      releaseDate: attr.releaseDate ?? null,
+      releaseType,
+      trackCount,
+      tracks: tracks.map((t: any, idx: number) => {
+        const ta = t?.attributes ?? {};
+        return {
+          trackNumber: ta.trackNumber ?? idx + 1,
+          discNumber: ta.discNumber ?? 1,
+          catalogId: String(t.id),
+          title: ta.name ?? "Unknown",
+          durationMs: ta.durationInMillis ?? 0,
+          artworkUrl: resolveArtwork(ta.artwork?.url, 300),
+        };
+      }).sort((a: any, b: any) => (a.discNumber - b.discNumber) || (a.trackNumber - b.trackNumber)),
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(502).json({ error: msg });
+  }
+});
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 /** Replace {w}/{h} template vars from Apple's artwork URL format */

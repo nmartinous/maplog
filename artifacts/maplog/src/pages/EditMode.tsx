@@ -400,8 +400,25 @@ function CardDisplayEditor({ song, card, disabled, updateCardMeta }: {
     toast.success('Card display saved.');
   };
 
+  // Visual description for each presence type
+  const PRESENCE_GUIDE: Record<string, { color: string; title: string; summary: string }> = {
+    shiny:   { color: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200', title: '✨ Shiny', summary: 'Rainbow iridescent foil sweeps over the full card. No extra config needed — the foil fires automatically.' },
+    epic:    { color: 'border-amber-500/30 bg-amber-500/10 text-amber-200', title: '🏆 Epic', summary: 'Golden gradient frame + video/image clip slot. Upload a clip via "Add media" above. Optional: set an emoji pin (bottom-left) and pick a frame style via its visual tag.' },
+    lyrics:  { color: 'border-orange-400/30 bg-orange-400/10 text-orange-200', title: '🎵 Lyrics', summary: 'Dark card with the lyric line overlaid on the art. Fill in "Lyric line" (the quote shown over the photo) and "Flavor text" (small bubble at the bottom, the puller\'s note).' },
+    moment:  { color: 'border-red-400/30 bg-red-400/10 text-red-200', title: '⭐ Moment', summary: 'Twinkling star-field background + video/image clip slot. Upload the captured moment clip via "Add media". Optional: add flavor text as an uploader note.' },
+    radiant: { color: 'border-violet-500/30 bg-violet-500/10 text-violet-200', title: '🌀 Radiant', summary: 'Shimmering pattern overlay tinted by the art color. Drag left/right to flip the card and see the back. Pick a pattern below (Prism, Waves, Orbits, Sparks).' },
+  };
+  const tags = card.tags ?? [];
+  const presenceTag = tags.find(t => ['shiny','epic','lyrics','moment','radiant'].includes(t)) ?? presence;
+  const guide = PRESENCE_GUIDE[presenceTag];
+
   return (
     <div className="space-y-2.5 pt-1 border-t border-white/5">
+      {guide && (
+        <div className={`rounded-xl border px-3 py-2.5 text-xs leading-relaxed ${guide.color}`}>
+          <span className="font-black">{guide.title} — </span>{guide.summary}
+        </div>
+      )}
       <p className={labelCls}>Card display</p>
       {showSubject && (
         <div>
@@ -472,8 +489,6 @@ function OverrideManager({ disabled }: { disabled: boolean }) {
   const [frame, setFrame] = useState('');
   const [background, setBackground] = useState('');
 
-  const builtIns = useMemo(() => [...builtInOverrideTags()].sort(), []);
-
   const resetForm = () => {
     setLabel(''); setAppliesTo(['regular']); setMultiplier('');
     setPin(''); setFlavorText(''); setSubjectText(''); setFrame(''); setBackground('');
@@ -497,7 +512,7 @@ function OverrideManager({ disabled }: { disabled: boolean }) {
         background: background.trim() || undefined,
       });
       setMetas(loadOverrideMeta());
-      toast.success(`Override "${label.trim()}" saved — the rule engine now allows extra ${appliesTo.join('/')} copies with it.`);
+      toast.success(`Visual tag "${label.trim()}" saved.`);
       resetForm();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save the override.');
@@ -508,7 +523,7 @@ function OverrideManager({ disabled }: { disabled: boolean }) {
     try {
       deleteOverride(tag);
       setMetas(loadOverrideMeta());
-      toast.info('Override removed.');
+      toast.info('Visual tag removed.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not remove it.');
     }
@@ -603,21 +618,10 @@ function OverrideManager({ disabled }: { disabled: boolean }) {
         <Button variant="outline" size="sm" disabled={disabled}
           className="rounded-full bg-white/5 border-white/10 hover:bg-white/10 text-white text-xs font-bold h-9"
           onClick={() => setCreating(true)} data-testid="override-create">
-          <Plus className="w-3.5 h-3.5 mr-1.5" /> New override rarity
+          <Plus className="w-3.5 h-3.5 mr-1.5" /> New visual tag
         </Button>
       )}
 
-      {/* Built-ins */}
-      <div>
-        <p className={labelCls}><Lock className="w-3 h-3 inline mr-1 -mt-0.5" />Built-in overrides</p>
-        <div className="flex flex-wrap gap-1.5">
-          {builtIns.map(t => (
-            <span key={t} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/50 text-[11px] font-bold">
-              {labelForTags(['regular', 'common', t]).replace(' Common', '')}
-            </span>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -732,7 +736,7 @@ export default function EditMode() {
             <SongEditor mediaIds={mediaIds} refreshMedia={refreshMedia} mediaVersion={mediaVersion} />
           </Section>
 
-          <Section icon={Layers} title="Override Rarities" description="Custom tags that allow extra copies, with display metadata">
+          <Section icon={Layers} title="Visual Tags" description="Custom visual tags for special card appearances">
             <OverrideManager disabled={isDemoMode} />
           </Section>
 

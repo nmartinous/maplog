@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useMusicKit } from '@/context/MusicKitContext';
-import { Disc3, Layers, Sparkles, Star, Trophy, Target, Check, Coins, Camera, ChevronRight } from 'lucide-react';
+import { Disc3, Layers, Sparkles, Star, Trophy, Target, Check, Coins, Camera, ChevronRight, Settings } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -59,7 +59,7 @@ function RarityPie({ data }: { data: { name: string; count: number }[] }) {
     const large = frac > 0.5 ? 1 : 0;
     const p = (a: number, rad: number) => `${C + Math.cos(a) * rad},${C + Math.sin(a) * rad}`;
     const path = total === d.count
-      ? null // full circle — render as two arcs below
+      ? null
       : `M ${p(a0, R)} A ${R} ${R} 0 ${large} 1 ${p(a1, R)} L ${p(a1, r)} A ${r} ${r} 0 ${large} 0 ${p(a0, r)} Z`;
     return { ...d, path, frac, color: PIE_COLORS[d.name] ?? PIE_FALLBACK[i % PIE_FALLBACK.length] };
   });
@@ -160,7 +160,6 @@ export default function Profile() {
       }, {}),
     ).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 
-    // Valuation total (breakdown lives in the Vault)
     let totalValue = 0;
     for (const card of allCards) {
       totalValue += cardValue(card) ?? 0;
@@ -176,8 +175,6 @@ export default function Profile() {
     if (!el) return;
     setDistView(Math.round(el.scrollLeft / el.clientWidth));
   };
-
-  const fmt = (n: number) => n.toLocaleString('en-US');
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-background pb-20">
@@ -275,6 +272,15 @@ export default function Profile() {
               </motion.button>
             )}
           </div>
+
+          {/* Settings gear — top-right of profile header */}
+          <button
+            onClick={() => navigate('/settings')}
+            aria-label="Settings"
+            className="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all active:scale-90 shrink-0 self-start mt-1"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
         </div>
 
         {songs.length === 0 ? (
@@ -308,7 +314,6 @@ export default function Profile() {
                   className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none -mx-4 px-4"
                   style={{ scrollbarWidth: 'none' }}
                 >
-                  {/* View 1: count tiles */}
                   <div className="w-full shrink-0 snap-center pr-3">
                     <div className="glass-panel rounded-[1.75rem] p-5 h-full">
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -327,13 +332,11 @@ export default function Profile() {
                       </div>
                     </div>
                   </div>
-                  {/* View 2: pie chart */}
                   <div className="w-full shrink-0 snap-center pr-3">
                     <div className="glass-panel rounded-[1.75rem] p-5 h-full flex items-center justify-center">
                       <RarityPie data={stats.byRarity} />
                     </div>
                   </div>
-                  {/* View 3: bars */}
                   <div className="w-full shrink-0 snap-center">
                     <div className="glass-panel rounded-[1.75rem] p-5 h-full flex items-center">
                       <RarityBars data={stats.byRarity} />
@@ -383,7 +386,6 @@ export default function Profile() {
                     <p
                       className="font-bold text-white/50 leading-none mb-2 truncate"
                       style={{
-                        // size-adjusting: shrink as the exact number grows
                         fontSize: `clamp(0.7rem, ${Math.max(11, 22 - exactValue(stats.totalValue).length)}px, 1rem)`,
                       }}
                     >

@@ -50,6 +50,12 @@ export interface MaplogSong {
   artworkUrl: string;
   /** 30-second Deezer preview MP3 URL (null when unavailable) */
   previewUrl?: string | null;
+  /** Apple Music catalog album ID (populated on new imports, absent on legacy entries) */
+  albumId?: string | null;
+  /** Track position on the release (populated on new imports) */
+  trackNumber?: number | null;
+  /** Disc number for multi-disc releases */
+  discNumber?: number | null;
   /** One card per Maplog playlist this song appears in, sorted tier desc */
   cards: MaplogCard[];
 }

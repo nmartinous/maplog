@@ -3,7 +3,8 @@ import { useLocation, useRoute } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, X, Music2, Quote, StickyNote, Coins, ChevronRight, Camera,
-  BadgeCheck, Sparkles, Disc3, ExternalLink, Check, Shuffle,
+  BadgeCheck, Sparkles, Disc3, ExternalLink, Check, ChevronDown, AlertCircle,
+  ListMusic, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -19,8 +20,8 @@ import {
   type ArtistData,
 } from '@/lib/artistData';
 import { ShowcaseSection } from '@/components/ShowcaseSection';
-
-const CYCLE_MS = 60_000;
+import { SoundmapCard } from '@/components/SoundmapCard';
+import { RarityBadge } from '@/components/RarityBadge';
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
@@ -31,11 +32,269 @@ function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: 
   );
 }
 
-/**
- * Artist pages — one page per artist in the collection. `/artists` shows a
- * random artist and cycles to another every minute while idle; picking an
- * artist via search (or deep link `/artists/:name`) pins that artist.
- */
+// ── Album track types ──────────────────────────────────────────────────────────
+interface AlbumTrack {
+  trackNumber: number;
+  discNumber: number;
+  catalogId: string;
+  title: string;
+  durationMs: number;
+  artworkUrl: string | null;
+}
+interface AlbumData {
+  albumId: string;
+  name: string;
+  artworkUrl: string | null;
+  releaseDate: string | null;
+  releaseType: 'album' | 'ep' | 'single';
+  trackCount: number;
+  tracks: AlbumTrack[];
+}
+
+// ── Release type badge ─────────────────────────────────────────────────────────
+const RELEASE_TYPE_STYLES = {
+  album:  'bg-violet-500/15 text-violet-300 border-violet-500/30',
+  ep:     'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  single: 'bg-white/5 text-white/40 border-white/10',
+};
+const RELEASE_TYPE_LABELS = { album: 'Album', ep: 'EP', single: 'Single' };
+
+function fmtDuration(ms: number) {
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// ── Single album card ──────────────────────────────────────────────────────────
+function AlbumCard({
+  albumName, songs, isDemoMode, navigate,
+}: {
+  albumName: string;
+  songs: MaplogSong[];
+  isDemoMode: boolean;
+  navigate: (to: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [albumData, setAlbumData] = useState<AlbumData | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const artistName = songs[0]?.artist ?? '';
+  const artworkUrl = songs[0]?.artworkUrl ?? null;
+
+  // Heuristic release type based on songs collected (shown before fetch)
+  const heuristicType: 'album' | 'ep' | 'single' =
+    albumData?.releaseType ??
+    (songs.length === 1 ? 'single' : songs.length <= 6 ? 'ep' : 'album');
+
+  const fetchTracks = async () => {
+    if (albumData || loading) return;
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const params = new URLSearchParams({ album: albumName, artist: artistName });
+      const res = await fetch(`/api/apple-music/album-tracks?${params}`);
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error ?? 'Failed to load tracks.');
+      setAlbumData(json as AlbumData);
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Could not load the full track listing.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpen = () => {
+    setOpen(o => !o);
+    if (!albumData) fetchTracks();
+  };
+
+  // Map of catalogId → collected songs (multiple rarities possible)
+  const collectedMap = useMemo(() => {
+    const m = new Map<string, MaplogSong>();
+    for (const s of songs) {
+      const catalogId = s.id.replace('apple:', '');
+      m.set(catalogId, s);
+    }
+    return m;
+  }, [songs]);
+
+  const tracks = albumData?.tracks ?? [];
+  const type = albumData?.releaseType ?? heuristicType;
+
+  return (
+    <div className="rounded-[1.75rem] border border-white/5 bg-white/[0.02] overflow-hidden">
+      {/* Header row */}
+      <button
+        className="w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-white/5 active:bg-white/[0.07] transition-colors"
+        onClick={handleOpen}
+        aria-expanded={open}
+      >
+        <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-white/5">
+          {artworkUrl
+            ? <img src={artworkUrl} alt={albumName} className="w-full h-full object-cover" />
+            : <div className="w-full h-full flex items-center justify-center"><Disc3 className="w-5 h-5 text-white/20" /></div>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-white truncate">{albumName}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className={cn(
+              'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border',
+              RELEASE_TYPE_STYLES[type],
+            )}>{RELEASE_TYPE_LABELS[type]}</span>
+            <span className="text-[11px] text-white/40">
+              {songs.length} collected{albumData ? ` · ${albumData.trackCount} total` : ''}
+            </span>
+          </div>
+        </div>
+        <ChevronDown className={cn('w-4 h-4 text-white/40 shrink-0 transition-transform duration-300', open && 'rotate-180')} />
+      </button>
+
+      {/* Expanded track listing */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+            className="border-t border-white/5 overflow-hidden"
+          >
+            <div className="px-4 py-3 space-y-1">
+              {loading && (
+                <div className="flex items-center justify-center py-6 gap-2 text-white/40">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs font-semibold">Loading tracks…</span>
+                </div>
+              )}
+              {fetchError && (
+                <div className="flex items-center gap-2 py-4 text-amber-400/80">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <p className="text-xs">{fetchError}</p>
+                </div>
+              )}
+              {!loading && !fetchError && tracks.length === 0 && (
+                // Show just the collected songs in order while tracks load
+                songs.map((s, i) => (
+                  <CollectedTrackRow key={s.id} song={s} trackNumber={i + 1} navigate={navigate} />
+                ))
+              )}
+              {tracks.map(track => {
+                const collected = collectedMap.get(track.catalogId);
+                return (
+                  <TrackRow
+                    key={track.trackNumber}
+                    track={track}
+                    collected={collected}
+                    navigate={navigate}
+                  />
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function TrackRow({ track, collected, navigate }: {
+  track: AlbumTrack;
+  collected: MaplogSong | undefined;
+  navigate: (to: string) => void;
+}) {
+  const hasCards = collected && collected.cards.length > 0;
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 px-2 py-2 rounded-xl transition-colors',
+        collected ? 'hover:bg-white/5 cursor-pointer active:bg-white/[0.07]' : 'opacity-35',
+      )}
+      onClick={collected ? () => navigate(`/song/${encodeURIComponent(collected.id)}`) : undefined}
+    >
+      <span className="text-[11px] font-mono text-white/30 w-5 text-right shrink-0">{track.trackNumber}</span>
+      <div className="flex-1 min-w-0">
+        <p className={cn('text-sm font-semibold truncate', collected ? 'text-white' : 'text-white/50')}>
+          {track.title}
+        </p>
+        <p className="text-[10px] text-white/30">{fmtDuration(track.durationMs)}</p>
+      </div>
+      {hasCards && (
+        <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[120px]">
+          {collected.cards.slice(0, 3).map(c => (
+            <RarityBadge key={c.id} slug={c.rarityType.slug} name={c.rarityType.name} category={c.rarityType.category} size="sm" />
+          ))}
+          {collected.cards.length > 3 && (
+            <span className="text-[10px] font-bold text-white/40">+{collected.cards.length - 3}</span>
+          )}
+        </div>
+      )}
+      {!collected && (
+        <span className="text-[10px] text-white/20 font-semibold shrink-0">Missing</span>
+      )}
+    </div>
+  );
+}
+
+function CollectedTrackRow({ song, trackNumber, navigate }: {
+  song: MaplogSong;
+  trackNumber: number;
+  navigate: (to: string) => void;
+}) {
+  return (
+    <div
+      className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/5 cursor-pointer active:bg-white/[0.07] transition-colors"
+      onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
+    >
+      <span className="text-[11px] font-mono text-white/30 w-5 text-right shrink-0">{trackNumber}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white truncate">{song.title}</p>
+      </div>
+      <div className="flex gap-1 shrink-0">
+        {song.cards.slice(0, 2).map(c => (
+          <RarityBadge key={c.id} slug={c.rarityType.slug} name={c.rarityType.name} category={c.rarityType.category} size="sm" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Releases section ───────────────────────────────────────────────────────────
+function ReleasesSection({ songs, isDemoMode, navigate }: {
+  songs: MaplogSong[];
+  isDemoMode: boolean;
+  navigate: (to: string) => void;
+}) {
+  // Group songs by album name
+  const albums = useMemo(() => {
+    const map = new Map<string, MaplogSong[]>();
+    for (const s of songs) {
+      const key = s.album || '(No album)';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [songs]);
+
+  if (albums.length === 0) return null;
+
+  return (
+    <section>
+      <SectionHeader icon={ListMusic} title="Releases" />
+      <div className="space-y-3">
+        {albums.map(([albumName, albumSongs]) => (
+          <AlbumCard
+            key={albumName}
+            albumName={albumName}
+            songs={albumSongs}
+            isDemoMode={isDemoMode}
+            navigate={navigate}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ── Artist page component ──────────────────────────────────────────────────────
 export default function Artist() {
   const { songs, isDemoMode } = useMusicKit();
   const { play } = usePlayer();
@@ -43,9 +302,9 @@ export default function Artist() {
   const [, params] = useRoute('/artists/:name');
   const pinnedName = params?.name ? decodeURIComponent(params.name) : null;
 
-  // Unique artists present in the collection
+  // Unique artists in collection
   const artists = useMemo(() => {
-    const map = new Map<string, string>(); // key → display name
+    const map = new Map<string, string>();
     for (const s of songs) {
       const k = artistKey(s.artist);
       if (!map.has(k)) map.set(k, s.artist);
@@ -53,25 +312,11 @@ export default function Artist() {
     return [...map.values()].sort((a, b) => a.localeCompare(b));
   }, [songs]);
 
-  // Random pick + idle cycling (only when not pinned)
-  const [pick, setPick] = useState(() => Math.floor(Math.random() * Math.max(artists.length, 1)));
-  useEffect(() => {
-    if (pinnedName || artists.length < 2) return;
-    const t = setInterval(() => {
-      setPick(prev => {
-        let next = Math.floor(Math.random() * (artists.length - 1));
-        if (next >= prev) next += 1;
-        return next;
-      });
-    }, CYCLE_MS);
-    return () => clearInterval(t);
-  }, [pinnedName, artists.length]);
-
   const artist = pinnedName && artists.some(a => artistKey(a) === artistKey(pinnedName))
     ? artists.find(a => artistKey(a) === artistKey(pinnedName))!
-    : artists[pick % Math.max(artists.length, 1)] ?? null;
+    : null;
 
-  // ── Search ────────────────────────────────────────────────────────────────
+  // ── Search ────────────────────────────────────────────────────────────────────
   const [query, setQuery] = useState('');
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -79,12 +324,16 @@ export default function Artist() {
     return artists.filter(a => a.toLowerCase().includes(q)).slice(0, 8);
   }, [query, artists]);
 
-  if (artists.length === 0) {
+  if (!artist) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-background">
         <Music2 className="h-14 w-14 text-white/10 mb-6" />
-        <h2 className="text-xl font-display font-bold text-white mb-2">No Artists Yet</h2>
-        <p className="text-white/50 text-sm max-w-xs leading-relaxed">Artists appear here once you add songs to your collection.</p>
+        <h2 className="text-xl font-display font-bold text-white mb-2">Artist not found</h2>
+        <p className="text-white/50 text-sm max-w-xs leading-relaxed">
+          {artists.length === 0
+            ? 'Artists appear here once you add songs to your collection.'
+            : `"${pinnedName}" isn't in your collection yet.`}
+        </p>
       </div>
     );
   }
@@ -92,31 +341,19 @@ export default function Artist() {
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-background pb-20">
       <div className="px-4 sm:px-6 pt-6 relative z-10">
-        {/* ── Search bar ── */}
+        {/* Search bar */}
         <div className="relative mb-6 z-30">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
-              <input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Search your artists"
-                data-testid="artist-search"
-                className="w-full h-11 rounded-2xl bg-white/5 border border-white/10 pl-11 pr-10 text-sm font-semibold text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-              {query && (
-                <button className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40" onClick={() => setQuery('')} aria-label="Clear search">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            {pinnedName && (
-              <button
-                className="h-11 px-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2 text-xs font-bold text-white/60 active:scale-95 transition"
-                onClick={() => navigate('/artists')}
-                data-testid="unpin-artist"
-              >
-                <Shuffle className="w-3.5 h-3.5" /> Shuffle
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search another artist…"
+              className="w-full h-11 rounded-2xl bg-white/5 border border-white/10 pl-11 pr-10 text-sm font-semibold text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            {query && (
+              <button className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40" onClick={() => setQuery('')} aria-label="Clear search">
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -130,7 +367,6 @@ export default function Artist() {
                   <button key={a}
                     className="w-full text-left px-4 py-3 text-sm font-bold text-white/80 hover:bg-white/5"
                     onClick={() => { setQuery(''); navigate(`/artists/${encodeURIComponent(a)}`); }}
-                    data-testid={`artist-result-${artistKey(a)}`}
                   >
                     {a}
                   </button>
@@ -140,24 +376,23 @@ export default function Artist() {
           </AnimatePresence>
         </div>
 
-        {artist && (
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.div
-              key={artist}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -24 }}
-              transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
-            >
-              <ArtistPage artist={artist} songs={songs} isDemoMode={isDemoMode} play={play} navigate={navigate} />
-            </motion.div>
-          </AnimatePresence>
-        )}
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={artist}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -24 }}
+            transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
+          >
+            <ArtistPage artist={artist} songs={songs} isDemoMode={isDemoMode} play={play} navigate={navigate} />
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
 }
 
+// ── ArtistPage ─────────────────────────────────────────────────────────────────
 function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
   artist: string;
   songs: MaplogSong[];
@@ -170,7 +405,6 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
     [songs, artist],
   );
 
-  // ── Persisted artist data (image, lyric bio, notes, imported info) ────────
   const [data, setData] = useState<ArtistData>(() => loadArtistData(artist));
   useEffect(() => { setData(loadArtistData(artist)); }, [artist]);
 
@@ -182,7 +416,6 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
     }
   };
 
-  // Auto-import Apple Music info (refreshed weekly); demo mode skips network
   useEffect(() => {
     if (isDemoMode) return;
     const current = loadArtistData(artist);
@@ -197,7 +430,6 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
   const imageUrl = data.imageUrl ?? data.imported?.imageUrl ?? null;
   const fallbackArt = artistSongs[0]?.artworkUrl ?? null;
 
-  // ── Editable lyric bio & notes ─────────────────────────────────────────────
   const [editingBio, setEditingBio] = useState(false);
   const [bioDraft, setBioDraft] = useState('');
   const [editingNotes, setEditingNotes] = useState(false);
@@ -215,7 +447,6 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
     }
   };
 
-  // ── Badges & valuation ────────────────────────────────────────────────────
   const badges = useMemo(() => badgesForArtist(artist), [artist]);
   const valuation = useMemo(() => {
     const entries = filterEntries(vaultEntries(artistSongs), { artist });
@@ -224,9 +455,12 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
     return { total, priced, cards: entries.length };
   }, [artistSongs, artist]);
 
+  // Showcase card for header area
+  const topCard = artistSongs[0]?.cards[0];
+
   return (
     <div className="space-y-10">
-      {/* ── Header: image, name, lyric bio ── */}
+      {/* Header */}
       <div className="flex items-center gap-5">
         <button
           onClick={() => !isDemoMode && fileRef.current?.click()}
@@ -286,7 +520,7 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
         </div>
       </div>
 
-      {/* ── Badges ── */}
+      {/* Badges */}
       {badges.length > 0 && (
         <section>
           <SectionHeader icon={BadgeCheck} title="Badges" />
@@ -304,7 +538,7 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
         </section>
       )}
 
-      {/* ── Valuation summary ── */}
+      {/* Valuation */}
       <section>
         <SectionHeader icon={Coins} title="Valuation" />
         <button
@@ -328,15 +562,18 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
         </button>
       </section>
 
-      {/* ── Showcase ── */}
+      {/* Showcase */}
       <section>
         <SectionHeader icon={Sparkles} title="Showcase" />
         <ShowcaseSection key={artistKey(artist)} scope={{ kind: 'artist', artist }} songs={songs} readOnly={isDemoMode} />
       </section>
 
-      {/* ── Songs ── */}
+      {/* Releases (albums / EPs / singles grouped) */}
+      <ReleasesSection songs={artistSongs} isDemoMode={isDemoMode} navigate={navigate} />
+
+      {/* All songs flat list */}
       <section>
-        <SectionHeader icon={Disc3} title={`Songs · ${artistSongs.length}`} />
+        <SectionHeader icon={Disc3} title={`All Songs · ${artistSongs.length}`} />
         <div className="space-y-2">
           {artistSongs.map(song => (
             <div key={song.id}
@@ -366,7 +603,7 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
         </div>
       </section>
 
-      {/* ── Imported artist info ── */}
+      {/* Imported artist info */}
       <section>
         <SectionHeader icon={ExternalLink} title="Artist Info" />
         <div className="glass-panel rounded-[1.75rem] p-5 space-y-3">
@@ -399,7 +636,7 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
         </div>
       </section>
 
-      {/* ── Notes ── */}
+      {/* Notes */}
       <section className="pb-4">
         <SectionHeader icon={StickyNote} title="Notes" />
         {editingNotes ? (

@@ -2,14 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { Route, Switch, Router as WouterRouter, Redirect } from 'wouter';
 
 import { MusicKitProvider } from '@/context/MusicKitContext';
 import { PlayerProvider } from '@/context/AudioPlayerContext';
 import { DesktopSidebar, MobileNav } from '@/components/Navigation';
 import { MiniPlayer } from '@/components/MiniPlayer';
 
-import Home from '@/pages/Home';
 import Collection from '@/pages/Collection';
 import SongDetail from '@/pages/SongDetail';
 import Playlists from '@/pages/Playlists';
@@ -32,13 +31,15 @@ function AppShell() {
       <div className="flex-1 flex flex-col min-w-0 min-h-0 w-full relative z-10">
         <main className="flex-1 min-h-0 relative w-full overflow-hidden bg-background">
           <Switch>
-            <Route path="/"              component={Home} />
-            <Route path="/collection"    component={Collection} />
+            <Route path="/"              component={Collection} />
+            {/* Legacy /collection redirect */}
+            <Route path="/collection"><Redirect to="/" /></Route>
             <Route path="/song/:id"      component={SongDetail} />
             <Route path="/playlists"     component={Playlists} />
             <Route path="/playlists/:id" component={PlaylistDetail} />
             <Route path="/profile"       component={Profile} />
-            <Route path="/artists"       component={Artist} />
+            {/* /artists (no name) just redirects to collection */}
+            <Route path="/artists"><Redirect to="/" /></Route>
             <Route path="/artists/:name" component={Artist} />
             <Route path="/vault"         component={Vault} />
             <Route path="/settings"      component={Settings} />

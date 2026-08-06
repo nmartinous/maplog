@@ -1,16 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Home, Library, ListMusic, MicVocal, User, Settings } from 'lucide-react';
+import { Library, ListMusic, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
-  { href: '/',           icon: Home,     label: 'Player'     },
-  { href: '/collection', icon: Library,  label: 'Collection' },
-  { href: '/playlists',  icon: ListMusic, label: 'Playlists' },
-  { href: '/artists',    icon: MicVocal, label: 'Artists'    },
-  { href: '/profile',    icon: User,     label: 'Profile'    },
-  { href: '/settings',   icon: Settings, label: 'Settings'   },
+  { href: '/',          icon: Library,  label: 'Collection' },
+  { href: '/playlists', icon: ListMusic, label: 'Playlists'  },
+  { href: '/profile',   icon: User,     label: 'Profile'    },
 ];
 
 function useActiveNav() {
@@ -25,7 +22,7 @@ export function DesktopSidebar() {
     <nav className="hidden sm:flex flex-col w-64 shrink-0 bg-card/40 border-r border-white/5 py-8 px-5 h-full overflow-y-auto backdrop-blur-3xl relative z-40">
       <div className="mb-10 px-2 flex items-center gap-3">
         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-orange-400 flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
-          <Home className="h-5 w-5 text-white" />
+          <Library className="h-5 w-5 text-white" />
         </div>
         <span className="text-2xl font-display font-black tracking-tight text-white">Maplog</span>
       </div>
@@ -37,12 +34,10 @@ export function DesktopSidebar() {
             <Link key={href} href={href}>
               <div className={cn(
                 'group relative flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all cursor-pointer overflow-hidden',
-                active
-                  ? 'text-white'
-                  : 'text-muted-foreground hover:text-white',
+                active ? 'text-white' : 'text-muted-foreground hover:text-white',
               )}>
                 {active && (
-                  <motion.div 
+                  <motion.div
                     layoutId="desktop-nav-bg"
                     className="absolute inset-0 bg-white/10 border border-white/10 rounded-2xl"
                     initial={false}
@@ -72,7 +67,7 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none" />
-      <div className="h-20 landscape-compact:h-12 flex items-center justify-around px-2 relative z-10">
+      <div className="h-[60px] landscape-compact:h-12 flex items-center justify-around px-2 relative z-10">
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = isActive(href);
           return (
@@ -83,7 +78,7 @@ export function MobileNav() {
             >
               <div className="relative flex items-center justify-center w-12 h-8">
                 {active && (
-                  <motion.div 
+                  <motion.div
                     layoutId="mobile-nav-pill"
                     className="absolute inset-0 bg-primary/20 rounded-full"
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -92,7 +87,7 @@ export function MobileNav() {
                 <Icon
                   className={cn(
                     'relative z-10 h-[22px] w-[22px] transition-all duration-300',
-                    active ? 'text-primary scale-110' : 'text-muted-foreground scale-100 group-hover:text-white',
+                    active ? 'text-primary scale-110' : 'text-muted-foreground scale-100',
                   )}
                   strokeWidth={active ? 2.5 : 2}
                 />
