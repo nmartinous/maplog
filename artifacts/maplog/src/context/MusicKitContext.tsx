@@ -115,6 +115,11 @@ export interface MusicKitContextType {
   /** Reload collection from localStorage */
   refresh: () => void;
 
+  /** Edit a song's display info (Edit Mode). No-op in demo mode. */
+  updateSong: (songId: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => void;
+  /** Replace one card's tag pool (Edit Mode; caller validates). No-op in demo mode. */
+  updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
+
   /** Queued tag-rule conflicts awaiting resolution */
   conflicts: TagConflict[];
   /** Dedupe + validate the collection; pulls rule-breaking copies into the queue */
@@ -241,6 +246,25 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     saveCollection(updated);
     setSongs(updated);
   }, []);
+
+  /** Edit a song's display info (Edit Mode). No-op in demo mode. */
+  const updateSong = useCallback((songId: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => {
+    if (isDemoMode) return;
+    const updated = songsRef.current.map(s => s.id === songId ? { ...s, ...patch } : s);
+    commitCollection(updated);
+  }, [isDemoMode, commitCollection]);
+
+  /** Replace one card's tag pool (Edit Mode; caller validates). No-op in demo mode. */
+  const updateCardTags = useCallback((songId: string, cardId: string, tags: string[]) => {
+    if (isDemoMode) return;
+    const pool = normalizeTags(tags);
+    const updated = songsRef.current.map(s =>
+      s.id === songId
+        ? { ...s, cards: s.cards.map(c => c.id === cardId ? { ...c, tags: pool } : c) }
+        : s,
+    );
+    commitCollection(updated);
+  }, [isDemoMode, commitCollection]);
 
   const normKey = (s: { title: string; artist: string }) =>
     `${s.title.trim().toLowerCase()}|${s.artist.trim().toLowerCase()}`;
@@ -464,6 +488,8 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         addToCollection,
         syncRarity,
         refresh,
+        updateSong,
+        updateCardTags,
         conflicts,
         runConflictScan,
         resolveConflict,

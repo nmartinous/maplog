@@ -17,6 +17,7 @@ import Profile from '@/pages/Profile';
 import Vault from '@/pages/Vault';
 import Settings from '@/pages/Settings';
 import Conflicts from '@/pages/Conflicts';
+import EditMode from '@/pages/EditMode';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ function AppShell() {
             <Route path="/vault"         component={Vault} />
             <Route path="/settings"      component={Settings} />
             <Route path="/conflicts"     component={Conflicts} />
+            <Route path="/edit"          component={EditMode} />
             <Route component={NotFound} />
           </Switch>
         </main>

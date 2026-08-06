@@ -5,7 +5,7 @@ import { DEMO_RARITIES } from '@/lib/rarityMap';
 import {
   Trash2, Download, Upload, Sparkles, Shield, ExternalLink,
   Info, ChevronRight, CheckCircle2, XCircle, Loader2,
-  ChevronDown, ChevronUp, Music2, Target, AlertTriangle
+  ChevronDown, ChevronUp, Music2, Target, AlertTriangle, Pencil
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -317,6 +317,12 @@ export default function Settings() {
             </div>
           </section>
         )}
+
+        <Section title="Edit Mode">
+          <Row icon={Pencil} label="Open Edit Mode"
+            description="Card media uploads, override rarities, tags, badges & conflicts"
+            onClick={() => navigate('/edit')} />
+        </Section>
 
         {conflicts.length > 0 && (
           <Section title="Conflicts">

@@ -1,0 +1,656 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'wouter';
+import { useMusicKit } from '@/context/MusicKitContext';
+import type { MaplogSong, MaplogCard } from '@/lib/types';
+import { normalizeTags, labelForTags, validateTrackCards, loadTagRules } from '@/lib/tags';
+import {
+  loadOverrideMeta, upsertOverride, deleteOverride, builtInOverrideTags,
+  canonicalTag, type OverrideMeta,
+} from '@/lib/overrides';
+import {
+  BADGE_TIERS, BADGE_LABELS, BADGE_COLORS, loadArtistBadges, toggleArtistBadge, artistKey,
+} from '@/lib/badges';
+import { putCardMedia, getCardMedia, deleteCardMedia, listMediaCardIds } from '@/lib/mediaStore';
+import { ConflictQueue } from '@/components/ConflictQueue';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft, ChevronDown, Pencil, Layers, Award, AlertTriangle, Search,
+  Film, Trash2, Plus, X, Check, Lock,
+} from 'lucide-react';
+
+// ── Section shell ─────────────────────────────────────────────────────────────
+
+function Section({ icon: Icon, title, description, count, children, defaultOpen = false }: {
+  icon: React.ElementType; title: string; description: string;
+  count?: number; children: React.ReactNode; defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="glass-panel rounded-[2rem] overflow-hidden">
+      <button
+        className="w-full flex items-center gap-5 px-6 py-5 text-left hover:bg-white/5 active:bg-white/10 transition-colors group"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        data-testid={`edit-section-${title.toLowerCase().replace(/\s+/g, '-')}`}
+      >
+        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+          <Icon className="h-6 w-6 text-white/70 group-hover:text-primary transition-colors" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-base text-white mb-0.5 flex items-center gap-2">
+            {title}
+            {count != null && count > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-black">{count}</span>
+            )}
+          </p>
+          <p className="text-sm text-white/50">{description}</p>
+        </div>
+        <ChevronDown className={cn('h-5 w-5 text-white/50 transition-transform duration-300', open ? 'rotate-180' : '')} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+            className="border-t border-white/5 overflow-hidden"
+          >
+            <div className="px-5 py-5">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+const inputCls = 'w-full h-11 rounded-xl bg-white/5 border border-white/10 px-3.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-primary/50';
+const labelCls = 'text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1.5 block';
+
+// ── Card media upload ─────────────────────────────────────────────────────────
+
+const MAX_MEDIA_BYTES = 60 * 1024 * 1024; // keep IndexedDB usage sane
+
+function CardMediaControl({ cardId, disabled, hasMedia, onChanged }: {
+  cardId: string; disabled: boolean; hasMedia: boolean; onChanged: () => void;
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_MEDIA_BYTES) { toast.error('That file is too large (60 MB max).'); return; }
+    setBusy(true);
+    try {
+      await putCardMedia(cardId, file);
+      toast.success(file.type.startsWith('video/') ? 'Video attached to this card.' : 'Image attached to this card.');
+      onChanged();
+    } catch {
+      toast.error('Could not store the file — your device may be out of space.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    try { await deleteCardMedia(cardId); onChanged(); toast.info('Media removed.'); }
+    catch { toast.error('Could not remove the media.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input ref={inputRef} type="file" accept="video/*,image/*" className="hidden" onChange={onFile} />
+      <Button variant="outline" size="sm" disabled={disabled || busy}
+        className="rounded-full bg-white/5 border-white/10 hover:bg-white/10 text-white text-xs font-bold h-8"
+        onClick={() => inputRef.current?.click()}
+        data-testid={`media-upload-${cardId}`}>
+        <Film className="w-3.5 h-3.5 mr-1.5" />
+        {hasMedia ? 'Replace media' : 'Add media'}
+      </Button>
+      {hasMedia && (
+        <Button variant="ghost" size="sm" disabled={disabled || busy}
+          className="rounded-full text-white/40 hover:text-destructive hover:bg-destructive/10 text-xs font-bold h-8"
+          onClick={remove}>
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Inline preview of attached media (small, lazy). */
+function CardMediaPreview({ cardId, version }: { cardId: string; version: number }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [kind, setKind] = useState<'image' | 'video' | null>(null);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    getCardMedia(cardId).then(m => {
+      if (cancelled || !m) return;
+      objectUrl = URL.createObjectURL(m.blob);
+      setUrl(objectUrl);
+      setKind(m.type);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setUrl(null); setKind(null);
+    };
+  }, [cardId, version]);
+
+  if (!url) return null;
+  return kind === 'video'
+    ? <video src={url} className="w-16 h-16 rounded-xl object-cover border border-white/10" muted playsInline loop autoPlay />
+    : <img src={url} alt="" className="w-16 h-16 rounded-xl object-cover border border-white/10" />;
+}
+
+// ── Song editor ───────────────────────────────────────────────────────────────
+
+function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
+  mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
+}) {
+  const { songs, updateSong, updateCardTags, isDemoMode } = useMusicKit();
+  const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return songs
+      .filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [songs, query]);
+
+  const song = songs.find(s => s.id === selectedId) ?? null;
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="w-4 h-4 text-white/30 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          className={cn(inputCls, 'pl-10')}
+          placeholder="Search your collection…"
+          value={query}
+          onChange={e => { setQuery(e.target.value); setSelectedId(null); }}
+          data-testid="song-editor-search"
+        />
+      </div>
+
+      {!song && matches.length > 0 && (
+        <div className="rounded-2xl bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden">
+          {matches.map(s => (
+            <button key={s.id} className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-white/5"
+              onClick={() => setSelectedId(s.id)} data-testid={`song-pick-${s.id}`}>
+              {s.artworkUrl
+                ? <img src={s.artworkUrl} alt="" className="w-9 h-9 rounded-lg object-cover" />
+                : <div className="w-9 h-9 rounded-lg bg-white/5" />}
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white truncate">{s.title}</p>
+                <p className="text-[11px] text-white/40 truncate">{s.artist} · {s.cards.length} card{s.cards.length === 1 ? '' : 's'}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!song && matches.length === 0 && query.trim() && (
+        <p className="text-sm text-white/40 px-1">No songs match "{query.trim()}".</p>
+      )}
+
+      {song && (
+        <SelectedSongEditor
+          key={song.id}
+          song={song}
+          disabled={isDemoMode}
+          updateSong={updateSong}
+          updateCardTags={updateCardTags}
+          onClose={() => setSelectedId(null)}
+          mediaIds={mediaIds}
+          refreshMedia={refreshMedia}
+          mediaVersion={mediaVersion}
+        />
+      )}
+    </div>
+  );
+}
+
+function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, onClose, mediaIds, refreshMedia, mediaVersion }: {
+  song: MaplogSong;
+  disabled: boolean;
+  updateSong: (id: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => void;
+  updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
+  onClose: () => void;
+  mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
+}) {
+  const [title, setTitle] = useState(song.title);
+  const [artist, setArtist] = useState(song.artist);
+  const [album, setAlbum] = useState(song.album);
+  const [genre, setGenre] = useState(song.genre ?? '');
+
+  const infoDirty = title !== song.title || artist !== song.artist || album !== song.album || (genre || null) !== (song.genre ?? null);
+
+  const saveInfo = () => {
+    if (!title.trim() || !artist.trim()) { toast.error('Title and artist are required.'); return; }
+    updateSong(song.id, { title: title.trim(), artist: artist.trim(), album: album.trim(), genre: genre.trim() || null });
+    toast.success('Song info saved.');
+  };
+
+  return (
+    <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 space-y-5">
+      <div className="flex items-center gap-3">
+        {song.artworkUrl
+          ? <img src={song.artworkUrl} alt="" className="w-12 h-12 rounded-xl object-cover" />
+          : <div className="w-12 h-12 rounded-xl bg-white/5" />}
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-white truncate">{song.title}</p>
+          <p className="text-xs text-white/40 truncate">{song.artist}</p>
+        </div>
+        <button onClick={onClose} aria-label="Close editor"
+          className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10">
+          <X className="w-4 h-4 text-white/60" />
+        </button>
+      </div>
+
+      {/* Info */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className={labelCls}>Title</label>
+          <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} disabled={disabled} data-testid="edit-song-title" />
+        </div>
+        <div>
+          <label className={labelCls}>Artist</label>
+          <input className={inputCls} value={artist} onChange={e => setArtist(e.target.value)} disabled={disabled} />
+        </div>
+        <div>
+          <label className={labelCls}>Album</label>
+          <input className={inputCls} value={album} onChange={e => setAlbum(e.target.value)} disabled={disabled} />
+        </div>
+        <div className="col-span-2">
+          <label className={labelCls}>Genre</label>
+          <input className={inputCls} value={genre} onChange={e => setGenre(e.target.value)} disabled={disabled} />
+        </div>
+      </div>
+      {infoDirty && (
+        <Button size="sm" className="rounded-full font-bold h-9 px-5" onClick={saveInfo} disabled={disabled} data-testid="save-song-info">
+          <Check className="w-4 h-4 mr-1.5" /> Save info
+        </Button>
+      )}
+
+      {/* Cards */}
+      <div className="space-y-3">
+        <p className={labelCls}>Cards ({song.cards.length})</p>
+        {song.cards.map(card => (
+          <CardTagEditor key={card.id} song={song} card={card} disabled={disabled}
+            updateCardTags={updateCardTags}
+            hasMedia={mediaIds.has(card.id)} refreshMedia={refreshMedia} mediaVersion={mediaVersion} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CardTagEditor({ song, card, disabled, updateCardTags, hasMedia, refreshMedia, mediaVersion }: {
+  song: MaplogSong; card: MaplogCard; disabled: boolean;
+  updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
+  hasMedia: boolean; refreshMedia: () => void; mediaVersion: number;
+}) {
+  const currentTags = card.tags ?? [];
+  const [draft, setDraft] = useState(currentTags.join(' '));
+  const draftTags = useMemo(() => normalizeTags(draft.split(/[\s,#]+/)), [draft]);
+  const dirty = draftTags.join(' ') !== normalizeTags(currentTags).join(' ');
+
+  // Validate the whole track with this card's pool replaced
+  const validation = useMemo(() => {
+    if (!dirty) return null;
+    const proposed = song.cards.map(c => c.id === card.id ? { ...c, tags: draftTags } : c);
+    return validateTrackCards(proposed, loadTagRules());
+  }, [dirty, draftTags, song.cards, card.id]);
+
+  const problems: string[] = [];
+  if (validation) {
+    if (draftTags.length === 0) problems.push('At least one tag is required.');
+    if (validation.deduped > 0) problems.push('Another card of this song already has exactly these tags.');
+    problems.push(...validation.conflictGroups.map(g => g.reason));
+  }
+  const canSave = dirty && problems.length === 0;
+
+  return (
+    <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3.5 space-y-3">
+      <div className="flex items-center gap-3">
+        <CardMediaPreview cardId={card.id} version={mediaVersion} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-white">{labelForTags(card.tags) === 'Unknown' ? card.rarityType.name : labelForTags(card.tags)}</p>
+          <p className="text-[10px] text-white/30 truncate font-mono">{card.id}</p>
+        </div>
+        <CardMediaControl cardId={card.id} disabled={disabled} hasMedia={hasMedia} onChanged={refreshMedia} />
+      </div>
+      <div>
+        <label className={labelCls}>Tags (space-separated)</label>
+        <input className={cn(inputCls, 'font-mono text-xs')} value={draft}
+          onChange={e => setDraft(e.target.value)} disabled={disabled}
+          data-testid={`card-tags-${card.id}`} />
+      </div>
+      {dirty && problems.length > 0 && (
+        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 space-y-1">
+          {problems.map((p, i) => (
+            <p key={i} className="text-[11px] text-amber-200/80 flex items-start gap-1.5">
+              <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />{p}
+            </p>
+          ))}
+        </div>
+      )}
+      {dirty && (
+        <div className="flex gap-2">
+          <Button size="sm" className="rounded-full font-bold h-8 px-4 text-xs" disabled={disabled || !canSave}
+            onClick={() => { updateCardTags(song.id, card.id, draftTags); toast.success(`Card is now ${labelForTags(draftTags)}.`); }}
+            data-testid={`save-card-tags-${card.id}`}>
+            Save as {labelForTags(draftTags)}
+          </Button>
+          <Button variant="ghost" size="sm" className="rounded-full text-white/40 text-xs h-8"
+            onClick={() => setDraft(currentTags.join(' '))}>
+            Reset
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Override rarity manager ───────────────────────────────────────────────────
+
+const OVERRIDE_PRESENCES = ['regular', 'shiny', 'epic'];
+
+function OverrideManager({ disabled }: { disabled: boolean }) {
+  const [metas, setMetas] = useState<OverrideMeta[]>(() => loadOverrideMeta());
+  const [creating, setCreating] = useState(false);
+  const [label, setLabel] = useState('');
+  const [appliesTo, setAppliesTo] = useState<string[]>(['regular']);
+  const [multiplier, setMultiplier] = useState('');
+  const [pin, setPin] = useState('');
+  const [flavorText, setFlavorText] = useState('');
+  const [subjectText, setSubjectText] = useState('');
+  const [frame, setFrame] = useState('');
+  const [background, setBackground] = useState('');
+
+  const builtIns = useMemo(() => [...builtInOverrideTags()].sort(), []);
+
+  const resetForm = () => {
+    setLabel(''); setAppliesTo(['regular']); setMultiplier('');
+    setPin(''); setFlavorText(''); setSubjectText(''); setFrame(''); setBackground('');
+    setCreating(false);
+  };
+
+  const save = () => {
+    try {
+      const tag = canonicalTag(label);
+      if (!tag) { toast.error('Give the override a name.'); return; }
+      if (builtInOverrideTags().has(tag)) { toast.error(`"${label.trim()}" is a built-in override.`); return; }
+      const mult = multiplier.trim() ? Number(multiplier) : undefined;
+      if (mult != null && (!Number.isFinite(mult) || mult <= 0)) { toast.error('Multiplier must be a positive number.'); return; }
+      upsertOverride({
+        tag, label: label.trim(), appliesTo,
+        valueMultiplier: mult,
+        pin: pin.trim() || undefined,
+        flavorText: flavorText.trim() || undefined,
+        subjectText: subjectText.trim() || undefined,
+        frame: frame.trim() || undefined,
+        background: background.trim() || undefined,
+      });
+      setMetas(loadOverrideMeta());
+      toast.success(`Override "${label.trim()}" saved — the rule engine now allows extra ${appliesTo.join('/')} copies with it.`);
+      resetForm();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save the override.');
+    }
+  };
+
+  const remove = (tag: string) => {
+    try {
+      deleteOverride(tag);
+      setMetas(loadOverrideMeta());
+      toast.info('Override removed.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not remove it.');
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Custom overrides */}
+      {metas.length > 0 ? (
+        <div className="space-y-2">
+          {metas.map(m => (
+            <div key={m.tag} className="rounded-xl bg-white/[0.03] border border-white/5 px-3.5 py-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white flex items-center gap-2">
+                  {m.pin && <span>{m.pin}</span>}{m.label}
+                  {m.valueMultiplier && m.valueMultiplier !== 1 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-black">×{m.valueMultiplier}</span>
+                  )}
+                </p>
+                <p className="text-[11px] text-white/40 truncate">
+                  Extra copy allowed on: {m.appliesTo.join(', ')}{m.flavorText ? ` · “${m.flavorText}”` : ''}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" disabled={disabled}
+                className="rounded-full text-white/40 hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                onClick={() => remove(m.tag)} aria-label={`Delete ${m.label}`}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-white/40">No custom overrides yet.</p>
+      )}
+
+      {/* Create form */}
+      {creating ? (
+        <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Name</label>
+              <input className={inputCls} value={label} onChange={e => setLabel(e.target.value)} placeholder="Summer Splash" data-testid="override-name" />
+            </div>
+            <div>
+              <label className={labelCls}>Value multiplier (optional)</label>
+              <input className={inputCls} value={multiplier} onChange={e => setMultiplier(e.target.value)} inputMode="decimal" placeholder="e.g. 10" data-testid="override-multiplier" />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Allows an extra copy of</label>
+            <div className="flex gap-2">
+              {OVERRIDE_PRESENCES.map(p => (
+                <button key={p}
+                  onClick={() => setAppliesTo(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
+                  className={cn('px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border',
+                    appliesTo.includes(p) ? 'bg-primary text-white border-primary' : 'bg-white/5 text-white/60 border-white/10')}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Pin (emoji / short text)</label>
+              <input className={inputCls} value={pin} onChange={e => setPin(e.target.value)} placeholder="🌊" maxLength={12} />
+            </div>
+            <div>
+              <label className={labelCls}>Frame style</label>
+              <input className={inputCls} value={frame} onChange={e => setFrame(e.target.value)} placeholder="wave-gold" />
+            </div>
+            <div>
+              <label className={labelCls}>Background</label>
+              <input className={inputCls} value={background} onChange={e => setBackground(e.target.value)} placeholder="#0ea5e9 or style key" />
+            </div>
+            <div>
+              <label className={labelCls}>Subject text</label>
+              <input className={inputCls} value={subjectText} onChange={e => setSubjectText(e.target.value)} placeholder="Summer 2026" />
+            </div>
+            <div className="col-span-2">
+              <label className={labelCls}>Flavor text</label>
+              <input className={inputCls} value={flavorText} onChange={e => setFlavorText(e.target.value)} placeholder="Caught in the summer wave" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" className="rounded-full font-bold h-9 px-5" onClick={save} disabled={disabled} data-testid="override-save">
+              <Check className="w-4 h-4 mr-1.5" /> Save override
+            </Button>
+            <Button variant="ghost" size="sm" className="rounded-full text-white/40 h-9" onClick={resetForm}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <Button variant="outline" size="sm" disabled={disabled}
+          className="rounded-full bg-white/5 border-white/10 hover:bg-white/10 text-white text-xs font-bold h-9"
+          onClick={() => setCreating(true)} data-testid="override-create">
+          <Plus className="w-3.5 h-3.5 mr-1.5" /> New override rarity
+        </Button>
+      )}
+
+      {/* Built-ins */}
+      <div>
+        <p className={labelCls}><Lock className="w-3 h-3 inline mr-1 -mt-0.5" />Built-in overrides</p>
+        <div className="flex flex-wrap gap-1.5">
+          {builtIns.map(t => (
+            <span key={t} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/50 text-[11px] font-bold">
+              {labelForTags(['regular', 'common', t]).replace(' Common', '')}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Artist badges ─────────────────────────────────────────────────────────────
+
+function BadgeManager({ disabled }: { disabled: boolean }) {
+  const { songs } = useMusicKit();
+  const [map, setMap] = useState(() => loadArtistBadges());
+  const [artist, setArtist] = useState('');
+
+  const artists = useMemo(
+    () => [...new Map(songs.map(s => [artistKey(s.artist), s.artist])).values()].sort((a, b) => a.localeCompare(b)),
+    [songs],
+  );
+  const assigned = artist ? (map[artistKey(artist)] ?? []) : [];
+  const decorated = Object.entries(map);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <label className={labelCls}>Artist</label>
+        <input className={inputCls} list="edit-artists" value={artist}
+          onChange={e => setArtist(e.target.value)} placeholder="Pick or type an artist…"
+          data-testid="badge-artist" />
+        <datalist id="edit-artists">
+          {artists.map(a => <option key={a} value={a} />)}
+        </datalist>
+      </div>
+
+      {artist.trim() && (
+        <div>
+          <p className={labelCls}>Badges for {artist.trim()}</p>
+          <div className="flex flex-wrap gap-2">
+            {BADGE_TIERS.map(tier => {
+              const active = assigned.includes(tier);
+              return (
+                <button key={tier} disabled={disabled}
+                  onClick={() => setMap({ ...toggleArtistBadge(artist, tier) })}
+                  data-testid={`badge-${tier}`}
+                  className={cn('px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors disabled:opacity-50',
+                    active ? 'text-black' : 'bg-white/5 text-white/60 border-white/10')}
+                  style={active ? { background: BADGE_COLORS[tier], borderColor: BADGE_COLORS[tier] } : undefined}>
+                  {BADGE_LABELS[tier]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {decorated.length > 0 && (
+        <div>
+          <p className={labelCls}>Decorated artists</p>
+          <div className="space-y-1.5">
+            {decorated.map(([key, tiers]) => {
+              const display = artists.find(a => artistKey(a) === key) ?? key;
+              return (
+                <button key={key} className="w-full flex items-center gap-2 rounded-xl bg-white/[0.03] border border-white/5 px-3.5 py-2.5 text-left hover:bg-white/5"
+                  onClick={() => setArtist(display)}>
+                  <span className="text-sm font-bold text-white flex-1 truncate">{display}</span>
+                  <span className="flex gap-1">
+                    {tiers.map(t => (
+                      <span key={t} className="w-2.5 h-2.5 rounded-full" style={{ background: BADGE_COLORS[t] }} title={BADGE_LABELS[t]} />
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function EditMode() {
+  const { conflicts, isDemoMode, songs } = useMusicKit();
+
+  // Card ids with media attached (for upload buttons + previews)
+  const [mediaIds, setMediaIds] = useState<Set<string>>(new Set());
+  const [mediaVersion, setMediaVersion] = useState(0);
+  const refreshMedia = () => {
+    listMediaCardIds().then(ids => { setMediaIds(new Set(ids)); setMediaVersion(v => v + 1); }).catch(() => {});
+  };
+  useEffect(refreshMedia, []);
+
+  return (
+    <div className="h-full overflow-y-auto bg-background pb-24">
+      <div className="px-4 sm:px-6 pt-8 pb-8 space-y-6 max-w-2xl mx-auto">
+        <div className="flex items-center gap-3">
+          <Link href="/settings" className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center shrink-0" aria-label="Back to Settings">
+            <ArrowLeft className="w-5 h-5 text-white/70" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-display font-black tracking-tight text-white">Edit Mode</h1>
+            <p className="text-sm text-white/50">Everything playlists can't express</p>
+          </div>
+        </div>
+
+        {isDemoMode && (
+          <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3">
+            <Lock className="w-4 h-4 text-white/50 shrink-0" />
+            <p className="text-xs text-white/50">Demo mode is read-only — exit it in Settings to make edits.</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <Section icon={Pencil} title="Songs" description="Edit a song's info, card tags, and card media" defaultOpen={songs.length > 0}>
+            <SongEditor mediaIds={mediaIds} refreshMedia={refreshMedia} mediaVersion={mediaVersion} />
+          </Section>
+
+          <Section icon={Layers} title="Override Rarities" description="Custom tags that allow extra copies, with display metadata">
+            <OverrideManager disabled={isDemoMode} />
+          </Section>
+
+          <Section icon={Award} title="Artist Badges" description="Assign accomplishment badges for artist pages">
+            <BadgeManager disabled={isDemoMode} />
+          </Section>
+
+          <Section icon={AlertTriangle} title="Conflicts" description="Copies that broke collection rules during import" count={conflicts.length} defaultOpen={conflicts.length > 0}>
+            <ConflictQueue />
+          </Section>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,7 @@
 /** Editable collector profile — stored locally, like the collection itself. */
 
+import { overrideMultipliers } from './overrides';
+
 const KEY = 'maplog:profile';
 
 export interface CollectorProfile {
@@ -110,8 +112,9 @@ export function cardValue(card: { rarityType: { slug: string }; tags?: string[] 
   const modifierTags = tags.length > 0
     ? tags
     : (card.rarityType.slug.startsWith('shiny') ? ['shiny'] : []);
+  const custom = overrideMultipliers();
   for (const t of modifierTags) {
-    const mult = MODIFIER_VALUES[t];
+    const mult = MODIFIER_VALUES[t] ?? custom[t];
     if (mult != null) value *= mult;
   }
   return value;

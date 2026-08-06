@@ -1,0 +1,73 @@
+/**
+ * Media store — IndexedDB persistence for card-slot uploads (videos/images).
+ *
+ * localStorage cannot hold media-sized assets (~5MB quota, string-only), so
+ * card media lives in IndexedDB keyed by card id. The JSON collection stays
+ * in localStorage; renderers look media up by card id.
+ *
+ * Known limitation: if a card is removed and later re-added by a playlist
+ * sync, it gets a new id and previously attached media is orphaned (kept in
+ * the store, no longer shown). The export/import task will handle remap/GC.
+ */
+
+const DB_NAME = 'maplog-media';
+const STORE = 'cardMedia';
+const DB_VERSION = 1;
+
+export interface CardMedia {
+  cardId: string;
+  type: 'image' | 'video';
+  mimeType: string;
+  blob: Blob;
+  updatedAt: string; // ISO
+}
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(STORE)) {
+        req.result.createObjectStore(STORE, { keyPath: 'cardId' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB unavailable'));
+  });
+}
+
+function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return openDb().then(db => new Promise<T>((resolve, reject) => {
+    const t = db.transaction(STORE, mode);
+    const req = run(t.objectStore(STORE));
+    let result: T;
+    req.onsuccess = () => { result = req.result; };
+    // Only report success once the transaction actually commits — resolving on
+    // request success can claim a write saved that later aborts (e.g. quota).
+    t.oncomplete = () => { db.close(); resolve(result); };
+    t.onerror = () => { db.close(); reject(t.error ?? req.error ?? new Error('IndexedDB request failed')); };
+    t.onabort = () => { db.close(); reject(t.error ?? new Error('IndexedDB transaction aborted')); };
+  }));
+}
+
+export async function putCardMedia(cardId: string, file: Blob & { type?: string }): Promise<CardMedia> {
+  const mimeType = file.type || 'application/octet-stream';
+  const type: CardMedia['type'] = mimeType.startsWith('video/') ? 'video' : 'image';
+  const entry: CardMedia = { cardId, type, mimeType, blob: file, updatedAt: new Date().toISOString() };
+  await tx('readwrite', s => s.put(entry));
+  return entry;
+}
+
+export async function getCardMedia(cardId: string): Promise<CardMedia | null> {
+  const res = await tx<CardMedia | undefined>('readonly', s => s.get(cardId));
+  return res ?? null;
+}
+
+export async function deleteCardMedia(cardId: string): Promise<void> {
+  await tx('readwrite', s => s.delete(cardId));
+}
+
+/** All card ids that currently have media attached. */
+export async function listMediaCardIds(): Promise<string[]> {
+  const keys = await tx<IDBValidKey[]>('readonly', s => s.getAllKeys());
+  return keys.map(String);
+}

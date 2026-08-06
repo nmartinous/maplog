@@ -65,8 +65,14 @@ export function loadTagRules(): TagRules {
   }
 }
 
-export function saveTagRules(rules: Partial<TagRules>): void {
-  localStorage.setItem(RULES_KEY, JSON.stringify(rules));
+/** Merge a partial patch into the saved rule extensions (never clobbers other keys). */
+export function saveTagRules(patch: Partial<TagRules>): void {
+  let saved: Partial<TagRules> = {};
+  try {
+    const raw = localStorage.getItem(RULES_KEY);
+    if (raw) saved = JSON.parse(raw) as Partial<TagRules>;
+  } catch { /* start fresh */ }
+  localStorage.setItem(RULES_KEY, JSON.stringify({ ...saved, ...patch }));
 }
 
 // ── Tag pool helpers ───────────────────────────────────────────────────────────
