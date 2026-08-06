@@ -2,14 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'wouter';
 import { useMusicKit } from '@/context/MusicKitContext';
-import { usePlayer } from '@/context/AudioPlayerContext';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
 import { ALL_CATEGORIES, CATEGORY_SLUG } from '@/lib/rarityMap';
 import { RarityBadge } from '@/components/RarityBadge';
-import { SoundmapCard } from '@/components/SoundmapCard';
 import { Input } from '@/components/ui/input';
 import {
-  Search, Play, Library, RefreshCw, Music2, Layers, ChevronDown, SlidersHorizontal, X,
+  Search, Play, Library, Music2, ChevronDown, SlidersHorizontal, X,
   CreditCard, User,
 } from 'lucide-react';
 import { ArtMenu } from '@/components/ArtMenu';
@@ -17,205 +15,11 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ── Mode toggle ────────────────────────────────────────────────────────────────
-// Persisted in sessionStorage so a reload resets to active (grid) view.
-type Mode = 'active' | 'passive';
-
 // ── Search scope ───────────────────────────────────────────────────────────────
 type SearchScope = 'all' | 'song' | 'artist' | 'album';
 const SCOPE_LABELS: Record<SearchScope, string> = {
   all: 'All', song: 'Song', artist: 'Artist', album: 'Album',
 };
-
-const CYCLE_MS = 5000;
-
-// ── Album art helper ───────────────────────────────────────────────────────────
-function AlbumArt({ song, topCard, size = 44 }: { song: MaplogSong; topCard?: MaplogCard; size?: number }) {
-  const rawUrl = topCard?.artworkUrl ?? song.artworkUrl;
-  // Request exactly the pixel size we'll display (×DPR, capped at 3×) so Apple
-  // Music serves the smallest valid file — dramatically speeds up rendering.
-  const px = Math.ceil(size * Math.min(window.devicePixelRatio || 2, 3));
-  const url = rawUrl
-    ? rawUrl
-        .replace(/\{w\}/g, String(px))
-        .replace(/\{h\}/g, String(px))
-        .replace(/\d+x\d+bb/, `${px}x${px}bb`)
-    : undefined;
-  return (
-    <div className="shrink-0" style={{ width: size, height: size }}>
-      {url
-        ? <img src={url} alt={song.title} className="w-full h-full object-cover rounded-xl" decoding="async" />
-        : <div className="w-full h-full rounded-xl bg-muted flex items-center justify-center">
-            <Music2 className="w-4 h-4 text-muted-foreground/40" />
-          </div>
-      }
-    </div>
-  );
-}
-
-// ── Passive (showcase) mode ────────────────────────────────────────────────────
-function PassiveView({
-  songs, onToggle,
-}: {
-  songs: MaplogSong[];
-  onToggle: () => void;
-}) {
-  const { currentSong, play } = usePlayer();
-  const [, navigate] = useLocation();
-
-  const pool = useMemo(() => {
-    if (currentSong) {
-      const active = songs.find(s => s.id === currentSong.id);
-      return active ? [active] : songs.filter(s => s.cards.length > 0);
-    }
-    return songs.filter(s => s.cards.length > 0);
-  }, [songs, currentSong]);
-
-  const [pick, setPick] = useState(() =>
-    pool.length ? Math.floor(Math.random() * pool.length) : 0,
-  );
-  const [cycle, setCycle] = useState(0);
-
-  useEffect(() => {
-    if (currentSong || pool.length < 2) return;
-    const t = setInterval(() => {
-      setPick(prev => {
-        if (pool.length < 2) return prev;
-        let next = Math.floor(Math.random() * (pool.length - 1));
-        if (next >= prev) next += 1;
-        return next;
-      });
-      setCycle(c => c + 1);
-    }, CYCLE_MS);
-    return () => clearInterval(t);
-  }, [currentSong, pool.length]);
-
-  const song = pool[pick % Math.max(pool.length, 1)];
-  const card = song?.cards[0];
-
-  if (!song || !card) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
-        className="h-full w-full flex flex-col items-center justify-center p-6 text-center relative z-10 overflow-hidden bg-background"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none -z-10" />
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="relative flex flex-col items-center w-full max-w-sm"
-        >
-          <div className="w-28 h-28 rounded-[2.5rem] glass-panel flex items-center justify-center mb-8 relative z-10 shadow-2xl border-white/10 overflow-hidden">
-            <Music2 className="w-12 h-12 text-primary" />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-display font-black mb-4 text-white tracking-tight">Music Binder</h1>
-          <p className="text-white/50 text-sm sm:text-base mb-10 leading-relaxed font-medium">
-            Your collection is waiting. Add songs to reveal your cards.
-          </p>
-          <Button size="lg" onClick={onToggle} className="rounded-full font-bold px-8 h-14 shadow-[0_0_40px_-10px_rgba(255,60,0,0.5)] hover:scale-105 active:scale-95 transition-all text-base bg-primary text-white flex items-center gap-3">
-            <Library className="h-5 w-5" />
-            Open Collection
-          </Button>
-        </motion.div>
-
-        {/* Mode toggle */}
-        <ToggleButton mode="passive" onToggle={onToggle} className="absolute top-6 right-4 sm:right-6" />
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
-      className="h-full flex flex-col overflow-hidden relative bg-background w-full"
-    >
-      {/* Blurred artwork ambience */}
-      <AnimatePresence>
-        {card.artworkUrl && (
-          <motion.div
-            key={card.artworkUrl}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.3 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
-            className="absolute inset-0 z-0 pointer-events-none overflow-hidden"
-          >
-            <img
-              src={card.artworkUrl}
-              alt=""
-              className="absolute top-0 left-0 w-full h-[60%] object-cover blur-[80px] scale-150 transform-gpu"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background to-background" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Header row with toggle */}
-      <div className="relative z-20 flex items-center justify-between px-5 pt-8 pb-2 shrink-0">
-        <span className="text-[11px] font-black tracking-[0.3em] uppercase text-primary animate-pulse">
-          {currentSong ? 'Now Playing' : 'Dive in?'}
-        </span>
-        <ToggleButton mode="passive" onToggle={onToggle} />
-      </div>
-
-      <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-4 w-full overflow-hidden">
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.div
-            key={`${song.id}-${cycle}`}
-            initial={{ x: 320, opacity: 0, rotate: 4 }}
-            animate={{ x: 0, opacity: 1, rotate: 0 }}
-            exit={{ x: -320, opacity: 0, rotate: -4 }}
-            transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-            whileTap={{ scale: 0.95 }}
-            style={{ willChange: 'transform' }}
-            className="cursor-pointer"
-            onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
-            role="button"
-            aria-label={`View ${song.title}`}
-          >
-            <SoundmapCard
-              card={card}
-              title={song.title}
-              artist={song.artist}
-              genre={song.genre}
-              size="lg"
-              className="shadow-2xl"
-            />
-          </motion.div>
-        </AnimatePresence>
-        {!currentSong && (
-          <button
-            className="mt-5 text-xs font-semibold text-white/40 shrink-0 flex items-center gap-2 active:text-white/70 transition-colors"
-            onClick={() => play(song, songs.filter(s => s.cards.length > 0))}
-          >
-            <Play className="h-3 w-3 fill-current" />
-            Tap to play
-          </button>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Toggle button (same design in both modes) ──────────────────────────────────
-function ToggleButton({ mode, onToggle, className }: { mode: Mode; onToggle: () => void; className?: string }) {
-  return (
-    <button
-      onClick={onToggle}
-      aria-label={mode === 'active' ? 'Switch to showcase view' : 'Switch to collection view'}
-      className={cn(
-        'w-9 h-9 rounded-full glass-panel flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-90 z-20',
-        className,
-      )}
-    >
-      {mode === 'active'
-        ? <Layers className="h-4 w-4" />
-        : <Library className="h-4 w-4" />
-      }
-    </button>
-  );
-}
 
 // ── Scope selector — horizontal row, opens to the LEFT ────────────────────────
 function ScopeSelect({ value, onChange }: { value: SearchScope; onChange: (v: SearchScope) => void }) {
@@ -362,15 +166,12 @@ function FilterPopup({
 
 // ── Active (grid) mode ─────────────────────────────────────────────────────────
 function ActiveView({
-  songs, isLoading, error, refresh, onToggle,
+  songs, isLoading, error,
 }: {
   songs: MaplogSong[];
   isLoading: boolean;
   error: string | null;
-  refresh: () => void;
-  onToggle: () => void;
 }) {
-  const { play } = usePlayer();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState<SearchScope>('all');
@@ -411,25 +212,13 @@ function ActiveView({
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
       <div className="page-top shrink-0 px-4 pb-2 sm:px-6 relative z-10 w-full overflow-x-hidden">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-display font-black tracking-tight text-white">Collection</h1>
-            {!isLoading && (
-              <p className="text-primary font-semibold text-sm mt-1">
-                {displayData.length} {displayData.length === 1 ? 'song' : 'songs'}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={refresh}
-              className="w-9 h-9 rounded-full glass-panel flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all active:scale-90"
-              aria-label="Refresh" disabled={isLoading}
-            >
-              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-            </button>
-            <ToggleButton mode="active" onToggle={onToggle} />
-          </div>
+        <div className="mb-6">
+          <h1 className="text-3xl font-display font-black tracking-tight text-white">Collection</h1>
+          {!isLoading && (
+            <p className="text-primary font-semibold text-sm mt-1">
+              {displayData.length} {displayData.length === 1 ? 'song' : 'songs'}
+            </p>
+          )}
         </div>
 
         {/* Search row with scope selector */}
@@ -491,7 +280,7 @@ function ActiveView({
               <Music2 className="w-8 h-8" />
             </div>
             <p className="text-destructive font-bold mb-4">{error}</p>
-            <Button variant="outline" onClick={refresh} className="rounded-full">Try again</Button>
+            <Button variant="outline" onClick={() => window.location.reload()} className="rounded-full">Try again</Button>
           </div>
         ) : songs.length === 0 ? (
           <motion.div
@@ -519,24 +308,31 @@ function ActiveView({
             </Button>
           </div>
         ) : (
-          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 w-full">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 w-full">
             {displayData.map(({ song, topCard }) => (
-              <div key={song.id} className="flex items-center gap-2 px-1.5 py-1 rounded-2xl glass-panel">
-                {/* Art — tapping opens the play / add-to-queue popup */}
-                <ArtMenu song={song} className="shrink-0 rounded-xl active:scale-90 transition-transform">
-                  <AlbumArt song={song} topCard={topCard} size={44} />
-                </ArtMenu>
-
-                {/* Song info — display only, no tap handler */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-bold text-white truncate leading-tight">{song.title}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5 min-w-0 overflow-hidden">
-                    <span className="text-[11px] text-white/45 truncate shrink min-w-0">{song.artist}</span>
-                    {topCard && (
-                      <RarityBadge slug={topCard.rarityType.slug} name={topCard.rarityType.name} category={topCard.rarityType.category} size="sm" />
-                    )}
-                  </div>
+              <div key={song.id} className="flex items-center gap-2.5 px-2 py-2 rounded-2xl glass-panel">
+                {/* Art — display only, no interaction */}
+                <div className="shrink-0">
+                  <AlbumArt song={song} topCard={topCard} size={52} />
                 </div>
+
+                {/* Stacked: title / artist / rarity badge */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-bold text-white truncate leading-tight">{song.title}</p>
+                  <p className="text-[12px] text-white/50 truncate mt-0.5">{song.artist}</p>
+                  {topCard && (
+                    <div className="w-fit mt-1">
+                      <RarityBadge slug={topCard.rarityType.slug} name={topCard.rarityType.name} category={topCard.rarityType.category} size="sm" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Play / Add to Queue */}
+                <ArtMenu song={song}>
+                  <div className="w-9 h-9 rounded-full bg-primary/15 hover:bg-primary/25 active:bg-primary/35 flex items-center justify-center transition-colors shrink-0">
+                    <Play className="w-4 h-4 text-primary fill-primary ml-0.5" />
+                  </div>
+                </ArtMenu>
 
                 {/* Open card view */}
                 <button
@@ -567,44 +363,10 @@ function ActiveView({
 // ── Page root ──────────────────────────────────────────────────────────────────
 
 export default function Collection() {
-  const { songs, isLoading, refresh, error } = useMusicKit();
-  const [mode, setMode] = useState<Mode>('active');
-
-  const toggle = () => setMode(m => m === 'active' ? 'passive' : 'active');
-
+  const { songs, isLoading, error } = useMusicKit();
   return (
     <div className="h-full w-full relative overflow-hidden">
-      <AnimatePresence mode="popLayout" initial={false}>
-        {mode === 'active' ? (
-          <motion.div
-            key="active"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.25 }}
-            className="absolute inset-0"
-          >
-            <ActiveView
-              songs={songs}
-              isLoading={isLoading}
-              error={error}
-              refresh={refresh}
-              onToggle={toggle}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="passive"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.25 }}
-            className="absolute inset-0"
-          >
-            <PassiveView songs={songs} onToggle={toggle} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ActiveView songs={songs} isLoading={isLoading} error={error} />
     </div>
   );
 }
