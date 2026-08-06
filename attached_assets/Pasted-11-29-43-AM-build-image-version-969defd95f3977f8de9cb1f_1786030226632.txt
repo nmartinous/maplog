@@ -1,0 +1,151 @@
+11:29:43 AM: build-image version: 969defd95f3977f8de9cb1f48802a7e6f3d8c0b3 (noble-new-builds)
+11:29:43 AM: buildbot version: 50f9a856323951e3af07f7e004a3196b5ed2fe94
+11:29:44 AM: Building with cache
+11:29:44 AM: Starting to prepare the repo for build
+11:29:44 AM: Preparing Git Reference refs/heads/main
+11:29:45 AM: Custom functions path detected. Proceeding with the specified path: 'netlify/functions'
+11:29:46 AM: Installing dependencies
+11:29:46 AM: mise ~/.config/mise/config.toml tools: python@3.14.3
+11:29:46 AM: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+11:29:46 AM: mise ~/.config/mise/config.toml tools: go@1.26.2
+11:29:46 AM: v22.23.2 is already installed.
+11:29:47 AM: Now using node v22.23.2 (npm v10.9.8)
+11:29:47 AM: Enabling Node.js Corepack
+11:29:47 AM: WARNING: The environment variable 'NODE_ENV' is set to 'production'. Any 'devDependencies' in package.json will not be installed
+11:29:48 AM: pnpm workspaces detected
+11:29:49 AM: Installing npm packages using pnpm version 10.26.1
+11:29:49 AM: Scope: all 9 workspace projects
+11:29:49 AM: Lockfile is up to date, resolution step is skipped
+11:29:49 AM: Already up to date
+11:29:51 AM: . preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+11:29:51 AM: . preinstall: Done
+11:29:51 AM: Done in 2.2s using pnpm v10.26.1
+11:29:51 AM: npm packages installed using pnpm
+11:29:51 AM: Successfully installed dependencies
+11:29:51 AM: Detected 0 framework(s)
+11:29:52 AM: Starting build script
+11:29:53 AM: Section completed: initializing
+11:29:55 AM: ​
+11:29:55 AM: Netlify Build                                                 
+11:29:55 AM: ────────────────────────────────────────────────────────────────
+11:29:55 AM: ​
+11:29:55 AM: ❯ Version
+11:29:55 AM:   @netlify/build 36.2.4
+11:29:55 AM: ​
+11:29:55 AM: ❯ Flags
+11:29:55 AM:   accountId: 6a74988759bc0a1a17e80fec
+11:29:55 AM:   baseRelDir: true
+11:29:55 AM:   buildId: 6a74a8661d7d35d5ef9cd3c5
+11:29:55 AM:   deployId: 6a74a8661d7d35d5ef9cd3c7
+11:29:55 AM:   packagePath: artifacts/maplog
+11:29:55 AM: ​
+11:29:55 AM: ❯ Current directory
+11:29:55 AM:   /opt/build/repo
+11:29:55 AM: ​
+11:29:55 AM: ❯ Config file
+11:29:55 AM:   /opt/build/repo/netlify.toml
+11:29:55 AM: ​
+11:29:55 AM: ❯ Context
+11:29:55 AM:   production
+11:29:55 AM: ​
+11:29:55 AM: build.command from netlify.toml                               
+11:29:55 AM: ────────────────────────────────────────────────────────────────
+11:29:55 AM: ​
+11:29:55 AM: $ pnpm --filter @workspace/maplog run build
+11:29:56 AM: > @workspace/maplog@0.0.0 build /opt/build/repo/artifacts/maplog
+11:29:56 AM: > vite build --config vite.config.ts
+11:29:57 AM: vite v7.3.6 building client environment for production...
+11:29:57 AM: transforming...
+11:29:57 AM: src/components/ui/sonner.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+11:29:57 AM: src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+11:30:01 AM: ✓ 2262 modules transformed.
+11:30:01 AM: rendering chunks...
+11:30:01 AM: computing gzip size...
+11:30:01 AM: dist/public/registerSW.js                0.13 kB
+11:30:01 AM: dist/public/manifest.webmanifest         0.40 kB
+11:30:01 AM: dist/public/index.html                   6.14 kB │ gzip:   1.63 kB
+11:30:01 AM: dist/public/assets/index-RBBw-wtr.css  150.87 kB │ gzip:  23.29 kB
+11:30:01 AM: dist/public/assets/index-_ZLCoo8h.js   782.54 kB │ gzip: 242.67 kB
+11:30:01 AM: 
+11:30:01 AM: (!) Some chunks are larger than 500 kB after minification. Consider:
+11:30:01 AM: - Using dynamic import() to code-split the application
+11:30:01 AM: - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+11:30:01 AM: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+11:30:01 AM: ✓ built in 4.80s
+11:30:04 AM: Failed during stage 'building site': Build script returned non-zero exit code: 2
+11:30:04 AM: PWA v1.3.0
+11:30:04 AM: mode      generateSW
+11:30:04 AM: precache  30 entries (4542.45 KiB)
+11:30:04 AM: files generated
+11:30:04 AM:   dist/public/sw.js
+11:30:04 AM:   dist/public/workbox-9c191d2f.js
+11:30:04 AM: ​
+11:30:04 AM: (build.command completed in 8.4s)
+11:30:04 AM: ​
+11:30:04 AM: Functions bundling                                            
+11:30:04 AM: ────────────────────────────────────────────────────────────────
+11:30:04 AM: ​
+11:30:04 AM: Packaging Functions from netlify/functions directory:
+11:30:04 AM:  - apple-music.mjs
+11:30:04 AM: ​
+11:30:04 AM: ✘ [ERROR] Cannot use "??" with "||" without parentheses
+11:30:04 AM:     netlify/functions/apple-music.mjs:199:61:
+11:30:04 AM:       199 │ ...omPath || songId || songMatch?.[1] ?? '').replace(/[^0-9]/g, '');
+11:30:04 AM:           ╵                                       ~~
+11:30:04 AM:   Expressions of the form "x || y ?? z" are not allowed in JavaScript. You must disambiguate between "(x || y) ?? z" and "x || (y ?? z)" by adding parentheses.
+11:30:04 AM: ​
+11:30:04 AM: Bundling of function "apple-music" failed                     
+11:30:04 AM: ────────────────────────────────────────────────────────────────
+11:30:04 AM: ​
+11:30:04 AM:   Error message
+11:30:04 AM:   Build failed with 1 error:
+11:30:04 AM:   netlify/functions/apple-music.mjs:199:61: ERROR: Cannot use "??" with "||" without parentheses
+11:30:04 AM: ​
+11:30:04 AM:   Error location
+11:30:04 AM:   While bundling function "apple-music"
+11:30:04 AM: ​
+11:30:04 AM:   Resolved config
+11:30:04 AM:   build:
+11:30:04 AM:     command: pnpm --filter @workspace/maplog run build
+11:30:04 AM:     commandOrigin: config
+11:30:04 AM:     environment:
+11:30:04 AM:       - APPLE_MUSICKIT_KEY_ID
+11:30:04 AM:       - APPLE_MUSICKIT_PRIVATE_KEY
+11:30:04 AM:       - APPLE_TEAM_ID
+11:30:04 AM:       - NODE_VERSION
+11:30:04 AM:       - PNPM_VERSION
+11:30:04 AM:       - BASE_PATH
+11:30:04 AM:       - NODE_ENV
+11:30:04 AM:       - PORT
+11:30:04 AM:     publish: /opt/build/repo/artifacts/maplog/dist/public
+11:30:04 AM:     publishOrigin: config
+11:30:04 AM:   functionsDirectory: /opt/build/repo/netlify/functions
+11:30:04 AM:   redirects:
+11:30:04 AM:     - from: /api/apple-music/token
+11:30:04 AM:       status: 200
+11:30:04 AM:       to: /.netlify/functions/apple-music?_ep=token
+11:30:04 AM:     - from: /api/apple-music/search
+11:30:04 AM:       status: 200
+11:30:04 AM:       to: /.netlify/functions/apple-music?_ep=search
+11:30:04 AM:     - from: /api/apple-music/playlist
+11:30:04 AM:       status: 200
+11:30:04 AM:       to: /.netlify/functions/apple-music?_ep=playlist
+11:30:04 AM:     - from: /api/apple-music/artist
+11:30:04 AM:       status: 200
+11:30:04 AM:       to: /.netlify/functions/apple-music?_ep=artist
+11:30:04 AM:     - from: /api/apple-music/album-tracks
+11:30:04 AM:       status: 200
+11:30:04 AM:       to: /.netlify/functions/apple-music?_ep=album-tracks
+11:30:04 AM:     - from: /api/apple-music/song/:id
+11:30:04 AM:       status: 200
+11:30:04 AM:       to: /.netlify/functions/apple-music?_ep=song&_id=:id
+11:30:04 AM:     - from: /api/*
+11:30:04 AM:       status: 404
+11:30:04 AM:       to: /404.html
+11:30:04 AM:     - from: /*
+11:30:04 AM:       status: 200
+11:30:04 AM:       to: /index.html
+11:30:04 AM:   redirectsOrigin: config
+11:30:04 AM: Build failed due to a user error: Build script returned non-zero exit code: 2
+11:30:04 AM: Failing build: Failed to build site
+11:30:05 AM: Finished processing build request in 21.151s
