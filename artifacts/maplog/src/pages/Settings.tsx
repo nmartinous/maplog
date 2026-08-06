@@ -12,6 +12,10 @@ import { Button } from '@/components/ui/button';
 import { RarityPlaylistSync } from '@/components/RarityPlaylistSync';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import {
+  createBackupZip, parseBackupFile, restoreBackup, backupFileName, type ParsedBackup,
+} from '@/lib/backup';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -242,29 +246,54 @@ export default function Settings() {
   const [, navigate] = useLocation();
   const importRef = useRef<HTMLInputElement>(null);
 
-  const handleExport = () => {
-    const blob = new Blob([JSON.stringify(songs, null, 2)], { type: 'application/json' });
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `maplog-${new Date().toISOString().slice(0, 10)}.json`,
-    });
-    a.click(); URL.revokeObjectURL(a.href);
+  // ── Backup export/import ──────────────────────────────────────────────────
+  const [exporting, setExporting] = useState(false);
+  const [pending, setPending] = useState<ParsedBackup | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const blob = await createBackupZip();
+      const a = Object.assign(document.createElement('a'), {
+        href: URL.createObjectURL(blob),
+        download: backupFileName(),
+      });
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast.success('Backup exported — keep the file somewhere safe.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't create the backup.");
+    } finally {
+      setExporting(false);
+    }
   };
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target?.result as string) as MaplogSong[];
-        if (!Array.isArray(data)) throw new Error();
-        let n = 0;
-        for (const song of data) for (const card of song.cards ?? []) { addToCollection(song, card.rarityType); n++; }
-        alert(`Imported ${n} card${n !== 1 ? 's' : ''} successfully.`);
-      } catch { alert("Could not read the file. Make sure it's a valid Maplog export."); }
-    };
-    reader.readAsText(file);
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     e.target.value = '';
+    if (!file) return;
+    try {
+      setPending(await parseBackupFile(file));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't read that file.");
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!pending || restoring) return;
+    setRestoring(true);
+    try {
+      await restoreBackup(pending);
+      // Reload so every context re-reads the restored data (and demo mode,
+      // if active, is left — the restore wrote your real saved data).
+      localStorage.removeItem('maplog:demoMode');
+      window.location.reload();
+    } catch (err) {
+      setRestoring(false);
+      toast.error(err instanceof Error ? err.message : "Restore failed — your current data is unchanged.");
+    }
   };
 
   const handleClear = () => {
@@ -350,17 +379,73 @@ export default function Settings() {
         </Section>
 
         <Section title="Data & Backup">
-          <Row icon={Download} label="Export Collection"
-            description={`Backup your ${songs.length} song${songs.length !== 1 ? 's' : ''} to a JSON file`}
+          <div className="px-6 pt-5 pb-1">
+            <p className="text-xs text-white/40 leading-relaxed">
+              Your songs come back anytime from your linked Apple Music playlists. Everything else —
+              tags, override rarities, uploaded card media, badges, showcases, artist notes, and your
+              profile — lives only on this device, so back it up here.
+            </p>
+          </div>
+          <Row icon={Download} label={exporting ? 'Exporting…' : 'Export Content'}
+            description="Download a complete backup file (data + uploaded media) to your device"
             onClick={handleExport} />
-          <Row icon={Upload} label="Restore Backup"
-            description="Import a previously exported JSON file" onClick={() => importRef.current?.click()} />
-          <input ref={importRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImportFile} />
+          <Row icon={Upload} label="Import Content"
+            description="Restore a Maplog backup file (older JSON exports work too)"
+            onClick={() => importRef.current?.click()} />
+          <input ref={importRef} type="file" accept=".zip,.json,application/zip,application/json" className="hidden" onChange={handleImportFile} />
           {songs.length > 0 && (
             <Row icon={Trash2} label="Reset Collection"
               description="Permanently delete all songs and cards" onClick={handleClear} destructive />
           )}
         </Section>
+
+        {/* ── Restore confirmation ── */}
+        <AnimatePresence>
+          {pending && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+              onClick={() => !restoring && setPending(null)}
+            >
+              <motion.div
+                initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+                transition={{ type: 'spring', damping: 26, stiffness: 300 }}
+                className="glass-panel rounded-[2rem] p-6 w-full max-w-md bg-[#141417]"
+                onClick={e => e.stopPropagation()}
+              >
+                <h3 className="text-lg font-display font-black text-white mb-1">Restore this backup?</h3>
+                <p className="text-xs text-white/40 mb-4">
+                  {pending.summary.legacy
+                    ? 'Older JSON export — restores the collection only; other content on this device is kept.'
+                    : `Full backup${pending.summary.createdAt ? ` from ${new Date(pending.summary.createdAt).toLocaleDateString()}` : ''} — replaces all Maplog content on this device.`}
+                </p>
+                <div className="rounded-2xl bg-white/5 border border-white/10 divide-y divide-white/5 mb-5">
+                  {[
+                    ['Songs', pending.summary.songs],
+                    ['Cards', pending.summary.cards],
+                    ['Uploaded media files', pending.summary.mediaFiles],
+                  ].map(([label, n]) => (
+                    <div key={label} className="flex items-center justify-between px-4 py-2.5">
+                      <span className="text-xs font-bold uppercase tracking-wider text-white/50">{label}</span>
+                      <span className="text-sm font-display font-black text-white">{n}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" className="rounded-xl h-12 flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white"
+                    disabled={restoring} onClick={() => setPending(null)}>
+                    Cancel
+                  </Button>
+                  <Button className="rounded-xl h-12 flex-1 font-bold" onClick={handleRestore} disabled={restoring} data-testid="confirm-restore">
+                    {restoring
+                      ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Restoring…</span>
+                      : 'Restore'}
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Section title="Experience">
           <Row icon={Sparkles}

@@ -1,16 +1,15 @@
 'use client';
 
-import { useTheme } from 'next-themes';
 import { Toaster as Sonner } from 'sonner';
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
+// Maplog is dark-only; no theme provider is mounted, so hardcode the theme
+// (next-themes' useTheme outside a provider triggered invalid-hook warnings).
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = 'system' } = useTheme();
-
   return (
     <Sonner
-      theme={theme as ToasterProps['theme']}
+      theme="dark"
       className="toaster group"
       toastOptions={{
         classNames: {

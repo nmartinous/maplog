@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
+import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 
@@ -64,6 +65,7 @@ function App() {
               <AppShell />
             </WouterRouter>
             <Toaster />
+            <SonnerToaster position="top-center" />
           </TooltipProvider>
         </PlayerProvider>
       </MusicKitProvider>

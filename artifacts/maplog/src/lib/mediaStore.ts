@@ -66,6 +66,31 @@ export async function deleteCardMedia(cardId: string): Promise<void> {
   await tx('readwrite', s => s.delete(cardId));
 }
 
+/**
+ * Atomically replace ALL stored media with the given entries (backup restore).
+ * Runs clear + puts in a single readwrite transaction, so a mid-restore
+ * failure (e.g. quota) aborts the whole transaction and existing media
+ * survives untouched.
+ */
+export async function replaceAllCardMedia(entries: CardMedia[]): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const t = db.transaction(STORE, 'readwrite');
+    const store = t.objectStore(STORE);
+    store.clear();
+    for (const entry of entries) store.put(entry);
+    t.oncomplete = () => { db.close(); resolve(); };
+    t.onerror = () => { db.close(); reject(t.error ?? new Error('IndexedDB request failed')); };
+    t.onabort = () => { db.close(); reject(t.error ?? new Error('IndexedDB transaction aborted')); };
+  });
+}
+
+/** Every stored media entry (used by backup export). */
+export async function getAllCardMedia(): Promise<CardMedia[]> {
+  const res = await tx<CardMedia[]>('readonly', s => s.getAll());
+  return res ?? [];
+}
+
 /** All card ids that currently have media attached. */
 export async function listMediaCardIds(): Promise<string[]> {
   const keys = await tx<IDBValidKey[]>('readonly', s => s.getAllKeys());
