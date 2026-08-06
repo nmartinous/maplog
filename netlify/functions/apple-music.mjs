@@ -158,6 +158,34 @@ export default async function handler(req) {
   const songId = songIdFromPath || params.get('_id') || '';
 
   try {
+    // ── GET /api/apple-music/debug ─────────────────────────────────────────
+    if (ep === 'debug' || path.endsWith('/debug')) {
+      const teamId = process.env.APPLE_TEAM_ID;
+      const keyId = process.env.APPLE_MUSICKIT_KEY_ID;
+      const rawKey = process.env.APPLE_MUSICKIT_PRIVATE_KEY ?? '';
+      const keyLength = rawKey.length;
+      const hasBeginMarker = rawKey.includes('BEGIN');
+      // Show first/last 6 chars of the base64 body only (safe — not usable as a key)
+      const body = rawKey.replace(/\\n/g, '\n').replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+      const keyPreview = body.length > 12
+        ? `${body.slice(0, 6)}…${body.slice(-6)} (${body.length} base64 chars)`
+        : `(too short: ${body.length} chars)`;
+      let importError = null;
+      try {
+        await getDeveloperToken();
+      } catch (e) {
+        importError = e.message;
+      }
+      return jsonRes({
+        teamId: teamId ?? '(not set)',
+        keyId: keyId ?? '(not set)',
+        rawKeyLength: keyLength,
+        hasBeginMarker,
+        keyBodyPreview: keyPreview,
+        tokenGenerationError: importError,
+      });
+    }
+
     // ── GET /api/apple-music/token ─────────────────────────────────────────
     if (ep === 'token' || path.endsWith('/token')) {
       const token = await getDeveloperToken();
