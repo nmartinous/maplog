@@ -1,0 +1,124 @@
+10:23:07 AM: build-image version: 969defd95f3977f8de9cb1f48802a7e6f3d8c0b3 (noble-new-builds)
+10:23:07 AM: buildbot version: 50f9a856323951e3af07f7e004a3196b5ed2fe94
+10:23:08 AM: Fetching cached dependencies
+10:23:08 AM: Failed to fetch cache, continuing with build
+10:23:08 AM: Starting to prepare the repo for build
+10:23:08 AM: No cached dependencies found. Cloning fresh repo
+10:23:08 AM: git clone --filter=blob:none https://github.com/nmartinous/maplog
+10:23:09 AM: Preparing Git Reference refs/heads/main
+10:23:11 AM: Installing dependencies
+10:23:12 AM: mise ~/.config/mise/config.toml tools: python@3.14.3
+10:23:12 AM: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+10:23:12 AM: mise ~/.config/mise/config.toml tools: go@1.26.2
+10:23:12 AM: Downloading and installing node v22.23.2...
+10:23:12 AM: Downloading https://nodejs.org/dist/v22.23.2/node-v22.23.2-linux-x64.tar.xz...
+10:23:13 AM: Computing checksum with sha256sum
+10:23:13 AM: Checksums matched!
+10:23:15 AM: Now using node v22.23.2 (npm v10.9.8)
+10:23:15 AM: Enabling Node.js Corepack
+10:23:15 AM: WARNING: The environment variable 'NODE_ENV' is set to 'production'. Any 'devDependencies' in package.json will not be installed
+10:23:16 AM: Found pnpm version (10.30.3) that doesn't match expected (10.26.1)
+10:23:16 AM: Preparing pnpm@10.26.1 for immediate activation...
+10:23:17 AM: pnpm workspaces detected
+10:23:17 AM: Installing npm packages using pnpm version 10.26.1
+10:23:18 AM: Scope: all 9 workspace projects
+10:23:18 AM: Lockfile is up to date, resolution step is skipped
+10:23:18 AM: Progress: resolved 1, reused 0, downloaded 0, added 0
+10:23:18 AM: Packages: +754
+10:23:18 AM: ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+10:23:19 AM: Progress: resolved 754, reused 0, downloaded 245, added 137
+10:23:20 AM: Progress: resolved 754, reused 0, downloaded 334, added 172
+10:23:21 AM: Progress: resolved 754, reused 0, downloaded 599, added 329
+10:23:22 AM: Progress: resolved 754, reused 0, downloaded 674, added 350
+10:23:22 AM: Progress: resolved 754, reused 0, downloaded 754, added 754, done
+10:23:23 AM: .../esbuild@0.27.3/node_modules/esbuild postinstall$ node install.js
+10:23:23 AM: .../esbuild@0.27.3/node_modules/esbuild postinstall: Done
+10:23:23 AM: dependencies:
+10:23:23 AM: + @replit/connectors-sdk 0.4.1
+10:23:23 AM: devDependencies:
+10:23:23 AM: + prettier 3.9.6
+10:23:23 AM: + typescript 5.9.3
+10:23:23 AM: . preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+10:23:23 AM: . preinstall: Done
+10:23:23 AM: Done in 5.7s using pnpm v10.26.1
+10:23:23 AM: npm packages installed using pnpm
+10:23:24 AM: Successfully installed dependencies
+10:23:24 AM: Detected 0 framework(s)
+10:23:24 AM: Starting build script
+10:23:25 AM: Section completed: initializing
+10:23:26 AM: ​
+10:23:26 AM: Netlify Build                                                 
+10:23:26 AM: ────────────────────────────────────────────────────────────────
+10:23:26 AM: ​
+10:23:26 AM: ❯ Version
+10:23:26 AM:   @netlify/build 36.2.4
+10:23:26 AM: ​
+10:23:26 AM: ❯ Flags
+10:23:27 AM:   accountId: 6a74988759bc0a1a17e80fec
+10:23:27 AM:   baseRelDir: true
+10:23:27 AM:   buildId: 6a7498c9bc0e0337efdb0a20
+10:23:27 AM:   deployId: 6a7498c9bc0e0337efdb0a22
+10:23:27 AM:   packagePath: artifacts/maplog
+10:23:27 AM: ​
+10:23:27 AM: ❯ Current directory
+10:23:27 AM:   /opt/build/repo
+10:23:27 AM: ​
+10:23:27 AM: ❯ Config file
+10:23:27 AM:   /opt/build/repo/netlify.toml
+10:23:27 AM: ​
+10:23:27 AM: ❯ Context
+10:23:27 AM:   production
+10:23:27 AM: ​
+10:23:27 AM: build.command from netlify.toml                               
+10:23:27 AM: ────────────────────────────────────────────────────────────────
+10:23:27 AM: ​
+10:23:27 AM: $ pnpm --filter @workspace/maplog run build
+10:23:28 AM: Failed during stage 'building site': Build script returned non-zero exit code: 2
+10:23:27 AM: > @workspace/maplog@0.0.0 build /opt/build/repo/artifacts/maplog
+10:23:27 AM: > vite build --config vite.config.ts
+10:23:27 AM: failed to load config from /opt/build/repo/artifacts/maplog/vite.config.ts
+10:23:27 AM: error during build:
+10:23:27 AM: Error: PORT environment variable is required but was not provided.
+10:23:27 AM:     at file:///opt/build/repo/artifacts/maplog/node_modules/.vite-temp/vite.config.ts.timestamp-1786026207865-c1c256ab73af1.mjs:11:9
+10:23:27 AM:     at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+10:23:27 AM:     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+10:23:27 AM:     at async loadConfigFromBundledFile (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.6_@types+node@25.9.5_jiti@2.7.0_lightningcss@1.32.0_terser@5.49.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:35996:12)
+10:23:27 AM:     at async bundleAndLoadConfigFile (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.6_@types+node@25.9.5_jiti@2.7.0_lightningcss@1.32.0_terser@5.49.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:35884:17)
+10:23:27 AM:     at async loadConfigFromFile (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.6_@types+node@25.9.5_jiti@2.7.0_lightningcss@1.32.0_terser@5.49.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:35851:42)
+10:23:27 AM:     at async resolveConfig (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.6_@types+node@25.9.5_jiti@2.7.0_lightningcss@1.32.0_terser@5.49.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:35500:22)
+10:23:27 AM:     at async createBuilder (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.6_@types+node@25.9.5_jiti@2.7.0_lightningcss@1.32.0_terser@5.49.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:33955:19)
+10:23:27 AM:     at async CAC.<anonymous> (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.6_@types+node@25.9.5_jiti@2.7.0_lightningcss@1.32.0_terser@5.49.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/cli.js:629:10)
+10:23:27 AM: /opt/build/repo/artifacts/maplog:
+10:23:27 AM:  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/maplog@0.0.0 build: `vite build --config vite.config.ts`
+10:23:27 AM: Exit status 1
+10:23:28 AM: ​
+10:23:28 AM: "build.command" failed                                        
+10:23:28 AM: ────────────────────────────────────────────────────────────────
+10:23:28 AM: ​
+10:23:28 AM:   Error message
+10:23:28 AM:   Command failed with exit code 1: pnpm --filter @workspace/maplog run build
+10:23:28 AM: ​
+10:23:28 AM:   Error location
+10:23:28 AM:   In build.command from netlify.toml:
+10:23:28 AM:   pnpm --filter @workspace/maplog run build
+10:23:28 AM: ​
+10:23:28 AM:   Resolved config
+10:23:28 AM:   build:
+10:23:28 AM:     command: pnpm --filter @workspace/maplog run build
+10:23:28 AM:     commandOrigin: config
+10:23:28 AM:     environment:
+10:23:28 AM:       - NODE_VERSION
+10:23:28 AM:       - PNPM_VERSION
+10:23:28 AM:       - BASE_PATH
+10:23:28 AM:       - NODE_ENV
+10:23:28 AM:     publish: /opt/build/repo/artifacts/maplog/dist/public
+10:23:28 AM:     publishOrigin: config
+10:23:28 AM:   redirects:
+10:23:28 AM:     - from: /*
+10:23:28 AM:       status: 200
+10:23:28 AM:       to: /index.html
+10:23:28 AM:   redirectsOrigin: config
+10:23:28 AM: Build failed due to a user error: Build script returned non-zero exit code: 2
+10:23:28 AM: Failing build: Failed to build site
+10:23:29 AM: Finished processing build request in 21.389s
+10:23:46 AM: [ERROR] Deploy logs are currently unavailable. We are working on resolving the issue.
