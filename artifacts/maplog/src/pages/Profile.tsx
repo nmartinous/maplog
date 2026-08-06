@@ -10,6 +10,7 @@ import {
 } from '@/lib/profile';
 import { toast } from 'sonner';
 import { abbreviateValue, exactValue } from '@/lib/format';
+import { ShowcaseSection } from '@/components/ShowcaseSection';
 
 function StatCard({ label, value, icon: Icon, delay = 0 }: { label: string; value: string | number; icon: React.ElementType, delay?: number }) {
   return (
@@ -354,6 +355,14 @@ export default function Profile() {
                 </div>
               </section>
             )}
+
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <Star className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-bold tracking-widest uppercase text-white/80">Showcase</h2>
+              </div>
+              <ShowcaseSection scope={{ kind: 'profile' }} songs={songs} readOnly={isDemoMode} />
+            </section>
 
             <section className="pb-4">
               <div className="flex items-center gap-3 mb-4">

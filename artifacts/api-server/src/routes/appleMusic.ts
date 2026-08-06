@@ -196,6 +196,49 @@ router.get("/apple-music/song/:id", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/apple-music/artist?name=...
+ * Searches the Apple Music catalog for an artist and returns display info.
+ * Apple's public catalog API exposes name, artwork, genres, and the artist
+ * URL — it does NOT expose listener counts, follower stats, or bios, so the
+ * client should present those as unavailable.
+ */
+router.get("/apple-music/artist", async (req, res) => {
+  const name = String(req.query.name ?? "").trim();
+  if (!name) return void res.status(400).json({ error: "Missing artist name." });
+
+  try {
+    const response = await appleFetch(
+      `/catalog/${STOREFRONT}/search?types=artists&limit=5&term=${encodeURIComponent(name)}`
+    );
+    if (!response.ok) {
+      return void res
+        .status(502)
+        .json({ error: `Apple Music API returned HTTP ${response.status}.` });
+    }
+    const json = (await response.json()) as any;
+    const artists = (json?.results?.artists?.data ?? []) as any[];
+    // Prefer an exact (case-insensitive) name match over Apple's first hit
+    const lower = name.toLowerCase();
+    const hit =
+      artists.find((ar) => String(ar?.attributes?.name ?? "").toLowerCase() === lower) ??
+      artists[0];
+    if (!hit) return void res.status(404).json({ error: "Artist not found." });
+
+    const a = hit.attributes ?? {};
+    res.json({
+      id: String(hit.id),
+      name: a.name ?? name,
+      imageUrl: resolveArtwork(a.artwork?.url, 600),
+      genres: Array.isArray(a.genreNames) ? a.genreNames : [],
+      url: a.url ?? null,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(502).json({ error: msg });
+  }
+});
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 /** Replace {w}/{h} template vars from Apple's artwork URL format */

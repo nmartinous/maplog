@@ -14,6 +14,7 @@ import SongDetail from '@/pages/SongDetail';
 import Playlists from '@/pages/Playlists';
 import PlaylistDetail from '@/pages/PlaylistDetail';
 import Profile from '@/pages/Profile';
+import Artist from '@/pages/Artist';
 import Vault from '@/pages/Vault';
 import Settings from '@/pages/Settings';
 import Conflicts from '@/pages/Conflicts';
@@ -36,6 +37,8 @@ function AppShell() {
             <Route path="/playlists"     component={Playlists} />
             <Route path="/playlists/:id" component={PlaylistDetail} />
             <Route path="/profile"       component={Profile} />
+            <Route path="/artists"       component={Artist} />
+            <Route path="/artists/:name" component={Artist} />
             <Route path="/vault"         component={Vault} />
             <Route path="/settings"      component={Settings} />
             <Route path="/conflicts"     component={Conflicts} />
