@@ -21,6 +21,28 @@ const SCOPE_LABELS: Record<SearchScope, string> = {
   all: 'All', song: 'Song', artist: 'Artist', album: 'Album',
 };
 
+// ── Album art thumbnail with sized CDN URL ─────────────────────────────────────
+function AlbumArt({ song, topCard, size = 44 }: { song: MaplogSong; topCard?: MaplogCard; size?: number }) {
+  const rawUrl = topCard?.artworkUrl ?? song.artworkUrl;
+  const px = Math.ceil(size * Math.min(window.devicePixelRatio || 2, 3));
+  const url = rawUrl
+    ? rawUrl
+        .replace(/\{w\}/g, String(px))
+        .replace(/\{h\}/g, String(px))
+        .replace(/\d+x\d+bb/, `${px}x${px}bb`)
+    : undefined;
+  return (
+    <div className="shrink-0" style={{ width: size, height: size }}>
+      {url
+        ? <img src={url} alt={song.title} className="w-full h-full object-cover rounded-xl" decoding="async" />
+        : <div className="w-full h-full rounded-xl bg-muted flex items-center justify-center">
+            <Music2 className="w-4 h-4 text-muted-foreground/40" />
+          </div>
+      }
+    </div>
+  );
+}
+
 // ── Scope selector — horizontal row, opens to the LEFT ────────────────────────
 function ScopeSelect({ value, onChange }: { value: SearchScope; onChange: (v: SearchScope) => void }) {
   const [open, setOpen] = useState(false);
