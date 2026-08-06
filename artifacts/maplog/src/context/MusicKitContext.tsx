@@ -327,16 +327,34 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
       })
       .filter(s => s.cards.length > 0);
 
+    // Helper: pick up trackNumber/discNumber/albumId from a fresh playlist track,
+    // but only overwrite when the live song is missing the field (don't clobber
+    // manually edited data, and don't null-out values we already have).
+    const trackMeta = (track: MaplogSong, live: MaplogSong): Partial<MaplogSong> => {
+      const patch: Partial<MaplogSong> = {};
+      if (track.trackNumber != null && live.trackNumber == null) patch.trackNumber = track.trackNumber;
+      if (track.discNumber  != null && live.discNumber  == null) patch.discNumber  = track.discNumber;
+      if (track.albumId     != null && live.albumId     == null) patch.albumId     = track.albumId;
+      return patch;
+    };
+
     // 2) Add missing songs / cards for playlist tracks
     const bySongId = new Map(updated.map(s => [s.id, s]));
     for (const { track, existing } of toAdd) {
       if (existing) {
         const live = bySongId.get(existing.id);
-        if (!live || live.cards.some(c => c.rarityType.slug === rarity.slug)) continue;
+        if (!live) continue;
+        if (live.cards.some(c => c.rarityType.slug === rarity.slug)) {
+          // Song already has this rarity — just patch track metadata if richer data arrived
+          const meta = trackMeta(track, live);
+          if (Object.keys(meta).length > 0) bySongId.set(existing.id, { ...live, ...meta });
+          continue;
+        }
         // Use a stable id (no timestamp) so re-added songs recover their
         // previously uploaded media from IndexedDB without any remap.
         bySongId.set(existing.id, {
           ...live,
+          ...trackMeta(track, live),
           cards: [...live.cards, {
             id: `${live.id}::${rarity.slug}`,
             artworkUrl: track.artworkUrl || live.artworkUrl,

@@ -333,6 +333,8 @@ function resolveArtwork(url: string | undefined, size = 300): string | null {
 
 function mapSong(s: any) {
   const a = s?.attributes ?? {};
+  // albumId is present when the track fetch includes ?include=albums
+  const albumId = s?.relationships?.albums?.data?.[0]?.id ?? null;
   return {
     id: String(s.id),
     title: a.name ?? "Unknown",
@@ -343,6 +345,9 @@ function mapSong(s: any) {
     artworkUrl: resolveArtwork(a.artwork?.url, 1000) ?? "",
     previewUrl: a.previews?.[0]?.url ?? null,
     releaseDate: a.releaseDate ?? null,
+    trackNumber: a.trackNumber ?? null,
+    discNumber: a.discNumber ?? null,
+    albumId: albumId !== null ? String(albumId) : null,
   };
 }
 
@@ -405,7 +410,7 @@ router.get("/apple-music/playlist", async (req, res) => {
     let offset = 0;
     for (let page = 0; page < 10; page++) {
       const trackRes = await appleFetch(
-        `/catalog/${STOREFRONT}/playlists/${playlistId}/tracks?limit=100&offset=${offset}`
+        `/catalog/${STOREFRONT}/playlists/${playlistId}/tracks?limit=100&offset=${offset}&include=albums`
       );
       if (!trackRes.ok) break;
       const json = (await trackRes.json()) as any;

@@ -81,6 +81,18 @@ function AlbumCard({
   const artistName = songs[0]?.artist ?? '';
   const artworkUrl = songs[0]?.artworkUrl ?? null;
 
+  // True when every collected song has a stored trackNumber — we can show
+  // correct album order immediately without a network round-trip.
+  const hasStoredOrder = songs.every(s => s.trackNumber != null);
+
+  // Collected songs sorted by disc + track number when available.
+  const sortedSongs = useMemo(() => {
+    if (!hasStoredOrder) return songs;
+    return [...songs].sort(
+      (a, b) => ((a.discNumber ?? 1) - (b.discNumber ?? 1)) || ((a.trackNumber ?? 0) - (b.trackNumber ?? 0)),
+    );
+  }, [songs, hasStoredOrder]);
+
   // Heuristic release type based on songs collected (shown before fetch)
   const heuristicType: 'album' | 'ep' | 'single' =
     albumData?.releaseType ??
@@ -105,7 +117,10 @@ function AlbumCard({
 
   const handleOpen = () => {
     setOpen(o => !o);
-    if (!albumData) fetchTracks();
+    // When songs already have stored track numbers, skip the live fetch — the
+    // correct order is already known offline. Fall back to live fetch for older
+    // entries that were imported before track metadata was stored.
+    if (!albumData && !hasStoredOrder) fetchTracks();
   };
 
   // Map of catalogId → collected songs (multiple rarities possible)
@@ -158,24 +173,20 @@ function AlbumCard({
             className="border-t border-white/5 overflow-hidden"
           >
             <div className="px-4 py-3 space-y-1">
-              {loading && (
+              {/* Spinner only when fetching live and no stored order to show */}
+              {loading && !hasStoredOrder && (
                 <div className="flex items-center justify-center py-6 gap-2 text-white/40">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span className="text-xs font-semibold">Loading tracks…</span>
                 </div>
               )}
-              {fetchError && (
+              {fetchError && !tracks.length && (
                 <div className="flex items-center gap-2 py-4 text-amber-400/80">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <p className="text-xs">{fetchError}</p>
                 </div>
               )}
-              {!loading && !fetchError && tracks.length === 0 && (
-                // Show just the collected songs in order while tracks load
-                songs.map((s, i) => (
-                  <CollectedTrackRow key={s.id} song={s} trackNumber={i + 1} navigate={navigate} />
-                ))
-              )}
+              {/* Full live track listing (includes non-collected tracks) */}
               {tracks.map(track => {
                 const collected = collectedMap.get(track.catalogId);
                 return (
@@ -187,6 +198,17 @@ function AlbumCard({
                   />
                 );
               })}
+              {/* Offline / pre-fetch fallback: stored track numbers give instant correct order */}
+              {tracks.length === 0 && (
+                sortedSongs.map((s, i) => (
+                  <CollectedTrackRow
+                    key={s.id}
+                    song={s}
+                    trackNumber={s.trackNumber ?? (i + 1)}
+                    navigate={navigate}
+                  />
+                ))
+              )}
             </div>
           </motion.div>
         )}
