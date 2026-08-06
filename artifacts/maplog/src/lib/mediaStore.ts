@@ -96,3 +96,35 @@ export async function listMediaCardIds(): Promise<string[]> {
   const keys = await tx<IDBValidKey[]>('readonly', s => s.getAllKeys());
   return keys.map(String);
 }
+
+/**
+ * Garbage-collect media entries whose card ids are no longer in the
+ * collection.  Call this after any sync that may have dropped cards.
+ * Returns the number of entries deleted.
+ *
+ * Runs as a single readwrite transaction so it never deletes an entry
+ * that was just written by a concurrent upload (the upload's put would
+ * win or the transaction would serialize).
+ */
+export async function gcOrphanedMedia(activeCardIds: string[]): Promise<number> {
+  const activeSet = new Set(activeCardIds);
+  const db = await openDb();
+  return new Promise<number>((resolve, reject) => {
+    const t = db.transaction(STORE, 'readwrite');
+    const store = t.objectStore(STORE);
+    const keysReq = store.getAllKeys();
+    let deleted = 0;
+    keysReq.onsuccess = () => {
+      const keys = keysReq.result as IDBValidKey[];
+      for (const key of keys) {
+        if (!activeSet.has(String(key))) {
+          store.delete(key);
+          deleted++;
+        }
+      }
+    };
+    t.oncomplete = () => { db.close(); resolve(deleted); };
+    t.onerror   = () => { db.close(); reject(t.error ?? new Error('gcOrphanedMedia failed')); };
+    t.onabort   = () => { db.close(); reject(t.error ?? new Error('gcOrphanedMedia aborted')); };
+  });
+}

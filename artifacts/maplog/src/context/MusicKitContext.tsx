@@ -16,6 +16,7 @@ import { ensureCardTags, normalizeTags, sameTagPool, tagsFromRaritySlug, validat
 import {
   loadConflicts, saveConflicts, makeConflictId, conflictFingerprint, type TagConflict,
 } from '@/lib/conflicts';
+import { gcOrphanedMedia } from '@/lib/mediaStore';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -332,10 +333,12 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
       if (existing) {
         const live = bySongId.get(existing.id);
         if (!live || live.cards.some(c => c.rarityType.slug === rarity.slug)) continue;
+        // Use a stable id (no timestamp) so re-added songs recover their
+        // previously uploaded media from IndexedDB without any remap.
         bySongId.set(existing.id, {
           ...live,
           cards: [...live.cards, {
-            id: `${live.id}::${rarity.slug}::${Date.now()}`,
+            id: `${live.id}::${rarity.slug}`,
             artworkUrl: track.artworkUrl || live.artworkUrl,
             rarityType: rarity,
             variantLabel: null,
@@ -360,6 +363,14 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
 
     updated = [...bySongId.values()].sort((a, b) => a.title.localeCompare(b.title));
     commitCollection(updated);
+
+    // Fire-and-forget: clean up media entries whose cards no longer exist.
+    // This collects timestamps from old sync runs and any other orphans.
+    const activeCardIds = updated.flatMap(s => s.cards.map(c => c.id));
+    gcOrphanedMedia(activeCardIds).catch(err =>
+      console.warn('[mediaStore] gcOrphanedMedia failed:', err),
+    );
+
     return { added, removed };
   }, [isDemoMode, commitCollection]);
 
