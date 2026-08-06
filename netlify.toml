@@ -44,6 +44,11 @@
   to     = "/.netlify/functions/apple-music?_ep=song&_id=:id"
   status = 200
 
+[[redirects]]
+  from   = "/api/apple-music/debug"
+  to     = "/.netlify/functions/apple-music?_ep=debug"
+  status = 200
+
 # Other API routes → 404 (prevents SPA from serving index.html for /api/*)
 [[redirects]]
   from   = "/api/*"
