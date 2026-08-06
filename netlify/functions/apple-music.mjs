@@ -196,7 +196,7 @@ export default async function handler(req) {
     // ── GET /api/apple-music/song/:id ──────────────────────────────────────
     const songMatch = path.match(/\/apple-music\/song\/([0-9]+)$/);
     if (ep === 'song' || songMatch) {
-      const id = (songIdFromPath || songId || songMatch?.[1] ?? '').replace(/[^0-9]/g, '');
+      const id = (songIdFromPath || songId || (songMatch?.[1] ?? '')).replace(/[^0-9]/g, '');
       const res = await appleFetch(`/catalog/${STOREFRONT}/songs/${id}`);
       if (!res.ok) {
         return jsonRes(
