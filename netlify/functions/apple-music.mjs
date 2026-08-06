@@ -163,26 +163,31 @@ export default async function handler(req) {
       const teamId = process.env.APPLE_TEAM_ID;
       const keyId = process.env.APPLE_MUSICKIT_KEY_ID;
       const rawKey = process.env.APPLE_MUSICKIT_PRIVATE_KEY ?? '';
-      const keyLength = rawKey.length;
-      const hasBeginMarker = rawKey.includes('BEGIN');
-      // Show first/last 6 chars of the base64 body only (safe — not usable as a key)
       const body = rawKey.replace(/\\n/g, '\n').replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
-      const keyPreview = body.length > 12
-        ? `${body.slice(0, 6)}…${body.slice(-6)} (${body.length} base64 chars)`
-        : `(too short: ${body.length} chars)`;
-      let importError = null;
+      let token = null;
+      let decodedHeader = null;
+      let decodedPayload = null;
+      let tokenError = null;
       try {
-        await getDeveloperToken();
+        token = await getDeveloperToken();
+        const [h, p] = token.split('.');
+        decodedHeader = JSON.parse(Buffer.from(h, 'base64url').toString());
+        decodedPayload = JSON.parse(Buffer.from(p, 'base64url').toString());
       } catch (e) {
-        importError = e.message;
+        tokenError = e.message;
       }
       return jsonRes({
-        teamId: teamId ?? '(not set)',
-        keyId: keyId ?? '(not set)',
-        rawKeyLength: keyLength,
-        hasBeginMarker,
-        keyBodyPreview: keyPreview,
-        tokenGenerationError: importError,
+        envVars: {
+          APPLE_TEAM_ID: teamId ?? '(not set)',
+          APPLE_MUSICKIT_KEY_ID: keyId ?? '(not set)',
+          APPLE_MUSICKIT_PRIVATE_KEY: body.length > 12
+            ? `${body.slice(0, 6)}…${body.slice(-6)} (${body.length} base64 chars)`
+            : `(too short or missing: ${body.length} chars)`,
+        },
+        token,          // paste into jwt.io to inspect
+        decodedHeader,
+        decodedPayload,
+        tokenError,
       });
     }
 
