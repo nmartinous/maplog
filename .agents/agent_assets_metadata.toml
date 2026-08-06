@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "dnfBAN2NqQfl3i4Op_yn3"
+uri = "file://github-ssh-key.txt"
+type = "text"
+title = "GitHub SSH public key"
+description = "Open this file and copy its single line into GitHub → Settings → SSH keys → New SSH key."
