@@ -4,7 +4,7 @@ import { Disc3, Layers, Sparkles, Star, Trophy, Target, Check, Coins, Camera } f
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
-  loadProfile, saveProfile, fileToAvatar, RARITY_VALUES, rarityBucket,
+  loadProfile, saveProfile, fileToAvatar, RARITY_VALUES, rarityBucket, cardValue,
   type CollectorProfile,
 } from '@/lib/profile';
 import { toast } from 'sonner';
@@ -158,17 +158,19 @@ export default function Profile() {
       }, {}),
     ).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 
-    // Valuation: flat number per base rarity
+    // Valuation: base rarity value × modifier multipliers (e.g. Shiny ×50)
     const valuation: Record<string, { count: number; value: number }> = {};
     let totalValue = 0;
     for (const card of allCards) {
-      const bucket = rarityBucket(card.rarityType.slug);
+      const value = cardValue(card);
+      if (value == null) continue;
+      const bucket = (['common', 'uncommon', 'rare'] as const)
+        .find(b => card.tags?.includes(b)) ?? rarityBucket(card.rarityType.slug);
       if (!bucket) continue;
-      const per = RARITY_VALUES[bucket];
       valuation[bucket] = valuation[bucket] ?? { count: 0, value: 0 };
       valuation[bucket].count += 1;
-      valuation[bucket].value += per;
-      totalValue += per;
+      valuation[bucket].value += value;
+      totalValue += value;
     }
     return { totalSongs, totalCards, byRarity, valuation, totalValue };
   }, [songs]);

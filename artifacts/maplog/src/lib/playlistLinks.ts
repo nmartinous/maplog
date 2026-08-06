@@ -1,5 +1,5 @@
 import type { MaplogRarityType } from './types';
-import { DEMO_RARITIES } from './rarityMap';
+import { LINKABLE_RARITY_TIERS } from './rarityMap';
 
 /**
  * Per-rarity Apple Music playlist links, persisted in localStorage.
@@ -34,8 +34,8 @@ export function savePlaylistLinks(links: PlaylistLinks): void {
   localStorage.setItem(LINKS_KEY, JSON.stringify(links));
 }
 
-/** The rarities that can carry a playlist link (base tiers only for now). */
-export const LINKABLE_RARITIES: MaplogRarityType[] = DEMO_RARITIES;
+/** The rarities that can carry a playlist link (base + shiny tiers). */
+export const LINKABLE_RARITIES: MaplogRarityType[] = LINKABLE_RARITY_TIERS;
 
 /** Fetch + normalize a playlist via the API server. */
 export async function fetchPlaylist(url: string): Promise<{ name: string; songs: import('./types').MaplogSong[] }> {

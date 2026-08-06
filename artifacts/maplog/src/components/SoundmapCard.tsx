@@ -131,6 +131,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const showInfo   = size !== 'sm';
 
   const isRare = card.rarityType.slug === 'regular-rare' || card.rarityType.slug === 'shiny-rare';
+  const isShiny = card.tags?.includes('shiny') || card.rarityType.slug.startsWith('shiny');
 
   return (
     <div
@@ -148,6 +149,9 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         background: `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
       }}
     >
+      {/* Shiny foil overlay — covers art + frame */}
+      {isShiny && <div className="foil-overlay" aria-hidden />}
+
       {/* Art section */}
       <div className={artPad}>
         <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>

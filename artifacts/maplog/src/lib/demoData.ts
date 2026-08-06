@@ -6,6 +6,7 @@ const art = (seed: string) => `https://picsum.photos/seed/maplog-${seed}/500/500
 const COMMON:   object = { slug: 'regular-common',   name: 'Common',   category: 'Regular', tier: 1 };
 const UNCOMMON: object = { slug: 'regular-uncommon', name: 'Uncommon', category: 'Regular', tier: 2 };
 const RARE:     object = { slug: 'regular-rare',     name: 'Rare',     category: 'Regular', tier: 3 };
+const SHINY_RARE: object = { slug: 'shiny-rare',     name: 'Shiny Rare', category: 'Shiny', tier: 6 };
 
 export const DEMO_SONGS: MaplogSong[] = [
   {
@@ -79,7 +80,8 @@ export const DEMO_SONGS: MaplogSong[] = [
     durationMs: 284000,
     artworkUrl: art('golden'),
     cards: [
-      { id: 'demo-6::rare', artworkUrl: art('golden'), rarityType: RARE as any, variantLabel: null },
+      { id: 'demo-6::rare',       artworkUrl: art('golden'), rarityType: RARE as any, variantLabel: null },
+      { id: 'demo-6::shiny-rare', artworkUrl: art('golden'), rarityType: SHINY_RARE as any, variantLabel: null },
     ],
   },
   {

@@ -50,6 +50,20 @@ export const DEMO_RARITIES: MaplogRarityType[] = [
   RARITY_MAP['Rare'],
 ];
 
+/**
+ * Rarities that can be linked to an Apple Music playlist in Settings.
+ * Base tiers + shiny tiers (each shiny tier is its own playlist so the
+ * copy's base rarity is unambiguous).
+ */
+export const LINKABLE_RARITY_TIERS: MaplogRarityType[] = [
+  RARITY_MAP['Common'],
+  RARITY_MAP['Uncommon'],
+  RARITY_MAP['Rare'],
+  RARITY_MAP['Shiny Common'],
+  RARITY_MAP['Shiny Uncommon'],
+  RARITY_MAP['Shiny Rare'],
+];
+
 /** Rarity name filter labels for the demo (used by Collection + Playlists) */
 export const DEMO_RARITY_NAMES = ['All', 'Common', 'Uncommon', 'Rare'] as const;
 

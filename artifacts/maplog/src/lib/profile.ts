@@ -71,11 +71,20 @@ export function fileToAvatar(file: File, size = 256): Promise<string> {
 
 // ── Collection valuation ──────────────────────────────────────────────────────
 
-/** Flat per-card values by base rarity (no currency symbol by design). */
+/** Flat per-card BASE values by base rarity (no currency symbol by design). */
 export const RARITY_VALUES: Record<string, number> = {
   common: 50,
   uncommon: 200,
   rare: 800,
+};
+
+/**
+ * Multiplicative value modifiers by tag. A card's value is
+ * base × product of all modifier multipliers it carries,
+ * e.g. Uncommon 200 × Shiny 50 = 10,000.
+ */
+export const MODIFIER_VALUES: Record<string, number> = {
+  shiny: 50,
 };
 
 /** Base rarity bucket for a rarity slug ('regular-uncommon' → 'uncommon'). */
@@ -84,4 +93,26 @@ export function rarityBucket(slug: string): string | null {
   if (slug.includes('common')) return 'common';
   if (slug.includes('rare')) return 'rare';
   return null; // epics / premium tiers unpriced for now
+}
+
+/**
+ * Value of one card: base rarity value × modifier multipliers.
+ * Prefers the tag pool; falls back to the rarity slug for untagged cards.
+ * Returns null when the card has no priced base rarity (epics etc.).
+ */
+export function cardValue(card: { rarityType: { slug: string }; tags?: string[] }): number | null {
+  const tags = card.tags ?? [];
+  const bucket =
+    (['common', 'uncommon', 'rare'] as const).find(b => tags.includes(b))
+    ?? rarityBucket(card.rarityType.slug);
+  if (!bucket || RARITY_VALUES[bucket] == null) return null;
+  let value = RARITY_VALUES[bucket];
+  const modifierTags = tags.length > 0
+    ? tags
+    : (card.rarityType.slug.startsWith('shiny') ? ['shiny'] : []);
+  for (const t of modifierTags) {
+    const mult = MODIFIER_VALUES[t];
+    if (mult != null) value *= mult;
+  }
+  return value;
 }

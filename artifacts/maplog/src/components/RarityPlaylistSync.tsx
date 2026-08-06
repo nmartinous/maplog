@@ -21,6 +21,9 @@ const RARITY_ACCENT: Record<string, string> = {
   'regular-common':   'from-zinc-500/20 to-zinc-700/10 text-zinc-300',
   'regular-uncommon': 'from-emerald-500/20 to-emerald-700/10 text-emerald-300',
   'regular-rare':     'from-sky-500/20 to-sky-700/10 text-sky-300',
+  'shiny-common':     'from-teal-400/20 to-fuchsia-500/10 text-teal-200',
+  'shiny-uncommon':   'from-fuchsia-400/20 to-cyan-500/10 text-fuchsia-200',
+  'shiny-rare':       'from-amber-400/20 to-violet-500/10 text-amber-200',
 };
 
 type SyncSummary = { rarity: string; added: number; removed: number; error?: string }[];
