@@ -315,7 +315,7 @@ export default function Profile() {
                   style={{ scrollbarWidth: 'none' }}
                 >
                   <div className="w-full shrink-0 snap-center pr-3">
-                    <div className="glass-panel rounded-[1.75rem] p-5 h-full">
+                    <div className="glass-panel rounded-2xl p-5 h-full">
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {stats.byRarity.map(({ name, count }) => (
                           <div
@@ -333,12 +333,12 @@ export default function Profile() {
                     </div>
                   </div>
                   <div className="w-full shrink-0 snap-center pr-3">
-                    <div className="glass-panel rounded-[1.75rem] p-5 h-full flex items-center justify-center">
+                    <div className="glass-panel rounded-2xl p-5 h-full flex items-center justify-center">
                       <RarityPie data={stats.byRarity} />
                     </div>
                   </div>
                   <div className="w-full shrink-0 snap-center">
-                    <div className="glass-panel rounded-[1.75rem] p-5 h-full flex items-center">
+                    <div className="glass-panel rounded-2xl p-5 h-full flex items-center">
                       <RarityBars data={stats.byRarity} />
                     </div>
                   </div>
@@ -375,7 +375,7 @@ export default function Profile() {
               <button
                 onClick={() => navigate('/vault')}
                 data-testid="open-vault"
-                className="glass-panel rounded-[1.75rem] p-5 relative overflow-hidden w-full text-left active:scale-[0.98] transition-transform group"
+                className="glass-panel rounded-2xl p-5 relative overflow-hidden w-full text-left active:scale-[0.98] transition-transform group"
               >
                 <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
                 <div className="flex items-center justify-between gap-3">

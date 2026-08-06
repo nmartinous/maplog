@@ -81,17 +81,18 @@ export default function SongDetail() {
           <motion.div 
             key={activeCard.artworkUrl}
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.3 }}
+            animate={{ opacity: 0.38 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.85 }}
             className="absolute inset-0 z-0 pointer-events-none overflow-hidden"
           >
             <img
               src={activeCard.artworkUrl}
               alt=""
-              className="absolute top-0 left-0 w-full h-[60%] object-cover blur-[80px] scale-150 transform-gpu"
+              aria-hidden
+              className="absolute inset-0 w-full h-full object-cover blur-[90px] scale-150 transform-gpu"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background to-background" />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/50 to-background" />
           </motion.div>
         )}
       </AnimatePresence>

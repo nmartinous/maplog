@@ -137,7 +137,7 @@ function AlbumCard({
   const type = albumData?.releaseType ?? heuristicType;
 
   return (
-    <div className="rounded-[1.75rem] border border-white/5 bg-white/[0.02] overflow-hidden">
+    <div className="rounded-2xl glass-panel overflow-hidden">
       {/* Header row */}
       <button
         className="w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-white/5 active:bg-white/[0.07] transition-colors"
@@ -344,6 +344,12 @@ export default function Artist() {
     return artists.filter(a => a.toLowerCase().includes(q)).slice(0, 8);
   }, [query, artists]);
 
+  // Artwork for the ambient bleed background
+  const bleedArt = useMemo(() => {
+    if (!artist) return null;
+    return songs.filter(s => artistKey(s.artist) === artistKey(artist))[0]?.artworkUrl ?? null;
+  }, [songs, artist]);
+
   if (!artist) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-background">
@@ -359,7 +365,29 @@ export default function Artist() {
   }
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-background pb-20">
+    <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-background pb-20 relative">
+      {/* Art bleed — top hero area, scrolls away naturally */}
+      <AnimatePresence>
+        {bleedArt && (
+          <motion.div
+            key={bleedArt}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.85 }}
+            className="absolute top-0 left-0 right-0 h-[50vh] z-0 pointer-events-none overflow-hidden"
+          >
+            <img
+              src={bleedArt}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 w-full h-full object-cover blur-[80px] scale-150 transform-gpu opacity-40"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/60 to-background" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="page-top px-4 sm:px-6 relative z-10">
         {/* Search bar */}
         <div className="relative mb-6 z-30">
@@ -560,7 +588,7 @@ function ArtistPage({ artist, songs, play, navigate }: {
         <button
           onClick={() => navigate(`/vault?artist=${encodeURIComponent(artist)}`)}
           data-testid="artist-open-vault"
-          className="glass-panel rounded-[1.75rem] p-5 relative overflow-hidden w-full text-left active:scale-[0.98] transition-transform group"
+          className="glass-panel rounded-2xl p-5 relative overflow-hidden w-full text-left active:scale-[0.98] transition-transform group"
         >
           <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
           <div className="flex items-center justify-between gap-3">
@@ -593,7 +621,7 @@ function ArtistPage({ artist, songs, play, navigate }: {
         <div className="space-y-2">
           {artistSongs.map(song => (
             <div key={song.id}
-              className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/5 px-3 py-2.5 active:bg-white/[0.06] transition cursor-pointer"
+              className="flex items-center gap-3 rounded-2xl glass-panel px-3 py-2.5 active:bg-white/[0.06] transition cursor-pointer"
               onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
               data-testid={`artist-song-${song.id}`}
             >
@@ -617,7 +645,7 @@ function ArtistPage({ artist, songs, play, navigate }: {
       {/* Imported artist info */}
       <section>
         <SectionHeader icon={ExternalLink} title="Artist Info" />
-        <div className="glass-panel rounded-[1.75rem] p-5 space-y-3">
+        <div className="glass-panel rounded-2xl p-5 space-y-3">
           {data.imported ? (
             <>
               {data.imported.genres.length > 0 && (
@@ -671,7 +699,7 @@ function ArtistPage({ artist, songs, play, navigate }: {
           </div>
         ) : (
           <button
-            className="glass-panel rounded-[1.75rem] p-5 w-full text-left active:scale-[0.99] transition-transform"
+            className="glass-panel rounded-2xl p-5 w-full text-left active:scale-[0.99] transition-transform"
             onClick={() => { setNotesDraft(data.notes ?? ''); setEditingNotes(true); }}
             data-testid="artist-notes"
           >

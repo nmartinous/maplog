@@ -363,19 +363,19 @@ function ActiveView({
                 {/* Open card view */}
                 <button
                   onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
-                  className="shrink-0 w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
+                  className="shrink-0 w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
                   aria-label={`Open card for ${song.title}`}
                 >
-                  <CreditCard className="w-3.5 h-3.5 text-white/45" />
+                  <CreditCard className="w-3.5 h-3.5 text-white/50" />
                 </button>
 
                 {/* Open artist page */}
                 <button
                   onClick={() => navigate(`/artists/${encodeURIComponent(song.artist)}`)}
-                  className="shrink-0 w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
+                  className="shrink-0 w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
                   aria-label={`View artist ${song.artist}`}
                 >
-                  <User className="w-3.5 h-3.5 text-white/45" />
+                  <User className="w-3.5 h-3.5 text-white/50" />
                 </button>
               </div>
             ))}
