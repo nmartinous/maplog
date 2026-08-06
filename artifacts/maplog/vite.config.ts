@@ -61,6 +61,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Take control of all open tabs immediately on update —
+        // prevents users seeing stale cached bundles after a deploy.
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
     }),
