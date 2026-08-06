@@ -332,7 +332,7 @@ function ActiveView({
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 w-full">
             {displayData.map(({ song, topCard }) => (
-              <div key={song.id} className="flex items-center gap-2.5 px-2 py-2 rounded-2xl glass-panel">
+              <div key={song.id} className="flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-2xl glass-panel">
                 {/* Art — display only, no interaction */}
                 <div className="shrink-0">
                   <AlbumArt song={song} topCard={topCard} size={52} />
