@@ -340,7 +340,9 @@ function ActiveView({
 
                 {/* Stacked: title / artist / rarity badge */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-white truncate leading-tight">{song.title}</p>
+                  <p className="text-[14px] font-bold text-white truncate leading-tight">
+                    {song.title.length > 20 ? song.title.slice(0, 20) + '…' : song.title}
+                  </p>
                   <p className="text-[12px] text-white/50 truncate mt-0.5">{song.artist}</p>
                   {topCard && (
                     <div className="w-fit mt-1">
