@@ -58,7 +58,7 @@ export function ShowcaseSection({ scope, songs, readOnly }: {
 
   if (pool.length === 0 && rows.length === 0) {
     return (
-      <div className="glass-panel rounded-[1.75rem] p-6 text-center">
+      <div className="glass-panel rounded-2xl p-6 text-center">
         <Sparkles className="w-8 h-8 text-white/15 mx-auto mb-3" />
         <p className="text-sm text-white/40 leading-relaxed">
           No special cards yet — epics, moments, lyrics, and radiants you collect can be displayed here.

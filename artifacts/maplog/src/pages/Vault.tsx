@@ -241,7 +241,7 @@ export default function Vault() {
         )}
 
         {/* ── Total ── */}
-        <div className="glass-panel rounded-[1.75rem] p-6 relative overflow-hidden mb-8">
+        <div className="glass-panel rounded-2xl p-6 relative overflow-hidden mb-8">
           <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
           <p className="text-5xl font-display font-black tracking-tight text-white mb-1" data-testid="vault-total">
             <HoldValue value={stats.totalValue} />
@@ -280,7 +280,7 @@ export default function Vault() {
             {/* ── Graphs ── */}
             <section>
               <SectionHeader icon={ChartColumn} title="Value by rarity" />
-              <div className="glass-panel rounded-[1.75rem] p-5">
+              <div className="glass-panel rounded-2xl p-5">
                 <ValueBars data={stats.byLabel} />
               </div>
             </section>
@@ -288,7 +288,7 @@ export default function Vault() {
             {stats.byLabel.filter(d => d.value > 0).length > 1 && (
               <section>
                 <SectionHeader icon={Coins} title="Value share" />
-                <div className="glass-panel rounded-[1.75rem] p-5">
+                <div className="glass-panel rounded-2xl p-5">
                   <ValueDonut data={stats.byLabel} />
                 </div>
               </section>
@@ -309,7 +309,7 @@ export default function Vault() {
         {/* ── Calculator ── */}
         <section className="mt-10">
           <SectionHeader icon={Calculator} title="Value calculator" />
-          <div className="glass-panel rounded-[1.75rem] p-5">
+          <div className="glass-panel rounded-2xl p-5">
             <ValueCalculator />
           </div>
         </section>
@@ -317,7 +317,7 @@ export default function Vault() {
         {/* ── Methodology ── */}
         <section className="mt-10">
           <SectionHeader icon={Info} title="How value is calculated" />
-          <div className="glass-panel rounded-[1.75rem] p-5 space-y-3 text-sm text-white/60 leading-relaxed">
+          <div className="glass-panel rounded-2xl p-5 space-y-3 text-sm text-white/60 leading-relaxed">
             <p>
               Every card starts from its <span className="text-white font-bold">base rarity</span> value:
               Common {exactValue(RARITY_VALUES.common)}, Uncommon {exactValue(RARITY_VALUES.uncommon)},

@@ -66,7 +66,7 @@ export default function Playlists() {
       <div className="px-4 sm:px-6 space-y-3">
         {resolved.length === 0 ? (
           <div className="text-center pt-16 pb-4 px-8">
-            <div className="w-20 h-20 rounded-[1.75rem] glass-panel flex items-center justify-center mx-auto mb-5">
+            <div className="w-20 h-20 rounded-2xl glass-panel flex items-center justify-center mx-auto mb-5">
               <ListMusic className="w-8 h-8 text-white/30" />
             </div>
             <h2 className="text-xl font-display font-bold text-white mb-2">No playlists yet</h2>
@@ -84,7 +84,7 @@ export default function Playlists() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index, 8) * 0.05, duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
                 onClick={() => setLocation(`/playlists/${list.id}`)}
-                className="w-full text-left glass-panel rounded-[1.75rem] p-4 flex items-center gap-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] cursor-pointer"
+                className="w-full text-left glass-panel rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] cursor-pointer"
               >
                 <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 shadow-lg border border-white/10 bg-white/5">
                   {art
