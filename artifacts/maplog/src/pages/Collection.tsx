@@ -343,7 +343,9 @@ function ActiveView({
                   <p className="text-[14px] font-bold text-white truncate leading-tight">
                     {song.title.length > 20 ? song.title.slice(0, 20) + '…' : song.title}
                   </p>
-                  <p className="text-[12px] text-white/50 truncate mt-0.5">{song.artist}</p>
+                  <p className="text-[12px] text-white/50 truncate mt-0.5">
+                    {song.artist.length > 22 ? song.artist.slice(0, 22) + '…' : song.artist}
+                  </p>
                   {topCard && (
                     <div className="w-fit mt-1">
                       <RarityBadge slug={topCard.rarityType.slug} name={topCard.rarityType.name} category={topCard.rarityType.category} size="sm" />
