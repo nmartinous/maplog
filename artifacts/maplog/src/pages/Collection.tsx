@@ -10,6 +10,7 @@ import { SoundmapCard } from '@/components/SoundmapCard';
 import { Input } from '@/components/ui/input';
 import {
   Search, Play, Library, RefreshCw, Music2, Layers, ChevronDown, SlidersHorizontal, X,
+  CreditCard, User,
 } from 'lucide-react';
 import { ArtMenu } from '@/components/ArtMenu';
 import { Button } from '@/components/ui/button';
@@ -29,19 +30,23 @@ const SCOPE_LABELS: Record<SearchScope, string> = {
 const CYCLE_MS = 5000;
 
 // ── Album art helper ───────────────────────────────────────────────────────────
-function AlbumArt({ song, topCard, size = 52 }: { song: MaplogSong; topCard?: MaplogCard; size?: number }) {
-  const url = topCard?.artworkUrl ?? song.artworkUrl;
+function AlbumArt({ song, topCard, size = 44 }: { song: MaplogSong; topCard?: MaplogCard; size?: number }) {
+  const rawUrl = topCard?.artworkUrl ?? song.artworkUrl;
+  // Request exactly the pixel size we'll display (×DPR, capped at 3×) so Apple
+  // Music serves the smallest valid file — dramatically speeds up rendering.
+  const px = Math.ceil(size * Math.min(window.devicePixelRatio || 2, 3));
+  const url = rawUrl
+    ? rawUrl
+        .replace(/\{w\}/g, String(px))
+        .replace(/\{h\}/g, String(px))
+        .replace(/\d+x\d+bb/, `${px}x${px}bb`)
+    : undefined;
   return (
-    <div className="shrink-0 relative group" style={{ width: size, height: size }}>
+    <div className="shrink-0" style={{ width: size, height: size }}>
       {url
-        ? (
-          <>
-            <img src={url} alt={song.title} className="w-full h-full object-cover rounded-xl relative z-10" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-xl z-10 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </>
-        )
-        : <div className="w-full h-full rounded-xl bg-muted flex items-center justify-center relative z-10">
-            <Music2 className="w-5 h-5 text-muted-foreground/40" />
+        ? <img src={url} alt={song.title} className="w-full h-full object-cover rounded-xl" decoding="async" />
+        : <div className="w-full h-full rounded-xl bg-muted flex items-center justify-center">
+            <Music2 className="w-4 h-4 text-muted-foreground/40" />
           </div>
       }
     </div>
@@ -514,46 +519,42 @@ function ActiveView({
             </Button>
           </div>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 w-full">
+          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 w-full">
             {displayData.map(({ song, topCard }) => (
-              <div key={song.id}>
-                  {/* Row: tap art to play, tap rest to open card view.
-                      Using div + onClick (not Link) to avoid iOS double-tap
-                      with nested interactive elements. */}
-                  <div
-                    className="group flex items-center gap-3 p-2 rounded-2xl glass-panel hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] cursor-pointer"
-                    onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={e => e.key === 'Enter' && navigate(`/song/${encodeURIComponent(song.id)}`)}
-                  >
-                    {/* Album art — tap opens play/queue menu */}
-                    <ArtMenu song={song} className="shrink-0 rounded-xl active:scale-90 transition-transform">
-                      <div className="relative">
-                        <AlbumArt song={song} topCard={topCard} size={50} />
-                        <span className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          <Play className="h-5 w-5 text-white fill-white ml-0.5" />
-                        </span>
-                      </div>
-                    </ArtMenu>
+              <div key={song.id} className="flex items-center gap-2 px-1.5 py-1 rounded-2xl glass-panel">
+                {/* Art — tapping opens the play / add-to-queue popup */}
+                <ArtMenu song={song} className="shrink-0 rounded-xl active:scale-90 transition-transform">
+                  <AlbumArt song={song} topCard={topCard} size={44} />
+                </ArtMenu>
 
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <p className="font-bold text-[14px] text-white leading-tight truncate mb-0.5">{song.title}</p>
-                      {/* Artist name — tap navigates to artist page */}
-                      <button
-                        className="text-[12px] text-white/60 truncate mb-1 text-left hover:text-primary transition-colors active:text-primary w-full"
-                        onClick={e => { e.stopPropagation(); navigate(`/artists/${encodeURIComponent(song.artist)}`); }}
-                        aria-label={`View ${song.artist}`}
-                      >
-                        {song.artist}
-                      </button>
-                      {topCard && (
-                        <div className="w-fit">
-                          <RarityBadge slug={topCard.rarityType.slug} name={topCard.rarityType.name} category={topCard.rarityType.category} size="sm" />
-                        </div>
-                      )}
-                    </div>
+                {/* Song info — display only, no tap handler */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-white truncate leading-tight">{song.title}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5 min-w-0 overflow-hidden">
+                    <span className="text-[11px] text-white/45 truncate shrink min-w-0">{song.artist}</span>
+                    {topCard && (
+                      <RarityBadge slug={topCard.rarityType.slug} name={topCard.rarityType.name} category={topCard.rarityType.category} size="sm" />
+                    )}
                   </div>
+                </div>
+
+                {/* Open card view */}
+                <button
+                  onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
+                  className="shrink-0 w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
+                  aria-label={`Open card for ${song.title}`}
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-white/45" />
+                </button>
+
+                {/* Open artist page */}
+                <button
+                  onClick={() => navigate(`/artists/${encodeURIComponent(song.artist)}`)}
+                  className="shrink-0 w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
+                  aria-label={`View artist ${song.artist}`}
+                >
+                  <User className="w-3.5 h-3.5 text-white/45" />
+                </button>
               </div>
             ))}
           </div>
