@@ -1,0 +1,116 @@
+
+Minor updates:
+Add the Map web app icon, it’s just a letter M right now.
+
+Collection valuation, auto abbreviate thousands to k, millions to m, billions to b, etc. with two decimal points for example, 2,205,123 would be 2.21M. Holding an abbreviated number will display the actual number as a pop out that will disappear on release.
+
+When autoplay is enabled, allow the last song in the queue to be skipped and the autoplay song to be played this way.
+
+Remove manual song add and removal, this should be handled through refreshing playlists.
+
+Remove visual scroll bar from profile screen, but maintain scroll functionality.
+
+Another little quirk (or maybe limitation) I noticed is that the next track will not play regardless of if it is queued or autoplay while the web app is the the background, unless I return to the app to have it start. Is this fixable?
+
+Tapping on the songs album art in list view should start playing it, anywhere else opens card view.
+
+Major updates: 
+
+Some content may be referenced before its introduction, if so, it can be found further down.
+
+I will be using ‘song’ to refer to a copy of a particular song, and ‘track’ to refer to the entirety of a particular song. Example: Common Shiny Gangnam Style is a song, Gangnam Style is the track.
+
+Revamped Collection, Tags & Filters-
+I propose we introduce a tag system to better manage the collection and sorting. Each song will have a plethora of tags determined from a variety of sources, with a variety of constraints. Let’s get into the ones we need now and discuss how to leave it open to more in the future. For the tag structure, I’m thinking a # followed by text that uses camel case, such as #ThisIsATag What ever notation works best is fine, this will not be shown to the user, I’ll just use this to label tags in my description.
+
+I will explain the tags we need for now, and their individual rules. No when importing or refreshing, check to see if tracks either multiple songs have any rule conflicts. If they do, remove both copies from the collection and send them to the conflict resolution section of edit mode. At the end of import, give the user a prompt with a copy text button for ease of use that lists all the conflicts as: Song 1 - Song 2 > Conflict. For instances where multiple copies exist that are exactly identical in tag pool, just remove one copy and keep one copy. If there is an instance where songs get through conflict check and are both #Regular but have different #Common, #Uncommon, or #Rare, raise this as a conflict regardless of the other tags they have. Each track can only have one base rarity, and this conflict usually means the songs rarity changed in game and the user hasn’t updated their playlists. Each track must have a #Regular tag or one of the ones listed below as a replacement for it. 
+
+1.  #Regular: A song either has this tag, or it doesn’t. There can only be one song of each track with this tag, unless it possesses an override tag, which can be set in edit mode. By default these are: #Shiny, #Day1, #Week1, #Halloween, #Lovers #Grammy, #AprilFools. A song with this tag needs a follow up tag for base rarity, #Common, #Uncommon, or #Rare. These correspond to the three rarities we currently have.
+2. #Shiny: Can only apply to songs that have the #Regular tag. There can only be one song of each track with this tag, unless it possesses an override tag, which can be set in edit mode. By default these are: #Day1, #Week1.
+3. #Epic: Acts as a replacement for #Regular. No follow up tag for base rarity. This is an override. Has to be either #Numbered or #Unnumbered. #Numbered songs must have a follow up number tag such as #1, #37, or #100+. There can only be one song of each track with this tag, unless it possesses an override tag, which can be set in edit mode. By default these are: #Streak, #Freshman, #Lucky, #Coachella, #MayFlower, #PrideMap, #SummerSplash. A song with this tag needs a follow up tag for base rarity, #Common, #Uncommon, or #Rare. These correspond to the three rarities we currently have.
+4. #Radiant: Acts as a replacement for #Regular. No follow up tag for base rarity. This is an override. There can only be one song of each track with this tag, unless it possesses an override tag, which can be set in edit mode. By default these are: None.
+5. #Lyrics: Acts as a replacement for #Regular. No follow up tag for base rarity. This is an override. There can only be one song of each track with this tag, unless it possesses an override tag, which can be set in edit mode. By default these are: None.
+6. #Moment: Not a song, but a short clip of an artist. Will discuss more later, but placing it here because no songs should have this on import. 
+7. Tags for main genre, bpm, other genres, key, release date, country of origin, etc can also be useful in the card view and future implementations. As such, we can add tags as needed, especially when they are things we can automate the population or use of. 
+
+If more tags are needed or recommended after I explain each rarity more, please add them accordingly. 
+
+Value Calculation:
+The valuation section should be expanded with new filtering and visual tools. It’s should only show the total collection value and nothing else on the profile page as an abbreviated value as described above, with the in abbreviated value below it in size adjusting text to fit the whole number aesthetically. Ignore anything from above that conflicts with this. Tapping the collection value should open a new screen: Vault.
+
+In vault it should have robust stats and graphs about the collection. The ability to filter graphs, calculate the value of certain tag combinations, see which tracks of artists have the most valuable collections, etc. should be here. There should also be a section describing how value is calculated.
+
+This calculation will be as follows:
+Base value x modifier(s)
+Example, Uncommon Base value 200 x Shiny modifier 50 = 10,000.
+
+Base values of Common, Uncommon, and Rare remain the same. 
+
+Shinies:
+Mostly explained in the tag section, but I’d like to add that songs with this tag get a 50x modifier to value. 
+
+Card Effects:
+These are color overrides, stamps, and animations that exist on the card. For example, shiny has a foil animation card effect. 
+
+Card Background:
+These are images or animations that exist around and behind the card. The breathing glow on rares is an example of this.
+
+Frames
+These are static images or animations placed over an epic’s video. Stream and PrideMap epics are an example of this.
+
+Flavor Text:
+Text in the center top of a song’s card view. Examples include the text of who uploaded a moment and text for who pulled a lyric. 
+
+Subject Text: 
+Bold text in the center of a song’s card view. Examples being lyrics and Freshman epics.
+
+Pins:
+These can be placed in the top right of a songs album art in list view, and in most cases, also in the top right of the song’s card view. Currently this variety is only for numbered epic’s number  
+These can also be placed in the bottom left of a song’s album art in list view. Usually emojis or small images, but some times animated, such as Day 1 badges. Examples include Halloween, Summer Splash epics, Fresman epics. Numbered variant epics can have both!
+
+Badges:
+These are used to represent accomplishments in artist collections based on amount of songs collected. They are currently: bronze, silver, gold, platinum, diamond, legendary, VIP, shiny, radiant. There could be more added later however. These should have a section in artist pages, and must be added by the user in edit mode.
+
+Showcase: 
+A place on the profile page to display epics, moments, lyrics, radiants, and other future no -regular songs. It should allow cards to be placed in a variety of layouts within a row and allow for increasing the number of rows.
+
+Artist Pages:
+Like the home page, this will display random content when something specific isn’t selected. The random content will be an artist page, with a search bar at the top to look for a different artist page from the collection. Only artists that have a song in the collection will exist. Cycle through pages every minute of the user hasn’t selected an artist themselves. 
+
+An artist page should have a section for collected badges, a valuation section with a little information on the collection for the artist and a way to open more information in the Vault with the artist selected as a filter. 
+
+The page should also display the full selection, with an area for a showcase similar to the profile page, but only with that artists songs songs
+
+There should also be stats and information about the artist, which can be imported automatically
+
+There should be a section at the bottom for notes on the artist made by the user. 
+
+The page should look kind of like the profile page with a profile picture form Apple Music, and a space for the user to add a lyric as the “bio”.
+
+Epics, Moments, Lyrics:
+New rarities. Can provide visual information as needed be. The template for each of these is going to consist of the card slot and the background. When these are imported, they will have an empty card slot with a background until a video is uploaded through edit mode. Moments will have twinkling stars in the background around the card slot, the other two will be default app backgrounds.
+
+Radiants: 
+Radiants are special because the card can be spun around horizontally and manipulated around. I’ll have to send a gif of its idle moment and one me moving it around. They also have a shimmer animation and a pattern overlayed over both the album art on the front and the logo on the back. Again, I’ll provide examples. 
+
+Here’s how I propose we handle this. I upload gifs of all the patterns I know, you turn them into templates. We will have front and back templates for each pattern, such that a blank card of any color can be made and moved around, complete with shimmer effects. Then, when a radiant is uploaded, the user just has to select the shape of the pattern, and the color will be picked just like a regular. Combine that all and we have automated radiants! This will make more sense with examples. 
+
+Edit Mode:
+As you may have noticed certain rarity overrides have different elements and conflict rules. For that reason, only regular, shiny, epic, lyric, radiant, and moment were explained in detail. This is because I want the creation and management of override rarities to be done in a section of the next proposed feature: edit mode.
+
+Here we should have sections to add videos to card slots, add and edit override rarities, resolve import conflicts, edit a song’s tags and information, add badges, and likely more in the future. The key detail is that any changes or additions made here should be saved locally or through Google Drive for assets, as we do not want the user losing their hard work!
+
+
+Settings/Content Export:
+Need a way to export any content added or adjusted by the user that isn’t handled by Apple Music playlists. This can be exported to local phone storage, Google Drive, obsidian, or any other free method that makes it so opening the app always means the content is there and such that it can be imported if the app needs to be reinstalled or updated. 
+
+Settings/Content Import
+Other end of the above.
+
+Asset Examples:
+I’d like to provide you with answers to any clarifying questions you have, as well as give you images and gifs, with short explanations of behavior, for the following assets: shinies, epics, lyrics, radiants, moments, badges, pins, frames, card backgrounds, card effects, flavor text, subject text, showcase, and anything else you need. 
+
+Additionally, if I can upload gifs and images of certain assets, then note the background hex code to be removed or otherwise not how to apply it, could this be used to match current assets up with soundmaps? 
+
+
+This is A LOT!! Take your time, heck your work, build a game plan to take this in the most cost effective and accurate way possible. Ask questions instead of assuming, I’m here for clarification. Any visual aid you need, ask for that as well. Good luck!
