@@ -18,3 +18,9 @@ A Tailwind `transition-transform` class on an element framer-motion animates via
 
 ## Testing note
 Player/queue state is in-memory only — UI testers must navigate via the app's tab bar, never page.goto()/URL loads, or playback appears reset ("Nothing playing") and looks like a false regression.
+
+## Motion components clobber Tailwind transform utilities
+A `motion.*` element manages the CSS `transform` property itself, so Tailwind classes like `-translate-x-1/2` are silently overwritten by initial/animate transforms — the element renders un-centered or seems missing. Fix: position with left/top math or the separate CSS `translate` property (`style={{ translate: '-50% -100%' }}`), which framer-motion does not touch.
+
+## Press-and-hold overlays: attach global release listeners at press start
+For hold-to-reveal UI, `pointerup` may land outside the element (finger drift) or before the show-delay elapses. Attach window-level pointerup/pointercancel/touchend/mouseup at press start (not once the overlay is visible), or the overlay can appear after release and get stuck. Also: popovers inside `overflow-hidden` panels must be position:fixed.

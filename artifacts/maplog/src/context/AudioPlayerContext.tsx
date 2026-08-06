@@ -569,7 +569,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const skipNext = useCallback(() => {
     const s = stateRef.current;
-    if (s.queueIndex + 1 >= s.queue.length && s.repeat !== 'all') return;
+    if (s.queueIndex + 1 >= s.queue.length && s.repeat !== 'all') {
+      // Queue expended: with autoplay on, skipping plays the pre-picked
+      // autoplay song (the same one shown in the queue sheet).
+      if (s.autoplay) {
+        const pool = collectionRef.current.filter(x => x.id !== s.currentSong?.id);
+        const pick = s.autoplayNext
+          ?? (pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null);
+        if (pick) dispatch({ type: 'PLAY_SONG', payload: { song: pick } });
+      }
+      return;
+    }
     dispatch({ type: 'NEXT' });
   }, []);
 
@@ -625,6 +635,45 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_AUTOPLAY', payload: next });
     persistPrefs({ autoplay: next });
   }, [persistPrefs]);
+
+  // ── Media Session: lock-screen / media-key controls + background metadata ──
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const song = state.currentSong;
+    if (!song) { navigator.mediaSession.metadata = null; return; }
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title,
+      artist: song.artist,
+      artwork: song.artworkUrl
+        ? [{ src: song.artworkUrl, sizes: '512x512' }]
+        : [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.currentSong?.id]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = state.currentSong
+      ? (state.isPlaying ? 'playing' : 'paused')
+      : 'none';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.isPlaying, state.currentSong?.id]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const ms = navigator.mediaSession;
+    const set = (action: MediaSessionAction, fn: MediaSessionActionHandler | null) => {
+      try { ms.setActionHandler(action, fn); } catch { /* unsupported action */ }
+    };
+    set('play', () => resume());
+    set('pause', () => pause());
+    set('nexttrack', () => skipNext());
+    set('previoustrack', () => skipPrev());
+    set('seekto', (d) => { if (d.seekTime != null) seek(d.seekTime); });
+    return () => {
+      for (const a of ['play', 'pause', 'nexttrack', 'previoustrack', 'seekto'] as MediaSessionAction[]) set(a, null);
+    };
+  }, [resume, pause, skipNext, skipPrev, seek]);
 
   return (
     <PlayerContext.Provider

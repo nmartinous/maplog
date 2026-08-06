@@ -76,7 +76,6 @@ export interface MusicKitContextType {
   addToCollection: (song: MaplogSong, rarity: MaplogRarityType) => void;
 
   /** Remove a song entirely from the collection */
-  removeFromCollection: (songId: string) => void;
 
   /**
    * Sync one rarity tier against a playlist's track list:
@@ -290,11 +289,6 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     return { added, removed };
   }, [isDemoMode, commitCollection]);
 
-  const removeFromCollection = useCallback((songId: string) => {
-    if (isDemoMode) return;
-    commitCollection(songsRef.current.filter(s => s.id !== songId));
-  }, [isDemoMode, commitCollection]);
-
   const refresh = useCallback(() => {
     if (isDemoMode) { setSongs([...DEMO_SONGS]); return; }
     setSongs(loadCollection());
@@ -333,7 +327,6 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         getSong,
         searchDeezer:        appleSearch,
         addToCollection,
-        removeFromCollection,
         syncRarity,
         refresh,
         authorize,

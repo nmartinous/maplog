@@ -177,6 +177,17 @@ button, a, [role="button"] {
   animation: shimmer 2s infinite linear;
 }
 
+/* Hide scrollbars but keep scrolling (Profile, filter rows, carousels) */
+.scrollbar-hide,
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

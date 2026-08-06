@@ -8,6 +8,8 @@ import {
   type CollectorProfile,
 } from '@/lib/profile';
 import { toast } from 'sonner';
+import { HoldValue } from '@/components/HoldValue';
+import { abbreviateValue } from '@/lib/format';
 
 function StatCard({ label, value, icon: Icon, delay = 0 }: { label: string; value: string | number; icon: React.ElementType, delay?: number }) {
   return (
@@ -183,7 +185,7 @@ export default function Profile() {
   const fmt = (n: number) => n.toLocaleString('en-US');
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden bg-background pb-20">
+    <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-background pb-20">
       <div className="px-4 sm:px-6 pt-8 pb-6 relative z-10">
         {/* ── Editable identity header ── */}
         <div className="flex items-center gap-5 mb-8">
@@ -366,7 +368,9 @@ export default function Profile() {
               </div>
               <div className="glass-panel rounded-[1.75rem] p-5 relative overflow-hidden">
                 <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-                <p className="text-4xl font-display font-black tracking-tight text-white mb-1">{fmt(stats.totalValue)}</p>
+                <p className="text-4xl font-display font-black tracking-tight text-white mb-1">
+                  <HoldValue value={stats.totalValue} />
+                </p>
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-5">Total value</p>
                 <div className="grid grid-cols-3 gap-3">
                   {(['common', 'uncommon', 'rare'] as const).map(bucket => {
@@ -381,9 +385,9 @@ export default function Profile() {
                         )}
                       >
                         <span className="absolute top-0 right-0 px-2 py-1 rounded-bl-xl bg-white/10 text-[9px] font-black tracking-wide">
-                          {RARITY_VALUES[bucket]}<span className="opacity-60"> ea</span>
+                          {abbreviateValue(RARITY_VALUES[bucket])}<span className="opacity-60"> ea</span>
                         </span>
-                        <span className="font-display font-black text-lg leading-none">{fmt(entry?.value ?? 0)}</span>
+                        <span className="font-display font-black text-lg leading-none"><HoldValue value={entry?.value ?? 0} /></span>
                         <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</span>
                       </div>
                     );

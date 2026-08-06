@@ -5,10 +5,9 @@ import { usePlayer } from '@/context/AudioPlayerContext';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
 import { DEMO_RARITY_NAMES } from '@/lib/rarityMap';
 import { RarityBadge } from '@/components/RarityBadge';
-import { AddSongSheet } from '@/components/AddSongSheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Play, Library, Plus, RefreshCw, Music2 } from 'lucide-react';
+import { Search, Play, Library, RefreshCw, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -41,7 +40,6 @@ export default function Collection() {
     () => new URLSearchParams(searchString).get('q') ?? '',
   );
   const [activeRarity, setActiveRarity] = useState<string>('All');
-  const [showAddSheet, setShowAddSheet] = useState(false);
 
   const displayData = useMemo(() => {
     const q = search.toLowerCase();
@@ -89,15 +87,6 @@ export default function Collection() {
             >
               <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
             </button>
-            {!isDemoMode && (
-              <button
-                onClick={() => setShowAddSheet(true)}
-                className="w-10 h-10 rounded-full flex items-center justify-center bg-primary text-white hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/30"
-                aria-label="Add song"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -154,13 +143,8 @@ export default function Collection() {
             </div>
             <h2 className="text-2xl font-display font-bold mb-2 text-white">Empty Binder</h2>
             <p className="text-base text-white/50 mb-8 max-w-[280px] leading-relaxed">
-              Search for songs and add them to build your Maplog collection.
+              Link your rarity playlists in Settings and refresh to build your Maplog collection.
             </p>
-            {!isDemoMode && (
-              <Button size="lg" className="rounded-full font-bold px-8 gap-2 shadow-primary/25 shadow-xl hover:scale-105 transition-transform" onClick={() => setShowAddSheet(true)}>
-                <Plus className="w-5 h-5" /> Start Collecting
-              </Button>
-            )}
           </motion.div>
         ) : displayData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center w-full">
@@ -186,7 +170,17 @@ export default function Collection() {
                 >
                   <Link href={`/song/${encodeURIComponent(song.id)}`}>
                     <div className="group flex items-center gap-4 p-3 rounded-2xl glass-panel hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] cursor-pointer">
-                      <AlbumArt song={song} topCard={topCard} size={64} />
+                      {/* Tapping the art plays the song; the rest of the row opens card view */}
+                      <button
+                        onClick={e => handlePlay(e, song)}
+                        className="shrink-0 relative rounded-xl active:scale-90 transition-transform"
+                        aria-label={`Play ${song.title}`}
+                      >
+                        <AlbumArt song={song} topCard={topCard} size={64} />
+                        <span className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <Play className="h-5 w-5 text-white fill-white ml-0.5" />
+                        </span>
+                      </button>
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <p className="font-bold text-[16px] text-white leading-tight truncate mb-1">{song.title}</p>
                         <p className="text-[13px] text-white/60 truncate mb-1.5">{song.artist}</p>
@@ -196,13 +190,6 @@ export default function Collection() {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={e => handlePlay(e, song)}
-                        className="shrink-0 w-10 h-10 mr-1 flex items-center justify-center rounded-full bg-white/5 text-white hover:bg-primary hover:text-white hover:shadow-[0_0_15px_rgba(255,60,0,0.5)] active:scale-90 transition-all"
-                        aria-label={`Play ${song.title}`}
-                      >
-                        <Play className="h-4 w-4 fill-current ml-0.5" />
-                      </button>
                     </div>
                   </Link>
                 </motion.div>
@@ -211,8 +198,6 @@ export default function Collection() {
           </div>
         )}
       </div>
-
-      <AddSongSheet open={showAddSheet} onOpenChange={setShowAddSheet} />
     </motion.div>
   );
 }

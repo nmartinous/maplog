@@ -7,7 +7,7 @@ import { SoundmapCard } from '@/components/SoundmapCard';
 import { CardBackInfo } from '@/components/CardBackInfo';
 import { QueueSheet } from '@/components/QueueSheet';
 import { Button } from '@/components/ui/button';
-import { Play, ArrowLeft, MoreVertical, Trash2, Disc3, ListEnd, Info, ListOrdered } from 'lucide-react';
+import { Play, ArrowLeft, MoreVertical, Disc3, ListEnd, Info, ListOrdered } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const { getSong, removeFromCollection } = useMusicKit();
+  const { getSong } = useMusicKit();
   const { play, resume, enqueue, currentSong, isPlaying } = usePlayer();
 
   const songId = decodeURIComponent(id ?? '');
@@ -24,7 +24,6 @@ export default function SongDetail() {
   // open a card view, even for songs not (or no longer) in the collection.
   const song = getSong(songId) ?? (currentSong?.id === songId ? currentSong : undefined);
   const isCurrent = currentSong?.id === song?.id;
-  const inCollection = !!getSong(songId);
 
   const multiCard = (song?.cards?.length ?? 0) > 1;
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, watchDrag: multiCard });
@@ -55,15 +54,6 @@ export default function SongDetail() {
   const handleAddToQueue = () => {
     if (song) { enqueue(song); toast.success('Added to queue'); }
     setMenuOpen(false);
-  };
-
-  const handleRemove = () => {
-    if (!song) return;
-    if (!confirm(`Remove "${song.title}" from your collection?`)) return;
-    removeFromCollection(song.id);
-    toast.success('Removed from collection');
-    setMenuOpen(false);
-    setLocation('/collection');
   };
 
   if (!song) {
@@ -244,17 +234,6 @@ export default function SongDetail() {
               </div>
               <span className="font-semibold text-white">Add to Queue</span>
             </button>
-            {inCollection && (
-              <button
-                onClick={handleRemove}
-                className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-destructive/5 hover:bg-destructive/15 transition-colors text-left w-full group text-destructive"
-              >
-                <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                  <Trash2 className="w-5 h-5" />
-                </div>
-                <span className="font-semibold">Remove from Collection</span>
-              </button>
-            )}
           </div>
         </DialogContent>
       </Dialog>
