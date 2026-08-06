@@ -5,8 +5,9 @@ import { DEMO_RARITIES } from '@/lib/rarityMap';
 import {
   Trash2, Download, Upload, Sparkles, Shield, ExternalLink,
   Info, ChevronRight, CheckCircle2, XCircle, Loader2,
-  ChevronDown, ChevronUp, Music2, Target
+  ChevronDown, ChevronUp, Music2, Target, AlertTriangle
 } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { RarityPlaylistSync } from '@/components/RarityPlaylistSync';
 import { cn } from '@/lib/utils';
@@ -237,7 +238,8 @@ function PlaylistImport({ addToCollection, collection }: {
 export default function Settings() {
   const [rarityOpen, setRarityOpen] = useState<boolean>(() => localStorage.getItem('maplog:rarityOpen') !== '0');
   useEffect(() => { localStorage.setItem('maplog:rarityOpen', rarityOpen ? '1' : '0'); }, [rarityOpen]);
-  const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection, hasToken, isAuthorized, authorize } = useMusicKit();
+  const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection, hasToken, isAuthorized, authorize, conflicts } = useMusicKit();
+  const [, navigate] = useLocation();
   const importRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -314,6 +316,14 @@ export default function Settings() {
               <PlaylistImport addToCollection={addToCollection} collection={songs} />
             </div>
           </section>
+        )}
+
+        {conflicts.length > 0 && (
+          <Section title="Conflicts">
+            <Row icon={AlertTriangle} label="Resolve Conflicts"
+              description={`${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''} from your last playlist refresh need${conflicts.length === 1 ? 's' : ''} a decision`}
+              onClick={() => navigate('/conflicts')} />
+          </Section>
         )}
 
         <Section title="Apple Music">

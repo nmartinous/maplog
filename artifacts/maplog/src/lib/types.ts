@@ -16,6 +16,12 @@ export interface MaplogCard {
   artworkUrl: string | null;
   rarityType: MaplogRarityType;
   variantLabel?: string | null;
+  /**
+   * Internal tag pool (canonical lowercase, no '#'), e.g.
+   * ['regular','shiny','rare']. Drives filtering, valuation, and rendering.
+   * Optional for backwards compatibility — migrated on load from rarityType.
+   */
+  tags?: string[];
 }
 
 /**

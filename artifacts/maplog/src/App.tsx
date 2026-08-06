@@ -15,6 +15,7 @@ import Playlists from '@/pages/Playlists';
 import PlaylistDetail from '@/pages/PlaylistDetail';
 import Profile from '@/pages/Profile';
 import Settings from '@/pages/Settings';
+import Conflicts from '@/pages/Conflicts';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function AppShell() {
             <Route path="/playlists/:id" component={PlaylistDetail} />
             <Route path="/profile"       component={Profile} />
             <Route path="/settings"      component={Settings} />
+            <Route path="/conflicts"     component={Conflicts} />
             <Route component={NotFound} />
           </Switch>
         </main>

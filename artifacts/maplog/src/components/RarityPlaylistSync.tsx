@@ -7,7 +7,10 @@ import {
 import type { MaplogRarityType, MaplogSong } from '@/lib/types';
 import {
   ListMusic, RefreshCw, Link2, X, Loader2, CheckCircle2, XCircle, Sparkles,
+  AlertTriangle, Copy,
 } from 'lucide-react';
+import { Link } from 'wouter';
+import { conflictLine, type TagConflict } from '@/lib/conflicts';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,7 +30,8 @@ type SyncSummary = { rarity: string; added: number; removed: number; error?: str
  * Lives in Settings; the Playlists tab is for user-created playlists.
  */
 export function RarityPlaylistSync() {
-  const { songs, syncRarity, isDemoMode } = useMusicKit();
+  const { songs, syncRarity, isDemoMode, runConflictScan } = useMusicKit();
+  const [conflictReport, setConflictReport] = useState<TagConflict[] | null>(null);
 
   const [links, setLinks] = useState<PlaylistLinks>(() => loadPlaylistLinks());
   const [linkingSlug, setLinkingSlug] = useState<string | null>(null);
@@ -119,6 +123,10 @@ export function RarityPlaylistSync() {
     }
     updateLinks(updateLinksRef.current);
     setSummary(results);
+    // Validate tag rules across the refreshed collection: dedupe exact
+    // duplicates silently, pull rule-breaking copies into the conflict queue.
+    const scan = runConflictScan();
+    setConflictReport(scan.newConflicts.length > 0 ? scan.newConflicts : null);
     setSyncing(false);
     const totalAdded = results.reduce((n, r) => n + r.added, 0);
     const totalRemoved = results.reduce((n, r) => n + r.removed, 0);
@@ -153,6 +161,45 @@ export function RarityPlaylistSync() {
       )}
 
       <AnimatePresence>
+        {conflictReport && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 px-5 py-4 space-y-3 relative">
+              <button className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center" onClick={() => setConflictReport(null)} aria-label="Dismiss conflicts">
+                <X className="w-4 h-4 text-white/60" />
+              </button>
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                {conflictReport.length} conflict{conflictReport.length !== 1 ? 's' : ''} found
+              </p>
+              <div className="space-y-1.5">
+                {conflictReport.map(c => (
+                  <p key={c.id} className="text-sm text-white/80 leading-snug">{conflictLine(c)}</p>
+                ))}
+              </div>
+              <p className="text-xs text-white/50">
+                Both copies were removed from your collection. Fix your Apple Music playlists and refresh again, or resolve them here.
+              </p>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" size="sm"
+                  className="rounded-full bg-white/5 border-white/10 hover:bg-white/10 text-white text-xs font-bold h-9"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(conflictReport.map(conflictLine).join('\n'));
+                      toast.success('Conflict list copied.');
+                    } catch { toast.error('Could not copy to the clipboard.'); }
+                  }}>
+                  <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy
+                </Button>
+                <Link href="/conflicts" className="flex-1">
+                  <Button size="sm" className="rounded-full font-bold h-9 w-full text-xs">Resolve conflicts</Button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
         {summary && (
           <motion.div
             initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}

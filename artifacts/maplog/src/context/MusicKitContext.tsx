@@ -12,6 +12,10 @@ import React, {
 import type { MaplogSong, MaplogCard, MaplogRarityType } from '@/lib/types';
 import { DEMO_SONGS } from '@/lib/demoData';
 import { initMusicKit } from '@/lib/musicKit';
+import { ensureCardTags, normalizeTags, sameTagPool, tagsFromRaritySlug, validateTrackCards } from '@/lib/tags';
+import {
+  loadConflicts, saveConflicts, makeConflictId, conflictFingerprint, type TagConflict,
+} from '@/lib/conflicts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -43,14 +47,36 @@ async function appleSearch(query: string): Promise<MaplogSong[]> {
 
 // ── Local storage helpers ──────────────────────────────────────────────────────
 
+/** Migrate legacy entries: every card gains a tag pool derived from its rarity. */
+function migrateTags(songs: MaplogSong[]): { songs: MaplogSong[]; changed: boolean } {
+  let changed = false;
+  const migrated = songs.map(s => {
+    let cardsChanged = false;
+    const cards = s.cards.map(c => {
+      const next = ensureCardTags(c);
+      if (next !== c) cardsChanged = true;
+      return next;
+    });
+    if (!cardsChanged) return s;
+    changed = true;
+    return { ...s, cards };
+  });
+  return { songs: migrated, changed };
+}
+
 function loadCollection(): MaplogSong[] {
   try {
     const raw = localStorage.getItem(COLLECTION_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed: MaplogSong[] = raw ? JSON.parse(raw) : [];
+    const { songs, changed } = migrateTags(parsed);
+    if (changed) saveCollection(songs); // persist migration once
+    return songs;
   } catch {
     return [];
   }
 }
+
+const DEMO_SONGS_TAGGED = migrateTags(DEMO_SONGS).songs;
 
 function saveCollection(songs: MaplogSong[]): void {
   localStorage.setItem(COLLECTION_KEY, JSON.stringify(songs));
@@ -89,6 +115,13 @@ export interface MusicKitContextType {
   /** Reload collection from localStorage */
   refresh: () => void;
 
+  /** Queued tag-rule conflicts awaiting resolution */
+  conflicts: TagConflict[];
+  /** Dedupe + validate the collection; pulls rule-breaking copies into the queue */
+  runConflictScan: () => { newConflicts: TagConflict[]; deduped: number };
+  /** Keep one copy (card id) or discard all (null) for a queued conflict */
+  resolveConflict: (conflictId: string, keepCardId: string | null) => void;
+
   /** Prompt the user to connect their Apple Music account */
   authorize: () => void;
 
@@ -106,8 +139,9 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     () => localStorage.getItem(DEMO_MODE_KEY) === 'true',
   );
   const [songs, setSongs] = useState<MaplogSong[]>(
-    () => localStorage.getItem(DEMO_MODE_KEY) === 'true' ? DEMO_SONGS : loadCollection(),
+    () => localStorage.getItem(DEMO_MODE_KEY) === 'true' ? DEMO_SONGS_TAGGED : loadCollection(),
   );
+  const [conflicts, setConflicts] = useState<TagConflict[]>(() => loadConflicts());
 
   // ── MusicKit setup (developer token + user authorization) ─────────────────
 
@@ -164,6 +198,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
           artworkUrl:  song.artworkUrl,
           rarityType:  rarity,
           variantLabel: null,
+          tags:        normalizeTags(tagsFromRaritySlug(rarity.slug) ?? []),
         };
         updated = prev.map(s =>
           s.id === song.id
@@ -180,6 +215,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
           artworkUrl:  song.artworkUrl,
           rarityType:  rarity,
           variantLabel: null,
+          tags:        normalizeTags(tagsFromRaritySlug(rarity.slug) ?? []),
         };
         updated = [...prev, { ...song, cards: [newCard] }]
           .sort((a, b) => a.title.localeCompare(b.title));
@@ -267,6 +303,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
             artworkUrl: track.artworkUrl || live.artworkUrl,
             rarityType: rarity,
             variantLabel: null,
+            tags: normalizeTags(tagsFromRaritySlug(rarity.slug) ?? []),
           }].sort((a, b) => b.rarityType.tier - a.rarityType.tier),
         });
         added++;
@@ -278,6 +315,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
             artworkUrl: track.artworkUrl,
             rarityType: rarity,
             variantLabel: null,
+            tags: normalizeTags(tagsFromRaritySlug(rarity.slug) ?? []),
           }],
         });
         added++;
@@ -290,16 +328,113 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   }, [isDemoMode, commitCollection]);
 
   const refresh = useCallback(() => {
-    if (isDemoMode) { setSongs([...DEMO_SONGS]); return; }
+    if (isDemoMode) { setSongs([...DEMO_SONGS_TAGGED]); return; }
     setSongs(loadCollection());
   }, [isDemoMode]);
+
+  // ── Tag conflicts ─────────────────────────────────────────────────────────
+
+  const commitConflicts = useCallback((next: TagConflict[]) => {
+    saveConflicts(next);
+    setConflicts(next);
+  }, []);
+
+  /**
+   * Validate the whole collection against the tag rules:
+   * - exact tag-pool duplicates are silently deduped
+   * - rule violations pull ALL involved copies out of the collection and
+   *   queue them for conflict resolution
+   * Returns the newly queued conflicts + dedupe count.
+   */
+  const runConflictScan = useCallback((): { newConflicts: TagConflict[]; deduped: number } => {
+    if (isDemoMode) return { newConflicts: [], deduped: 0 };
+
+    const current = songsRef.current;
+    const newConflicts: TagConflict[] = [];
+    let deduped = 0;
+    let changed = false;
+
+    const updated: MaplogSong[] = [];
+    for (const song of current) {
+      const { validCards, deduped: d, conflictGroups } = validateTrackCards(song.cards);
+      deduped += d;
+      if (d > 0 || conflictGroups.length > 0 || validCards.length !== song.cards.length) changed = true;
+
+      for (const group of conflictGroups) {
+        const { cards: _cards, ...track } = song;
+        newConflicts.push({
+          id: makeConflictId(),
+          trackId: song.id,
+          title: song.title,
+          artist: song.artist,
+          artworkUrl: song.artworkUrl,
+          reason: group.reason,
+          copies: group.copies,
+          track,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      if (validCards.length > 0) {
+        updated.push(validCards === song.cards ? song : { ...song, cards: validCards });
+      }
+    }
+
+    if (changed) commitCollection(updated);
+    if (newConflicts.length > 0) {
+      // Upsert by fingerprint — re-refreshing without fixing the playlists
+      // re-detects the same conflicts and must not duplicate queue entries.
+      const queue = loadConflicts();
+      const known = new Set(queue.map(conflictFingerprint));
+      const fresh = newConflicts.filter(c => !known.has(conflictFingerprint(c)));
+      if (fresh.length > 0) commitConflicts([...queue, ...fresh]);
+      return { newConflicts: fresh, deduped };
+    }
+    return { newConflicts, deduped };
+  }, [isDemoMode, commitCollection, commitConflicts]);
+
+  /**
+   * Resolve one queued conflict: keep one copy (restores it into the
+   * collection) or discard all copies (keepCardId = null).
+   */
+  const resolveConflict = useCallback((conflictId: string, keepCardId: string | null) => {
+    if (isDemoMode) return;
+    const queue = loadConflicts();
+    const conflict = queue.find(c => c.id === conflictId);
+    if (!conflict) return;
+
+    if (keepCardId) {
+      const copy = conflict.copies.find(cp => cp.card.id === keepCardId);
+      if (!copy) return;
+      const prev = songsRef.current;
+      const existing = prev.find(s => s.id === conflict.trackId);
+      let updated: MaplogSong[];
+      if (existing) {
+        // Don't re-add if an equivalent card already exists (same id or
+        // same normalized tag pool)
+        const keptTags = normalizeTags(copy.card.tags ?? []);
+        const dup = existing.cards.some(c =>
+          c.id === copy.card.id ||
+          (keptTags.length > 0 && sameTagPool(normalizeTags(c.tags ?? []), keptTags)));
+        updated = dup ? prev : prev.map(s => s.id === conflict.trackId
+          ? { ...s, cards: [...s.cards, copy.card].sort((a, b) => b.rarityType.tier - a.rarityType.tier) }
+          : s);
+      } else {
+        updated = [...prev, { ...conflict.track, cards: [copy.card] } as MaplogSong]
+          .sort((a, b) => a.title.localeCompare(b.title));
+      }
+      commitCollection(updated);
+    }
+
+    commitConflicts(queue.filter(c => c.id !== conflictId));
+  }, [isDemoMode, commitCollection, commitConflicts]);
 
   // ── Demo mode ─────────────────────────────────────────────────────────────
 
   const enterDemoMode = useCallback(() => {
     localStorage.setItem(DEMO_MODE_KEY, 'true');
     setIsDemoMode(true);
-    setSongs(DEMO_SONGS);
+    setSongs(DEMO_SONGS_TAGGED);
   }, []);
 
   const exitDemoMode = useCallback(() => {
@@ -329,6 +464,9 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         addToCollection,
         syncRarity,
         refresh,
+        conflicts,
+        runConflictScan,
+        resolveConflict,
         authorize,
         isDemoMode,
         enterDemoMode,
