@@ -1,0 +1,15 @@
+[build]
+  command   = "pnpm --filter @workspace/maplog run build"
+  publish   = "artifacts/maplog/dist/public"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.26.1"
+  BASE_PATH    = "/"
+  NODE_ENV     = "production"
+
+# SPA fallback — all routes serve index.html
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

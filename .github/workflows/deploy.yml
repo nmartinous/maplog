@@ -1,20 +1,14 @@
-name: Deploy to GitHub Pages
+name: CI Build
 
 on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -51,17 +45,5 @@ jobs:
         run: pnpm --filter @workspace/maplog run build
         env:
           PORT: 3000
-          BASE_PATH: /maplog/
+          BASE_PATH: /
           NODE_ENV: production
-
-      - name: Add SPA fallback and .nojekyll
-        run: |
-          cp artifacts/maplog/dist/public/index.html artifacts/maplog/dist/public/404.html
-          touch artifacts/maplog/dist/public/.nojekyll
-
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: artifacts/maplog/dist/public
-          force_orphan: true
