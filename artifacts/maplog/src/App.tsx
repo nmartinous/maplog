@@ -10,6 +10,7 @@ import { DesktopSidebar, MobileNav } from '@/components/Navigation';
 import { MiniPlayer } from '@/components/MiniPlayer';
 
 import Collection from '@/pages/Collection';
+import CardView from '@/pages/CardView';
 import SongDetail from '@/pages/SongDetail';
 import Playlists from '@/pages/Playlists';
 import PlaylistDetail from '@/pages/PlaylistDetail';
@@ -35,6 +36,7 @@ function AppShell() {
             {/* Legacy /collection redirect */}
             <Route path="/collection"><Redirect to="/" /></Route>
             <Route path="/song/:id"      component={SongDetail} />
+            <Route path="/card/:id"      component={CardView} />
             <Route path="/playlists"     component={Playlists} />
             <Route path="/playlists/:id" component={PlaylistDetail} />
             <Route path="/profile"       component={Profile} />
