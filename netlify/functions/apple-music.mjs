@@ -1,14 +1,15 @@
 /**
  * Netlify Function: handles all /api/apple-music/* routes.
  *
- * Generates Apple MusicKit developer tokens via Web Crypto (no external deps)
- * and proxies catalog lookups to the Apple Music API.
+ * Generates Apple MusicKit developer tokens and proxies catalog lookups.
  *
- * Required env vars (set in Netlify → Site settings → Environment variables):
+ * Required env vars (Netlify → Site configuration → Environment variables):
  *   APPLE_TEAM_ID
  *   APPLE_MUSICKIT_KEY_ID
- *   APPLE_MUSICKIT_PRIVATE_KEY   (full .p8 contents, \n ok)
+ *   APPLE_MUSICKIT_PRIVATE_KEY   (full .p8 file contents)
  */
+
+import { createSign, createPrivateKey, createECDH } from 'node:crypto';
 
 const APPLE_API = 'https://api.music.apple.com/v1';
 const STOREFRONT = 'us';
@@ -18,25 +19,71 @@ let cachedToken = null;
 
 // ── Key helpers ───────────────────────────────────────────────────────────────
 
-function normalizePem(raw) {
+/**
+ * Normalize the .p8 key however it was stored (spaces instead of newlines,
+ * literal \n strings, missing headers, etc.).  If the standard PEM import
+ * fails — e.g. because the DER's curve-OID bytes were mangled — fall back to
+ * extracting the raw P-256 scalar and rebuilding the key via JWK.
+ * Ported 1-for-1 from the working Replit API server.
+ */
+function normalizePrivateKey(raw) {
   const body = raw
     .replace(/\\n/g, '\n')
     .replace(/-----BEGIN [^-]+-----/g, '')
     .replace(/-----END [^-]+-----/g, '')
     .replace(/\s+/g, '');
-  return (
+
+  const pem =
     '-----BEGIN PRIVATE KEY-----\n' +
     (body.match(/.{1,64}/g) ?? []).join('\n') +
-    '\n-----END PRIVATE KEY-----'
-  );
+    '\n-----END PRIVATE KEY-----\n';
+
+  try {
+    createPrivateKey(pem);
+    return pem;
+  } catch {
+    // Fall through to scalar-based recovery
+  }
+
+  const der = Buffer.from(body, 'base64');
+  const hex = der.toString('hex');
+  // PKCS#8-wrapped SEC1 EC key: scalar is the 32 bytes after `020101 0420`
+  const marker = '0201010420';
+  const idx = hex.indexOf(marker);
+  if (idx === -1) {
+    throw new Error(
+      'APPLE_MUSICKIT_PRIVATE_KEY could not be parsed. Re-paste the .p8 file contents exactly.',
+    );
+  }
+  const scalarHex = hex.slice(idx + marker.length, idx + marker.length + 64);
+  const scalar = Buffer.from(scalarHex, 'hex');
+  if (scalar.length !== 32) {
+    throw new Error('APPLE_MUSICKIT_PRIVATE_KEY is truncated. Re-paste the .p8 file contents.');
+  }
+
+  const ecdh = createECDH('prime256v1');
+  ecdh.setPrivateKey(scalar);
+  const pub = ecdh.getPublicKey();
+  const b64u = (b) => b.toString('base64url');
+  const keyObj = createPrivateKey({
+    key: {
+      kty: 'EC',
+      crv: 'P-256',
+      d: b64u(scalar),
+      x: b64u(pub.subarray(1, 33)),
+      y: b64u(pub.subarray(33, 65)),
+    },
+    format: 'jwk',
+  });
+  return keyObj.export({ format: 'pem', type: 'pkcs8' }).toString();
 }
 
-async function getDeveloperToken() {
+function getDeveloperToken() {
   const now = Date.now();
   if (cachedToken && cachedToken.exp > now + 60_000) return cachedToken.token;
 
   const teamId = process.env.APPLE_TEAM_ID;
-  const keyId = process.env.APPLE_MUSICKIT_KEY_ID;
+  const keyId  = process.env.APPLE_MUSICKIT_KEY_ID;
   const rawKey = process.env.APPLE_MUSICKIT_PRIVATE_KEY;
 
   if (!teamId || !keyId || !rawKey) {
@@ -45,42 +92,32 @@ async function getDeveloperToken() {
     );
   }
 
-  const pem = normalizePem(rawKey);
-  const pemBody = pem
-    .replace('-----BEGIN PRIVATE KEY-----', '')
-    .replace('-----END PRIVATE KEY-----', '')
-    .replace(/\s+/g, '');
-
-  const der = Buffer.from(pemBody, 'base64');
-
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    der,
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false,
-    ['sign'],
-  );
+  const pem = normalizePrivateKey(rawKey);
+  const privKey = createPrivateKey(pem);
 
   const iat = Math.floor(now / 1000);
   const exp = iat + 60 * 60 * 24 * 30; // 30 days
 
   const b64url = (s) => Buffer.from(s).toString('base64url');
-  const b64urlBuf = (b) => Buffer.from(b).toString('base64url');
 
-  const header = { alg: 'ES256', typ: 'JWT', kid: keyId };
-  const payload = { iss: teamId, iat, exp };
+  const header  = b64url(JSON.stringify({ alg: 'ES256', typ: 'JWT', kid: keyId }));
+  const payload = b64url(JSON.stringify({ iss: teamId, iat, exp }));
+  const msg = `${header}.${payload}`;
 
-  const headerB64 = b64url(JSON.stringify(header));
-  const payloadB64 = b64url(JSON.stringify(payload));
-  const sigInput = `${headerB64}.${payloadB64}`;
+  const signer = createSign('SHA256');
+  signer.update(msg);
+  const sigDer = signer.sign(privKey);
 
-  const sig = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    key,
-    new TextEncoder().encode(sigInput),
-  );
+  // Convert DER-encoded ECDSA sig → raw r||s (IEEE P1363) required by JWT ES256
+  let off = 2;
+  off++;
+  const rLen = sigDer[off++]; const r = sigDer.slice(off, off + rLen); off += rLen;
+  off++;
+  const sLen = sigDer[off++]; const s = sigDer.slice(off, off + sLen);
+  const pad32 = (x) => Buffer.concat([Buffer.alloc(Math.max(0, 32 - x.length)), x]);
+  const sig = Buffer.concat([pad32(r), pad32(s)]).toString('base64url');
 
-  const token = `${sigInput}.${b64urlBuf(sig)}`;
+  const token = `${msg}.${sig}`;
   cachedToken = { token, exp: exp * 1000 };
   return token;
 }
