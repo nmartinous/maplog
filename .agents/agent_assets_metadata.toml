@@ -5,5 +5,5 @@ generated = []
 id = "dnfBAN2NqQfl3i4Op_yn3"
 uri = "file://github-ssh-key.txt"
 type = "text"
-title = "GitHub SSH public key"
-description = "Open this file and copy its single line into GitHub → Settings → SSH keys → New SSH key."
+title = "New GitHub SSH public key"
+description = "Go to github.com/settings/ssh → delete the old 'Replit maplog' key → New SSH key → paste this → save."
