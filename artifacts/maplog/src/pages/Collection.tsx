@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'wouter';
 import { useMusicKit } from '@/context/MusicKitContext';
 import { usePlayer } from '@/context/AudioPlayerContext';
@@ -272,7 +273,7 @@ function FilterPopup({
   onClose: () => void;
 }) {
   const categories = ALL_CATEGORIES.filter(c => c !== 'All');
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -348,7 +349,8 @@ function FilterPopup({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 
@@ -518,14 +520,8 @@ function ActiveView({
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 w-full">
-            <AnimatePresence>
-              {displayData.map(({ song, topCard }, i) => (
-                <motion.div
-                  key={song.id}
-                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ delay: i * 0.03, type: "spring", stiffness: 300, damping: 25 }}
-                >
+            {displayData.map(({ song, topCard }) => (
+              <div key={song.id}>
                   {/* Row: tap art to play, tap rest to open card view.
                       Using div + onClick (not Link) to avoid iOS double-tap
                       with nested interactive elements. */}
@@ -566,9 +562,8 @@ function ActiveView({
                       )}
                     </div>
                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+              </div>
+            ))}
           </div>
         )}
       </div>

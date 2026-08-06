@@ -163,100 +163,72 @@ button, a, [role="button"] {
 }
 
 /* ── Shiny foil effect ─────────────────────────────────────────────────────
-   Three-layer iridescent overlay for shiny cards:
-     1. The .foil-overlay element itself carries a repeating sparkle-dot grid
-        (three offset radial-gradient patterns that drift slowly — zero JS).
-     2. ::before  — full-spectrum rainbow gradient at full HSL saturation,
-        shifting across a 400% canvas for a dramatic holo slide.
-     3. ::after   — sharp diagonal glint sweep that fades in/out at its edges.
-   Only background-position and transform are animated — no filter/hue-rotate —
-   so it stays fast on mobile GPUs even with many cards on screen. */
+   A subtle holographic sheen that sits BELOW album art and badges (z-index 1)
+   so neither element is tinted. It reads as a gentle iridescent quality on
+   the card surface — visible in the body area, invisible under the art image.
+   Based on the Soundmap reference: desaturated pearl tones, slow drift,
+   single soft gloss sweep. No sparkle dots, no full-spectrum rainbow. */
 
-@keyframes foil-drift {
+@keyframes foil-shimmer {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-/* Glint fades in as it enters and fades out as it exits */
-@keyframes foil-glint {
-  0%,  45% { transform: translateX(-160%) skewX(-20deg); opacity: 0; }
-  52%       { opacity: 1; }
-  76%       { opacity: 1; }
-  83%, 100% { transform: translateX(275%)  skewX(-20deg); opacity: 0; }
-}
-
-/* Sparkle grid drifts diagonally so the dots appear to shimmer */
-@keyframes foil-sparkle-drift {
-  from { background-position: 0 0, 14px 21px, 8px 34px; }
-  to   { background-position: 48px 48px, 62px 69px, 56px 82px; }
+@keyframes foil-gloss {
+  0%,  55% { transform: translateX(-130%) skewX(-18deg); opacity: 0; }
+  63%       { opacity: 0.35; }
+  80%       { opacity: 0.35; }
+  88%, 100% { transform: translateX(230%)  skewX(-18deg); opacity: 0; }
 }
 
 .foil-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 5;
+  /* Below album art (z-[2]) and info section (z-[2]) — art and badges unaffected */
+  z-index: 1;
   border-radius: inherit;
   overflow: hidden;
-  /* Layer 1 — sparkle dots: three offset grids at different spacings give
-     a natural "random" scatter without any JS or extra elements. */
-  background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.60) 0.5px, transparent 0.5px),
-    radial-gradient(circle, rgba(255, 255, 255, 0.40) 0.5px, transparent 0.5px),
-    radial-gradient(circle, rgba(200, 215, 255, 0.45) 0.5px, transparent 0.5px);
-  background-size: 22px 22px, 35px 35px, 51px 51px;
-  background-position: 0 0, 14px 21px, 8px 34px;
-  mix-blend-mode: screen;
-  animation: foil-sparkle-drift 10s linear infinite;
-}
-
-/* Layer 2 — full-spectrum rainbow sheen */
-.foil-overlay::before {
-  content: '';
-  position: absolute;
-  inset: 0;
+  /* Desaturated pearl gradient — blue/violet/mint, very low opacity */
   background: linear-gradient(
     128deg,
-    hsl(0,   100%, 65%) 0%,
-    hsl(25,  100%, 62%) 10%,
-    hsl(55,  100%, 65%) 22%,
-    hsl(120, 100%, 55%) 35%,
-    hsl(175, 100%, 52%) 50%,
-    hsl(220, 100%, 68%) 63%,
-    hsl(270, 100%, 70%) 76%,
-    hsl(320, 100%, 65%) 88%,
-    hsl(0,   100%, 65%) 100%
+    transparent               0%,
+    rgba(160, 140, 255, 0.13) 22%,
+    rgba(130, 210, 255, 0.13) 45%,
+    rgba(140, 255, 200, 0.09) 65%,
+    rgba(200, 140, 255, 0.11) 82%,
+    transparent               100%
   );
-  background-size: 400% 400%;
-  /* screen blend so the rainbow reads on dark artwork */
+  background-size: 300% 300%;
   mix-blend-mode: screen;
-  opacity: 0.78;
-  animation: foil-drift 6s ease-in-out infinite;
+  animation: foil-shimmer 11s ease-in-out infinite;
 }
 
-/* Layer 3 — sharp diagonal glint sweep */
+/* No rainbow layer */
+.foil-overlay::before { display: none; }
+
+/* Single soft gloss sweep — passes once every ~15s */
 .foil-overlay::after {
   content: '';
   position: absolute;
   top: -25%;
   bottom: -25%;
   left: 0;
-  width: 36%;
+  width: 28%;
   background: linear-gradient(90deg,
-    rgba(255, 255, 255, 0)    0%,
-    rgba(255, 255, 255, 0.15) 28%,
-    rgba(255, 255, 255, 0.72) 50%,
-    rgba(255, 255, 255, 0.15) 72%,
-    rgba(255, 255, 255, 0)   100%);
+    transparent                  0%,
+    rgba(255, 255, 255, 0.04)   38%,
+    rgba(255, 255, 255, 0.11)   50%,
+    rgba(255, 255, 255, 0.04)   62%,
+    transparent                  100%);
   mix-blend-mode: screen;
-  animation: foil-glint 5.8s ease-in-out infinite;
+  animation: foil-gloss 15s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .foil-overlay        { animation: none; }
-  .foil-overlay::before { animation: none; }
-  .foil-overlay::after  { animation: none; display: none; }
+  .foil-overlay       { animation: none; }
+  .foil-overlay::after { animation: none; display: none; }
 }
 
 .card-effect {
