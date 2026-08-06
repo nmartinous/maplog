@@ -39,7 +39,11 @@ export function initMusicKit(): Promise<any> {
   if (configurePromise) return configurePromise;
   configurePromise = (async () => {
     const res = await fetch('/api/apple-music/token');
-    if (!res.ok) throw new Error('Could not fetch Apple Music developer token');
+    if (!res.ok) {
+      let msg = 'Could not fetch Apple Music developer token';
+      try { const body = await res.clone().json(); if (body?.error) msg = body.error; } catch {}
+      throw new Error(msg);
+    }
     const { token } = await res.json();
 
     await loadScript();

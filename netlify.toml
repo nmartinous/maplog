@@ -1,6 +1,7 @@
 [build]
   command   = "pnpm --filter @workspace/maplog run build"
   publish   = "artifacts/maplog/dist/public"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "22"
@@ -9,12 +10,45 @@
   NODE_ENV     = "production"
   PORT         = "3000"
 
-# Non-function API routes → 404 (prevents SPA from serving index.html for /api/*)
+# ── Apple Music API → Netlify Function ────────────────────────────────────────
+# Explicit redirects pass the endpoint name so the function routes correctly
+# whether or not Netlify's config.path auto-discovery fires.
+
+[[redirects]]
+  from   = "/api/apple-music/token"
+  to     = "/.netlify/functions/apple-music?_ep=token"
+  status = 200
+
+[[redirects]]
+  from   = "/api/apple-music/search"
+  to     = "/.netlify/functions/apple-music?_ep=search"
+  status = 200
+
+[[redirects]]
+  from   = "/api/apple-music/playlist"
+  to     = "/.netlify/functions/apple-music?_ep=playlist"
+  status = 200
+
+[[redirects]]
+  from   = "/api/apple-music/artist"
+  to     = "/.netlify/functions/apple-music?_ep=artist"
+  status = 200
+
+[[redirects]]
+  from   = "/api/apple-music/album-tracks"
+  to     = "/.netlify/functions/apple-music?_ep=album-tracks"
+  status = 200
+
+[[redirects]]
+  from   = "/api/apple-music/song/:id"
+  to     = "/.netlify/functions/apple-music?_ep=song&_id=:id"
+  status = 200
+
+# Other API routes → 404 (prevents SPA from serving index.html for /api/*)
 [[redirects]]
   from   = "/api/*"
   to     = "/404.html"
   status = 404
-  force  = true
 
 # SPA fallback — non-API routes serve index.html
 [[redirects]]

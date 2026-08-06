@@ -148,15 +148,24 @@ export default async function handler(req) {
   const path = url.pathname;
   const params = url.searchParams;
 
+  // Determine endpoint from either:
+  //   a) the original URL path  (config.path routing: /api/apple-music/token)
+  //   b) the _ep query param    (explicit redirect routing: ?_ep=token)
+  const amMatch = path.match(/\/apple-music\/([^/]+)(?:\/([^/]+))?/);
+  const epFromPath = amMatch?.[1] ?? '';
+  const songIdFromPath = amMatch?.[2] ?? '';
+  const ep = epFromPath || params.get('_ep') || '';
+  const songId = songIdFromPath || params.get('_id') || '';
+
   try {
     // ── GET /api/apple-music/token ─────────────────────────────────────────
-    if (path.endsWith('/token')) {
+    if (ep === 'token' || path.endsWith('/token')) {
       const token = await getDeveloperToken();
       return jsonRes({ token });
     }
 
     // ── GET /api/apple-music/search?q=...&limit=25 ─────────────────────────
-    if (path.endsWith('/search')) {
+    if (ep === 'search' || path.endsWith('/search')) {
       const q = (params.get('q') ?? '').trim();
       const limit = Math.min(Number(params.get('limit') ?? '25'), 25);
       if (!q) return jsonRes({ data: [] });
@@ -186,8 +195,8 @@ export default async function handler(req) {
 
     // ── GET /api/apple-music/song/:id ──────────────────────────────────────
     const songMatch = path.match(/\/apple-music\/song\/([0-9]+)$/);
-    if (songMatch) {
-      const id = songMatch[1];
+    if (ep === 'song' || songMatch) {
+      const id = (songIdFromPath || songId || songMatch?.[1] ?? '').replace(/[^0-9]/g, '');
       const res = await appleFetch(`/catalog/${STOREFRONT}/songs/${id}`);
       if (!res.ok) {
         return jsonRes(
@@ -207,7 +216,7 @@ export default async function handler(req) {
     }
 
     // ── GET /api/apple-music/artist?name=... ───────────────────────────────
-    if (path.endsWith('/artist')) {
+    if (ep === 'artist' || path.endsWith('/artist')) {
       const name = (params.get('name') ?? '').trim();
       if (!name) return jsonRes({ error: 'Missing artist name.' }, 400);
 
@@ -236,7 +245,7 @@ export default async function handler(req) {
     }
 
     // ── GET /api/apple-music/album-tracks?album=...&artist=... ────────────
-    if (path.endsWith('/album-tracks')) {
+    if (ep === 'album-tracks' || path.endsWith('/album-tracks')) {
       const albumName = (params.get('album') ?? '').trim();
       const artistName = (params.get('artist') ?? '').trim();
       if (!albumName) return jsonRes({ error: 'Missing album name.' }, 400);
@@ -312,7 +321,7 @@ export default async function handler(req) {
     }
 
     // ── GET /api/apple-music/playlist?url=... ─────────────────────────────
-    if (path.endsWith('/playlist')) {
+    if (ep === 'playlist' || path.endsWith('/playlist')) {
       const urlParam = (params.get('url') ?? '').trim();
 
       let playlistId = null;
