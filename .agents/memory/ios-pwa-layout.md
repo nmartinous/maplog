@@ -28,8 +28,8 @@ The mobile shell is a flex column:
 **Why in-flow instead of position:fixed:** `position: fixed` on mobile Safari can drift during momentum scrolling if any ancestor has a transform, and causes layout ambiguity with calculated heights. In-flow flex is deterministic.
 
 ## Safe area handling
-- **Bottom (home indicator):** `paddingBottom: env(safe-area-inset-bottom)` on `<MobileNav>` only.
-- **Top (status bar):** NOT added to html/body. Dark app background shows behind status bar — acceptable. Per-page `pt-safe` can be added later.
+- **Bottom (home indicator):** `style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 20px)' }}` on `<MobileNav>` — the `max()` prevents accidental app-switcher swipe triggers.
+- **Top (status bar):** `.page-top` CSS class on every page's first non-scrolling header div. Defined in `index.css` as `padding-top: max(calc(env(safe-area-inset-top) + 0.75rem), 2rem)` with a landscape-compact override of `0.75rem`. Do NOT add safe-area to html/body/main — see pitfall above.
 - **Sides:** Not added (the app is full-width, no notch issues).
 
 ## Navigation component split
