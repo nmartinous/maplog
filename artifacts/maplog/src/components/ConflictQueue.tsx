@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
  * they broke tag rules. Shared by the /conflicts page and Edit Mode.
  */
 export function ConflictQueue() {
-  const { conflicts, resolveConflict, isDemoMode } = useMusicKit();
+  const { conflicts, resolveConflict } = useMusicKit();
 
   const copyAll = async () => {
     const text = conflicts.map(conflictLine).join('\n');
@@ -73,7 +73,7 @@ export function ConflictQueue() {
                 {c.copies.map(cp => (
                   <div key={cp.card.id} className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-4 py-3">
                     <span className="flex-1 text-sm font-bold text-white">{cp.label}</span>
-                    <Button size="sm" disabled={isDemoMode}
+                    <Button size="sm"
                       className="rounded-full font-bold h-8 px-4 text-xs"
                       onClick={() => { resolveConflict(c.id, cp.card.id); toast.success(`Kept the ${cp.label} copy of "${c.title}".`); }}>
                       Keep this one
@@ -82,7 +82,7 @@ export function ConflictQueue() {
                 ))}
               </div>
 
-              <Button variant="ghost" size="sm" disabled={isDemoMode}
+              <Button variant="ghost" size="sm"
                 className="rounded-full text-white/40 hover:text-destructive hover:bg-destructive/10 text-xs font-bold h-9"
                 onClick={() => { resolveConflict(c.id, null); toast.info(`Discarded all copies of "${c.title}". Refresh playlists to re-import.`); }}>
                 <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Discard all copies

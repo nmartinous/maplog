@@ -117,7 +117,7 @@ function RarityBars({ data }: { data: { name: string; count: number }[] }) {
 }
 
 export default function Profile() {
-  const { songs, isDemoMode } = useMusicKit();
+  const { songs } = useMusicKit();
   const [, navigate] = useLocation();
 
   // ── Editable profile ────────────────────────────────────────────────────
@@ -267,7 +267,7 @@ export default function Profile() {
                 className="group inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 max-w-full"
               >
                 <span className="text-xs font-bold text-white/70 uppercase tracking-wider truncate">
-                  {profile.bio || 'Add a motto'}{isDemoMode ? ' · Demo' : ''}
+                  {profile.bio || 'Add a motto'}
                 </span>
               </motion.button>
             )}
@@ -364,7 +364,7 @@ export default function Profile() {
                 <Star className="w-5 h-5 text-primary" />
                 <h2 className="text-sm font-bold tracking-widest uppercase text-white/80">Showcase</h2>
               </div>
-              <ShowcaseSection scope={{ kind: 'profile' }} songs={songs} readOnly={isDemoMode} />
+              <ShowcaseSection scope={{ kind: 'profile' }} songs={songs} readOnly={false} />
             </section>
 
             <section className="pb-4">

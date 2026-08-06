@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ChevronDown, Pencil, Layers, Award, AlertTriangle, Search,
-  Film, Trash2, Plus, X, Check, Lock, Tags,
+  Film, Trash2, Plus, X, Check, Tags,
 } from 'lucide-react';
 
 // ── Section shell ─────────────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ function CardMediaPreview({ cardId, version }: { cardId: string; version: number
 function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
   mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
 }) {
-  const { songs, updateSong, updateCardTags, updateCardMeta, isDemoMode } = useMusicKit();
+  const { songs, updateSong, updateCardTags, updateCardMeta } = useMusicKit();
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -211,7 +211,7 @@ function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
         <SelectedSongEditor
           key={song.id}
           song={song}
-          disabled={isDemoMode}
+          disabled={false}
           updateSong={updateSong}
           updateCardTags={updateCardTags}
           updateCardMeta={updateCardMeta}
@@ -702,7 +702,7 @@ function BadgeManager({ disabled }: { disabled: boolean }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function EditMode() {
-  const { conflicts, isDemoMode, songs } = useMusicKit();
+  const { conflicts, songs } = useMusicKit();
 
   // Card ids with media attached (for upload buttons + previews)
   const [mediaIds, setMediaIds] = useState<Set<string>>(new Set());
@@ -725,20 +725,13 @@ export default function EditMode() {
           </div>
         </div>
 
-        {isDemoMode && (
-          <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3">
-            <Lock className="w-4 h-4 text-white/50 shrink-0" />
-            <p className="text-xs text-white/50">Demo mode is read-only — exit it in Settings to make edits.</p>
-          </div>
-        )}
-
         <div className="space-y-4">
           <Section icon={Pencil} title="Songs" description="Edit a song's info, card tags, and card media" defaultOpen={songs.length > 0}>
             <SongEditor mediaIds={mediaIds} refreshMedia={refreshMedia} mediaVersion={mediaVersion} />
           </Section>
 
           <Section icon={Layers} title="Visual Tags" description="Custom visual tags for special card appearances">
-            <OverrideManager disabled={isDemoMode} />
+            <OverrideManager disabled={false} />
           </Section>
 
           <Section icon={Tags} title="Tag Playlist Links" description="Link Apple Music playlists to any custom tag combination">
@@ -746,7 +739,7 @@ export default function EditMode() {
           </Section>
 
           <Section icon={Award} title="Artist Badges" description="Assign accomplishment badges for artist pages">
-            <BadgeManager disabled={isDemoMode} />
+            <BadgeManager disabled={false} />
           </Section>
 
           <Section icon={AlertTriangle} title="Conflicts" description="Copies that broke collection rules during import" count={conflicts.length} defaultOpen={conflicts.length > 0}>

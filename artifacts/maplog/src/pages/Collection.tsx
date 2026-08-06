@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useMusicKit } from '@/context/MusicKitContext';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
-import { DEMO_RARITY_NAMES } from '@/lib/rarityMap';
+import { ALL_CATEGORIES } from '@/lib/rarityMap';
 import { RarityBadge } from '@/components/RarityBadge';
 import { SoundmapCard } from '@/components/SoundmapCard';
 import { Input } from '@/components/ui/input';
@@ -279,13 +279,13 @@ function ActiveView({
             /* album */          inAlbum;
           if (!match) return false;
         }
-        if (activeRarity !== 'All' && !song.cards.some(c => c.rarityType.name === activeRarity)) return false;
+        if (activeRarity !== 'All' && !song.cards.some(c => c.rarityType.category === activeRarity)) return false;
         return true;
       })
       .map(song => {
         const filtered = activeRarity === 'All'
           ? song.cards
-          : song.cards.filter(c => c.rarityType.name === activeRarity);
+          : song.cards.filter(c => c.rarityType.category === activeRarity);
         return { song, topCard: filtered[0] ?? song.cards[0] };
       });
   }, [songs, search, scope, activeRarity]);
@@ -341,7 +341,7 @@ function ActiveView({
 
         {/* Rarity chips */}
         <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 sm:-mx-6 sm:px-6">
-          {DEMO_RARITY_NAMES.map(name => (
+          {ALL_CATEGORIES.map(name => (
             <button
               key={name}
               onClick={() => setActiveRarity(name)}

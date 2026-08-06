@@ -6,7 +6,7 @@ import {
 } from '@/lib/playlistLinks';
 import type { MaplogRarityType, MaplogSong } from '@/lib/types';
 import {
-  ListMusic, RefreshCw, Link2, X, Loader2, CheckCircle2, XCircle, Sparkles,
+  ListMusic, RefreshCw, Link2, X, Loader2, CheckCircle2, XCircle,
   AlertTriangle, Copy,
 } from 'lucide-react';
 import { Link } from 'wouter';
@@ -33,7 +33,7 @@ type SyncSummary = { rarity: string; added: number; removed: number; error?: str
  * Lives in Settings; the Playlists tab is for user-created playlists.
  */
 export function RarityPlaylistSync() {
-  const { songs, syncRarity, isDemoMode, runConflictScan } = useMusicKit();
+  const { songs, syncRarity, runConflictScan } = useMusicKit();
   const [conflictReport, setConflictReport] = useState<TagConflict[] | null>(null);
 
   const [links, setLinks] = useState<PlaylistLinks>(() => loadPlaylistLinks());
@@ -62,7 +62,6 @@ export function RarityPlaylistSync() {
   // ── Link / unlink ───────────────────────────────────────────────────────────
 
   const handleLink = async (rarity: MaplogRarityType) => {
-    if (isDemoMode) return;
     setLinkError(null);
     setLinkBusy(true);
     try {
@@ -87,7 +86,6 @@ export function RarityPlaylistSync() {
   };
 
   const handleUnlink = (rarity: MaplogRarityType) => {
-    if (isDemoMode) return;
     if (!confirm(`Unlink the ${rarity.name} playlist? Your collection is not changed.`)) return;
     const next = { ...links };
     delete next[rarity.slug];
@@ -115,7 +113,6 @@ export function RarityPlaylistSync() {
   React.useEffect(() => { updateLinksRef.current = links; }, [links]);
 
   const handleRefreshAll = async () => {
-    if (isDemoMode) { toast.info('Demo mode is read-only — exit demo mode to sync.'); return; }
     const targets = LINKABLE_RARITIES.filter(r => links[r.slug]);
     if (targets.length === 0) { toast.info('Link a playlist first.'); return; }
     setSyncing(true);
@@ -146,7 +143,7 @@ export function RarityPlaylistSync() {
         <p className="text-sm text-white/50">One Apple Music playlist per rarity</p>
         <Button
           onClick={handleRefreshAll}
-          disabled={syncing || linkedCount === 0 || isDemoMode}
+          disabled={syncing || linkedCount === 0}
           size="sm"
           className="rounded-full font-bold h-10 px-4 shrink-0 shadow-lg"
         >
@@ -155,13 +152,6 @@ export function RarityPlaylistSync() {
             : <span className="flex items-center gap-2"><RefreshCw className="w-4 h-4" /> Refresh all</span>}
         </Button>
       </div>
-
-      {isDemoMode && (
-        <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3">
-          <Sparkles className="w-4 h-4 text-primary shrink-0" />
-          <p className="text-xs text-white/60">Demo mode is read-only — playlist syncing is disabled.</p>
-        </div>
-      )}
 
       <AnimatePresence>
         {conflictReport && (
@@ -271,13 +261,11 @@ export function RarityPlaylistSync() {
                     <>
                       <Button variant="outline" size="sm"
                         className="rounded-full bg-white/5 border-white/10 hover:bg-white/10 text-white text-xs font-bold h-9"
-                        disabled={isDemoMode}
                         onClick={() => { setLinkingSlug(isLinking ? null : rarity.slug); setUrlInput(link.url); setLinkError(null); }}>
                         <Link2 className="w-3.5 h-3.5 mr-1.5" /> Replace link
                       </Button>
                       <Button variant="ghost" size="sm"
                         className="rounded-full text-white/40 hover:text-destructive hover:bg-destructive/10 text-xs font-bold h-9"
-                        disabled={isDemoMode}
                         onClick={() => handleUnlink(rarity)}>
                         <X className="w-3.5 h-3.5 mr-1" /> Unlink
                       </Button>
@@ -285,7 +273,6 @@ export function RarityPlaylistSync() {
                   ) : (
                     <Button variant="outline" size="sm"
                       className="rounded-full bg-white/5 border-white/10 hover:bg-white/10 text-white text-xs font-bold h-9"
-                      disabled={isDemoMode}
                       onClick={() => { setLinkingSlug(isLinking ? null : rarity.slug); setUrlInput(''); setLinkError(null); }}>
                       <Link2 className="w-3.5 h-3.5 mr-1.5" /> Link a playlist
                     </Button>

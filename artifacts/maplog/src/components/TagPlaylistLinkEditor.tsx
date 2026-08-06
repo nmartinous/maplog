@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Link2, X, Loader2, RefreshCw, ListMusic, ChevronDown, Plus,
-  CheckCircle2, XCircle, Sparkles,
+  CheckCircle2, XCircle,
 } from 'lucide-react';
 
 // ── Storage key ────────────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ const inputCls = 'w-full h-11 rounded-xl bg-white/5 border border-white/10 px-3.
 const labelCls = 'text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1.5 block';
 
 export function TagPlaylistLinkEditor() {
-  const { isDemoMode, refresh } = useMusicKit();
+  const { refresh } = useMusicKit();
 
   const [links, setLinks] = useState<PlaylistLinks>(() => loadPlaylistLinks());
 
@@ -218,7 +218,6 @@ export function TagPlaylistLinkEditor() {
 
   // ── Save new link ─────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (isDemoMode) return;
     setSaveError(null);
     setSaving(true);
     try {
@@ -249,7 +248,6 @@ export function TagPlaylistLinkEditor() {
 
   // ── Unlink ────────────────────────────────────────────────────────────────
   const handleUnlink = (key: string) => {
-    if (isDemoMode) return;
     const link = links[key];
     if (!confirm(`Unlink "${link?.name ?? key}"? Your collection is not changed.`)) return;
     const next = { ...links };
@@ -259,7 +257,6 @@ export function TagPlaylistLinkEditor() {
 
   // ── Refresh / sync ────────────────────────────────────────────────────────
   const handleRefresh = async (key: string, link: PlaylistLink & { tags: string[] }) => {
-    if (isDemoMode) { toast.info('Demo mode is read-only — exit demo mode to sync.'); return; }
     setRefreshing(r => ({ ...r, [key]: true }));
     try {
       // Re-fetch playlist to update metadata + sync
@@ -293,13 +290,6 @@ export function TagPlaylistLinkEditor() {
 
   return (
     <div className="space-y-4">
-      {isDemoMode && (
-        <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3">
-          <Sparkles className="w-4 h-4 text-primary shrink-0" />
-          <p className="text-xs text-white/60">Demo mode is read-only — playlist syncing is disabled.</p>
-        </div>
-      )}
-
       {/* Existing tag links */}
       {tagLinks.length > 0 && (
         <div className="space-y-3">
@@ -314,7 +304,7 @@ export function TagPlaylistLinkEditor() {
               <TagLinkCard
                 linkKey={key}
                 link={link}
-                disabled={isDemoMode || !!refreshing[key]}
+                disabled={!!refreshing[key]}
                 onUnlink={handleUnlink}
                 onRefresh={handleRefresh}
               />
@@ -328,7 +318,6 @@ export function TagPlaylistLinkEditor() {
         <button
           className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/5 transition-colors"
           onClick={() => { setShowForm(o => !o); setSaveError(null); }}
-          disabled={isDemoMode}
         >
           <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center">
             <Plus className="w-4 h-4 text-white/50" />
@@ -399,7 +388,7 @@ export function TagPlaylistLinkEditor() {
                   </Button>
                   <Button size="sm"
                     className="rounded-full font-bold h-9 flex-1"
-                    disabled={saving || !canSave || isDemoMode}
+                    disabled={saving || !canSave}
                     onClick={handleSave}>
                     {saving
                       ? <span className="flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</span>

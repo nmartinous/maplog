@@ -66,11 +66,10 @@ function fmtDuration(ms: number) {
 
 // ── Single album card ──────────────────────────────────────────────────────────
 function AlbumCard({
-  albumName, songs, isDemoMode, navigate,
+  albumName, songs, navigate,
 }: {
   albumName: string;
   songs: MaplogSong[];
-  isDemoMode: boolean;
   navigate: (to: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -280,9 +279,8 @@ function CollectedTrackRow({ song, trackNumber, navigate }: {
 }
 
 // ── Releases section ───────────────────────────────────────────────────────────
-function ReleasesSection({ songs, isDemoMode, navigate }: {
+function ReleasesSection({ songs, navigate }: {
   songs: MaplogSong[];
-  isDemoMode: boolean;
   navigate: (to: string) => void;
 }) {
   // Group songs by album name
@@ -307,7 +305,6 @@ function ReleasesSection({ songs, isDemoMode, navigate }: {
             key={albumName}
             albumName={albumName}
             songs={albumSongs}
-            isDemoMode={isDemoMode}
             navigate={navigate}
           />
         ))}
@@ -318,7 +315,7 @@ function ReleasesSection({ songs, isDemoMode, navigate }: {
 
 // ── Artist page component ──────────────────────────────────────────────────────
 export default function Artist() {
-  const { songs, isDemoMode } = useMusicKit();
+  const { songs } = useMusicKit();
   const { play } = usePlayer();
   const [, navigate] = useLocation();
   const [, params] = useRoute('/artists/:name');
@@ -406,7 +403,7 @@ export default function Artist() {
             exit={{ opacity: 0, y: -24 }}
             transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
           >
-            <ArtistPage artist={artist} songs={songs} isDemoMode={isDemoMode} play={play} navigate={navigate} />
+            <ArtistPage artist={artist} songs={songs} play={play} navigate={navigate} />
           </motion.div>
         </AnimatePresence>
       </div>
@@ -415,10 +412,9 @@ export default function Artist() {
 }
 
 // ── ArtistPage ─────────────────────────────────────────────────────────────────
-function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
+function ArtistPage({ artist, songs, play, navigate }: {
   artist: string;
   songs: MaplogSong[];
-  isDemoMode: boolean;
   play: (song: MaplogSong, queue: MaplogSong[]) => void;
   navigate: (to: string) => void;
 }) {
@@ -439,7 +435,6 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
   };
 
   useEffect(() => {
-    if (isDemoMode) return;
     const current = loadArtistData(artist);
     if (importedInfoIsFresh(current)) return;
     let cancelled = false;
@@ -447,7 +442,7 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
       if (!cancelled && info) setData(d => ({ ...d, imported: info }));
     });
     return () => { cancelled = true; };
-  }, [artist, isDemoMode]);
+  }, [artist]);
 
   const imageUrl = data.imageUrl ?? data.imported?.imageUrl ?? null;
   const fallbackArt = artistSongs[0]?.artworkUrl ?? null;
@@ -485,7 +480,7 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
       {/* Header */}
       <div className="flex items-center gap-5">
         <button
-          onClick={() => !isDemoMode && fileRef.current?.click()}
+          onClick={() => fileRef.current?.click()}
           aria-label="Change artist image"
           data-testid="artist-image"
           className="w-24 h-24 rounded-[2rem] bg-white/5 border border-white/10 shrink-0 relative overflow-hidden group active:scale-95 transition-transform"
@@ -495,11 +490,9 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
           ) : (
             <Music2 className="w-9 h-9 text-white/20 absolute inset-0 m-auto" />
           )}
-          {!isDemoMode && (
-            <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity flex items-center justify-center">
-              <Camera className="w-5 h-5 text-white" />
-            </div>
-          )}
+          <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity flex items-center justify-center">
+            <Camera className="w-5 h-5 text-white" />
+          </div>
         </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
 
@@ -530,12 +523,12 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
           ) : (
             <button
               className="inline-flex items-start gap-1.5 max-w-full text-left"
-              onClick={() => { if (!isDemoMode) { setBioDraft(data.lyricBio ?? ''); setEditingBio(true); } }}
+              onClick={() => { setBioDraft(data.lyricBio ?? ''); setEditingBio(true); }}
               data-testid="artist-lyric-bio"
             >
               <Quote className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
               <span className={cn('text-xs italic leading-relaxed line-clamp-2', data.lyricBio ? 'text-white/70' : 'text-white/30')}>
-                {data.lyricBio || (isDemoMode ? 'No lyric bio' : 'Add a lyric as their bio')}
+                {data.lyricBio || 'Add a lyric as their bio'}
               </span>
             </button>
           )}
@@ -587,11 +580,11 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
       {/* Showcase */}
       <section>
         <SectionHeader icon={Sparkles} title="Showcase" />
-        <ShowcaseSection key={artistKey(artist)} scope={{ kind: 'artist', artist }} songs={songs} readOnly={isDemoMode} />
+        <ShowcaseSection key={artistKey(artist)} scope={{ kind: 'artist', artist }} songs={songs} readOnly={false} />
       </section>
 
       {/* Releases (albums / EPs / singles grouped) */}
-      <ReleasesSection songs={artistSongs} isDemoMode={isDemoMode} navigate={navigate} />
+      <ReleasesSection songs={artistSongs} navigate={navigate} />
 
       {/* All songs flat list */}
       <section>
@@ -649,11 +642,7 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
               </p>
             </>
           ) : (
-            <p className="text-sm text-white/40">
-              {isDemoMode
-                ? 'Artist info imports are disabled in demo mode.'
-                : 'No imported info yet — it loads automatically from Apple Music.'}
-            </p>
+            <p className="text-sm text-white/40">No imported info yet — it loads automatically from Apple Music.</p>
           )}
         </div>
       </section>
@@ -687,11 +676,11 @@ function ArtistPage({ artist, songs, isDemoMode, play, navigate }: {
         ) : (
           <button
             className="glass-panel rounded-[1.75rem] p-5 w-full text-left active:scale-[0.99] transition-transform"
-            onClick={() => { if (!isDemoMode) { setNotesDraft(data.notes ?? ''); setEditingNotes(true); } }}
+            onClick={() => { setNotesDraft(data.notes ?? ''); setEditingNotes(true); }}
             data-testid="artist-notes"
           >
             <p className={cn('text-sm leading-relaxed whitespace-pre-wrap', data.notes ? 'text-white/80' : 'text-white/30')}>
-              {data.notes || (isDemoMode ? 'No notes' : 'Tap to add your notes about this artist…')}
+              {data.notes || 'Tap to add your notes about this artist…'}
             </p>
           </button>
         )}

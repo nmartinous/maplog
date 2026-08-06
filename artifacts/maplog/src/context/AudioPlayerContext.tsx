@@ -5,7 +5,6 @@ import type { MaplogSong } from '@/lib/types';
 import { initMusicKit } from '@/lib/musicKit';
 import { useMusicKit } from '@/context/MusicKitContext';
 
-const DEMO_MODE_KEY = 'maplog:demoMode';
 const PREFS_KEY = 'maplog:playerPrefs';
 const HISTORY_KEY = 'maplog:recentlyPlayed';
 const HISTORY_MAX = 10;
@@ -201,9 +200,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const collectionRef = useRef(collectionSongs);
   collectionRef.current = collectionSongs;
 
-  // Stable ref: whether we're in demo mode (no real audio source)
-  const isDemoMode = useRef(localStorage.getItem(DEMO_MODE_KEY) === 'true');
-
   // ── MusicKit (full-song playback for Apple-sourced songs) ────────────────
   const mkRef = useRef<any | null>(null);
   // Whether the *current* song is being played through MusicKit
@@ -219,7 +215,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [mkTick, setMkTick] = useState(0);
 
   useEffect(() => {
-    if (isDemoMode.current) return;
     let cancelled = false;
     const listeners: Array<[string, () => void]> = [];
 
@@ -275,13 +270,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Shared end-of-track behavior for all engines: respects autoplay,
   // repeat-one, repeat-all (queue wrap handled by the NEXT reducer).
-  const handleTrackEnd = useCallback((engine: 'musickit' | 'html5' | 'demo') => {
+  const handleTrackEnd = useCallback((engine: 'musickit' | 'html5') => {
     const s = stateRef.current;
     if (s.repeat === 'one') {
       // Restart the same track on the active engine
-      if (engine === 'demo') {
-        dispatch({ type: 'SET_TIME', payload: 0 });
-      } else if (engine === 'musickit') {
+      if (engine === 'musickit') {
         const mk = mkRef.current;
         try {
           mk?.seekToTime?.(0);
@@ -321,8 +314,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (isDemoMode.current) return;
-
     const audio = new Audio();
     audio.preload = 'metadata';
     // iOS requires the <audio> element to be attached to the DOM for the
@@ -382,10 +373,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [handleTrackEnd]);
 
-  // When currentSong changes in real mode (or MusicKit becomes ready/authed),
+  // When currentSong changes (or MusicKit becomes ready/authed),
   // route to MusicKit (full songs) or the HTML5 preview player
   useEffect(() => {
-    if (isDemoMode.current) return;
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -457,55 +447,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentSong?.id, mkTick]);
 
-  // ── Demo mode: interval-based simulated playback ─────────────────────────
-  const demoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const clearDemoTimer = useCallback(() => {
-    if (demoTimerRef.current !== null) {
-      clearInterval(demoTimerRef.current);
-      demoTimerRef.current = null;
-    }
-  }, []);
-
-  const startDemoTimer = useCallback(() => {
-    clearDemoTimer();
-    demoTimerRef.current = setInterval(() => {
-      const s = stateRef.current;
-      if (!s.isPlaying) return;
-      const next = s.currentTime + 1;
-      if (s.duration > 0 && next >= s.duration) {
-        clearDemoTimer();
-        handleTrackEnd('demo');
-        // repeat-one / continuing playback restarts the timer via the
-        // song-change or play/pause effects; restart manually for repeat-one
-        // since the song id doesn't change
-        if (stateRef.current.isPlaying) startDemoTimer();
-      } else {
-        dispatch({ type: 'SET_TIME', payload: next });
-      }
-    }, 1000);
-  }, [clearDemoTimer, handleTrackEnd]);
-
-  // Demo song change → reset duration and timer
-  useEffect(() => {
-    if (!isDemoMode.current) return;
-    if (!state.currentSong) { clearDemoTimer(); return; }
-
-    const dur = Math.round((state.currentSong.durationMs ?? 0) / 1000);
-    dispatch({ type: 'SET_DURATION', payload: dur || 180 });
-    dispatch({ type: 'SET_TIME', payload: 0 });
-    if (state.isPlaying) startDemoTimer();
-    return clearDemoTimer;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.currentSong?.id]);
-
-  // Demo play/pause toggle
-  useEffect(() => {
-    if (!isDemoMode.current) return;
-    if (state.isPlaying) startDemoTimer();
-    else clearDemoTimer();
-  }, [state.isPlaying, startDemoTimer, clearDemoTimer]);
-
   // ── Recently played persistence ───────────────────────────────────────────
   useEffect(() => {
     try { localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history)); } catch { /* noop */ }
@@ -547,20 +488,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     dispatch({ type: 'PLAY_SONG', payload: { song, queue } });
-    // Real mode: the currentSong useEffect handles loading + playing the audio
-    // Demo mode: the demo timer useEffect handles it
   }, []);
 
   const pause = useCallback(() => {
     dispatch({ type: 'SET_PLAYING', payload: false });
-    if (isDemoMode.current) return;
     if (mkActiveRef.current) mkRef.current?.pause();
     else audioRef.current?.pause();
   }, []);
 
   const resume = useCallback(() => {
     dispatch({ type: 'SET_PLAYING', payload: true });
-    if (isDemoMode.current) return;
     if (mkActiveRef.current) {
       mkRef.current?.play()?.catch?.((err: unknown) => console.warn('[AudioPlayer] resume blocked:', err));
     } else {
@@ -570,7 +507,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const seek = useCallback((time: number) => {
     dispatch({ type: 'SET_TIME', payload: time });
-    if (isDemoMode.current) return;
     if (mkActiveRef.current) {
       mkRef.current?.seekToTime?.(time);
     } else if (audioRef.current) {

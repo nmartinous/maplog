@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMusicKit } from '@/context/MusicKitContext';
 import type { MaplogSong } from '@/lib/types';
-import { DEMO_RARITIES } from '@/lib/rarityMap';
+import { ALL_RARITIES } from '@/lib/rarityMap';
 import {
-  Trash2, Download, Upload, Sparkles, Shield, ExternalLink,
+  Trash2, Download, Upload, Shield, ExternalLink,
   Info, ChevronRight, CheckCircle2, XCircle, Loader2,
   ChevronDown, ChevronUp, Music2, Target, AlertTriangle, Pencil,
   Share2, CloudUpload,
@@ -89,17 +89,15 @@ function RarityPicker({ raritySlug, setRaritySlug }: { raritySlug: string; setRa
   return (
     <div className="space-y-3">
       <label className="text-xs font-bold text-white/50 uppercase tracking-widest">Assign rarity to all tracks</label>
-      <div className="flex gap-2">
-        {DEMO_RARITIES.map(r => (
-          <button key={r.slug} onClick={() => setRaritySlug(r.slug)}
-            className={cn('flex-1 py-3 rounded-xl text-sm font-bold transition-all border',
-              raritySlug === r.slug
-                ? 'bg-primary border-primary text-white shadow-[0_0_20px_rgba(255,60,0,0.3)]'
-                : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10')}>
-            {r.name}
-          </button>
+      <select
+        value={raritySlug}
+        onChange={e => setRaritySlug(e.target.value)}
+        className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 px-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none"
+      >
+        {ALL_RARITIES.map(r => (
+          <option key={r.slug} value={r.slug} className="bg-[#141417] text-white">{r.name}</option>
         ))}
-      </div>
+      </select>
     </div>
   );
 }
@@ -118,11 +116,11 @@ function PlaylistImport({ addToCollection, collection }: {
 }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState('');
-  const [raritySlug, setRaritySlug] = useState(DEMO_RARITIES[0].slug);
+  const [raritySlug, setRaritySlug] = useState(ALL_RARITIES[0].slug);
   const [status, setStatus] = useState<PlaylistPhase>({ phase: 'idle' });
   const [error, setError] = useState<string | null>(null);
 
-  const selectedRarity = DEMO_RARITIES.find(r => r.slug === raritySlug) ?? DEMO_RARITIES[0];
+  const selectedRarity = ALL_RARITIES.find(r => r.slug === raritySlug) ?? ALL_RARITIES[0];
 
   const handleFetch = async () => {
     setError(null);
@@ -261,7 +259,7 @@ function PlaylistImport({ addToCollection, collection }: {
 export default function Settings() {
   const [rarityOpen, setRarityOpen] = useState<boolean>(() => localStorage.getItem('maplog:rarityOpen') !== '0');
   useEffect(() => { localStorage.setItem('maplog:rarityOpen', rarityOpen ? '1' : '0'); }, [rarityOpen]);
-  const { songs, enterDemoMode, exitDemoMode, isDemoMode, addToCollection, hasToken, isAuthorized, authorize, conflicts } = useMusicKit();
+  const { songs, addToCollection, hasToken, isAuthorized, authorize, conflicts } = useMusicKit();
   const [, navigate] = useLocation();
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -404,9 +402,6 @@ export default function Settings() {
     setRestoring(true);
     try {
       await restoreBackup(pending);
-      // Reload so every context re-reads the restored data (and demo mode,
-      // if active, is left — the restore wrote your real saved data).
-      localStorage.removeItem('maplog:demoMode');
       window.location.reload();
     } catch (err) {
       setRestoring(false);
@@ -453,17 +448,15 @@ export default function Settings() {
           </AnimatePresence>
         </section>
 
-        {!isDemoMode && (
-          <section className="space-y-4">
-            <h2 className="text-xs font-bold tracking-widest uppercase text-white/50 px-2 flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              Import
-            </h2>
-            <div className="space-y-4">
-              <PlaylistImport addToCollection={addToCollection} collection={songs} />
-            </div>
-          </section>
-        )}
+        <section className="space-y-4">
+          <h2 className="text-xs font-bold tracking-widest uppercase text-white/50 px-2 flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" />
+            Import
+          </h2>
+          <div className="space-y-4">
+            <PlaylistImport addToCollection={addToCollection} collection={songs} />
+          </div>
+        </section>
 
         <Section title="Edit Mode">
           <Row icon={Pencil} label="Open Edit Mode"
@@ -613,10 +606,6 @@ export default function Settings() {
         </AnimatePresence>
 
         <Section title="Experience">
-          <Row icon={Sparkles}
-            label={isDemoMode ? 'Exit Demo Mode' : 'Enter Demo Mode'}
-            description={isDemoMode ? 'Return to your actual saved collection' : 'Explore the app with premium sample data'}
-            onClick={isDemoMode ? exitDemoMode : enterDemoMode} />
           <Row icon={Info} label="Playback"
             description="Songs stream in full from Apple Music when connected; otherwise 30-second previews play." />
         </Section>

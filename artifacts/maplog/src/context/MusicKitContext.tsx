@@ -10,7 +10,6 @@ import React, {
   createContext, useContext, useState, useCallback, useEffect,
 } from 'react';
 import type { MaplogSong, MaplogCard, MaplogRarityType } from '@/lib/types';
-import { DEMO_SONGS } from '@/lib/demoData';
 import { initMusicKit } from '@/lib/musicKit';
 import { ensureCardTags, normalizeTags, sameTagPool, tagsFromRaritySlug, validateTrackCards } from '@/lib/tags';
 import {
@@ -21,7 +20,6 @@ import { gcOrphanedMedia } from '@/lib/mediaStore';
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const COLLECTION_KEY = 'maplog:collection';
-const DEMO_MODE_KEY  = 'maplog:demoMode';
 
 // ── Apple Music catalog search (via API proxy) ─────────────────────────────────
 
@@ -77,8 +75,6 @@ function loadCollection(): MaplogSong[] {
   }
 }
 
-const DEMO_SONGS_TAGGED = migrateTags(DEMO_SONGS).songs;
-
 function saveCollection(songs: MaplogSong[]): void {
   localStorage.setItem(COLLECTION_KEY, JSON.stringify(songs));
 }
@@ -116,9 +112,9 @@ export interface MusicKitContextType {
   /** Reload collection from localStorage */
   refresh: () => void;
 
-  /** Edit a song's display info (Edit Mode). No-op in demo mode. */
+  /** Edit a song's display info (Edit Mode). */
   updateSong: (songId: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => void;
-  /** Replace one card's tag pool (Edit Mode; caller validates). No-op in demo mode. */
+  /** Replace one card's tag pool (Edit Mode; caller validates). */
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
   updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
 
@@ -131,10 +127,6 @@ export interface MusicKitContextType {
 
   /** Prompt the user to connect their Apple Music account */
   authorize: () => void;
-
-  isDemoMode:    boolean;
-  enterDemoMode: () => void;
-  exitDemoMode:  () => void;
 }
 
 const MusicKitContext = createContext<MusicKitContextType | null>(null);
@@ -142,12 +134,7 @@ const MusicKitContext = createContext<MusicKitContextType | null>(null);
 // ── Provider ───────────────────────────────────────────────────────────────────
 
 export function MusicKitProvider({ children }: { children: React.ReactNode }) {
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(
-    () => localStorage.getItem(DEMO_MODE_KEY) === 'true',
-  );
-  const [songs, setSongs] = useState<MaplogSong[]>(
-    () => localStorage.getItem(DEMO_MODE_KEY) === 'true' ? DEMO_SONGS_TAGGED : loadCollection(),
-  );
+  const [songs, setSongs] = useState<MaplogSong[]>(() => loadCollection());
   const [conflicts, setConflicts] = useState<TagConflict[]>(() => loadConflicts());
 
   // ── MusicKit setup (developer token + user authorization) ─────────────────
@@ -192,7 +179,6 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   // ── Collection mutations ──────────────────────────────────────────────────
 
   const addToCollection = useCallback((song: MaplogSong, rarity: MaplogRarityType) => {
-    if (isDemoMode) return; // demo is read-only
     {
       const prev = songsRef.current;
       const existing = prev.find(s => s.id === song.id);
@@ -230,7 +216,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
 
       commitCollection(updated);
     }
-  }, [isDemoMode]);
+  }, []);
 
   // Ref mirror so mutations in the same tick (e.g. refresh-all looping over
   // rarities) each see the previous mutation's result instead of stale state.
@@ -249,27 +235,24 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     setSongs(updated);
   }, []);
 
-  /** Edit a song's display info (Edit Mode). No-op in demo mode. */
+  /** Edit a song's display info (Edit Mode). */
   const updateSong = useCallback((songId: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => {
-    if (isDemoMode) return;
     const updated = songsRef.current.map(s => s.id === songId ? { ...s, ...patch } : s);
     commitCollection(updated);
-  }, [isDemoMode, commitCollection]);
+  }, [commitCollection]);
 
-  /** Edit one card's display metadata (flavor/subject/pin/pattern). No-op in demo mode. */
+  /** Edit one card's display metadata (flavor/subject/pin/pattern). */
   const updateCardMeta = useCallback((songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => {
-    if (isDemoMode) return;
     const updated = songsRef.current.map(s =>
       s.id === songId
         ? { ...s, cards: s.cards.map(c => c.id === cardId ? { ...c, ...patch } : c) }
         : s,
     );
     commitCollection(updated);
-  }, [isDemoMode, commitCollection]);
+  }, [commitCollection]);
 
-  /** Replace one card's tag pool (Edit Mode; caller validates). No-op in demo mode. */
+  /** Replace one card's tag pool (Edit Mode; caller validates). */
   const updateCardTags = useCallback((songId: string, cardId: string, tags: string[]) => {
-    if (isDemoMode) return;
     const pool = normalizeTags(tags);
     const updated = songsRef.current.map(s =>
       s.id === songId
@@ -277,14 +260,12 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         : s,
     );
     commitCollection(updated);
-  }, [isDemoMode, commitCollection]);
+  }, [commitCollection]);
 
   const normKey = (s: { title: string; artist: string }) =>
     `${s.title.trim().toLowerCase()}|${s.artist.trim().toLowerCase()}`;
 
   const syncRarity = useCallback((rarity: MaplogRarityType, playlistSongs: MaplogSong[]) => {
-    if (isDemoMode) return { added: 0, removed: 0 };
-
     const current = songsRef.current;
 
     // Match playlist tracks to collection entries by exact id, falling back
@@ -390,12 +371,11 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     );
 
     return { added, removed };
-  }, [isDemoMode, commitCollection]);
+  }, [commitCollection]);
 
   const refresh = useCallback(() => {
-    if (isDemoMode) { setSongs([...DEMO_SONGS_TAGGED]); return; }
     setSongs(loadCollection());
-  }, [isDemoMode]);
+  }, []);
 
   // ── Tag conflicts ─────────────────────────────────────────────────────────
 
@@ -412,8 +392,6 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
    * Returns the newly queued conflicts + dedupe count.
    */
   const runConflictScan = useCallback((): { newConflicts: TagConflict[]; deduped: number } => {
-    if (isDemoMode) return { newConflicts: [], deduped: 0 };
-
     const current = songsRef.current;
     const newConflicts: TagConflict[] = [];
     let deduped = 0;
@@ -456,14 +434,13 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
       return { newConflicts: fresh, deduped };
     }
     return { newConflicts, deduped };
-  }, [isDemoMode, commitCollection, commitConflicts]);
+  }, [commitCollection, commitConflicts]);
 
   /**
    * Resolve one queued conflict: keep one copy (restores it into the
    * collection) or discard all copies (keepCardId = null).
    */
   const resolveConflict = useCallback((conflictId: string, keepCardId: string | null) => {
-    if (isDemoMode) return;
     const queue = loadConflicts();
     const conflict = queue.find(c => c.id === conflictId);
     if (!conflict) return;
@@ -492,21 +469,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     }
 
     commitConflicts(queue.filter(c => c.id !== conflictId));
-  }, [isDemoMode, commitCollection, commitConflicts]);
-
-  // ── Demo mode ─────────────────────────────────────────────────────────────
-
-  const enterDemoMode = useCallback(() => {
-    localStorage.setItem(DEMO_MODE_KEY, 'true');
-    setIsDemoMode(true);
-    setSongs(DEMO_SONGS_TAGGED);
-  }, []);
-
-  const exitDemoMode = useCallback(() => {
-    localStorage.removeItem(DEMO_MODE_KEY);
-    setIsDemoMode(false);
-    setSongs(loadCollection());
-  }, []);
+  }, [commitCollection, commitConflicts]);
 
   // ── Lookup ────────────────────────────────────────────────────────────────
 
@@ -536,9 +499,6 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         runConflictScan,
         resolveConflict,
         authorize,
-        isDemoMode,
-        enterDemoMode,
-        exitDemoMode,
       }}
     >
       {children}
