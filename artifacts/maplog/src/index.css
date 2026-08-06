@@ -5,6 +5,11 @@
 
 @custom-variant landscape-compact (@media (max-height: 500px) and (orientation: landscape));
 
+/* Prevent iOS 300ms double-tap delay on all interactive elements */
+a, button, [role="button"] {
+  touch-action: manipulation;
+}
+
 /* Safe-area-aware page header top padding.
    Sits below the iOS status bar / notch / Dynamic Island with breathing room.
    Falls back to 2rem on devices with no safe-area inset (desktop, Android). */

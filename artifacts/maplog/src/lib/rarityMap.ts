@@ -32,6 +32,19 @@ export function rarityFromPlaylistName(name: string): MaplogRarityType | null {
   return RARITY_MAP[key] ?? null;
 }
 
+/** Representative slug for each category — used to render styled filter pills */
+export const CATEGORY_SLUG: Record<string, string> = {
+  'Regular':         'regular-common',
+  'Shiny':           'shiny-common',
+  'Epic':            'epic',
+  'Special Edition': 'special-edition',
+  'Special Epic':    'special-epic',
+  'Streak Epic':     'streak-epic',
+  'Lyric':           'lyric',
+  'Radiant':         'radiant',
+  'Moment':          'moment',
+};
+
 /** All rarity category names for filter chips */
 export const ALL_CATEGORIES = [
   'All', 'Regular', 'Shiny', 'Epic',

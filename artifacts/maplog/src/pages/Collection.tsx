@@ -1,14 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useMusicKit } from '@/context/MusicKitContext';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
-import { ALL_CATEGORIES } from '@/lib/rarityMap';
+import { ALL_CATEGORIES, CATEGORY_SLUG } from '@/lib/rarityMap';
 import { RarityBadge } from '@/components/RarityBadge';
 import { SoundmapCard } from '@/components/SoundmapCard';
 import { Input } from '@/components/ui/input';
 import {
-  Search, Play, Library, RefreshCw, Music2, Layers, ChevronDown,
+  Search, Play, Library, RefreshCw, Music2, Layers, ChevronDown, SlidersHorizontal, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -210,32 +210,38 @@ function ToggleButton({ mode, onToggle, className }: { mode: Mode; onToggle: () 
   );
 }
 
-// ── Scope selector dropdown ────────────────────────────────────────────────────
+// ── Scope selector — horizontal row, opens to the LEFT ────────────────────────
 function ScopeSelect({ value, onChange }: { value: SearchScope; onChange: (v: SearchScope) => void }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [open]);
+
   return (
-    <div className="relative shrink-0">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="h-12 px-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-1.5 text-sm font-bold text-white/70 hover:text-white hover:bg-white/10 transition-all active:scale-95 whitespace-nowrap"
-        aria-label="Search scope"
-      >
-        {SCOPE_LABELS[value]}
-        <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', open && 'rotate-180')} />
-      </button>
+    <div ref={ref} className="relative shrink-0 flex items-center">
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-            className="absolute right-0 top-full mt-1.5 rounded-2xl bg-[#141417] border border-white/10 shadow-2xl overflow-hidden z-50 min-w-[100px]"
+            initial={{ opacity: 0, x: 8, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 8, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-2xl bg-[#141417] border border-white/10 shadow-2xl p-1 z-50"
           >
             {(Object.entries(SCOPE_LABELS) as [SearchScope, string][]).map(([k, label]) => (
               <button
                 key={k}
                 onClick={() => { onChange(k); setOpen(false); }}
                 className={cn(
-                  'w-full text-left px-4 py-2.5 text-sm font-bold transition-colors',
-                  k === value ? 'text-primary bg-primary/10' : 'text-white/70 hover:bg-white/5 hover:text-white',
+                  'px-3 py-1.5 text-sm font-bold rounded-xl transition-colors whitespace-nowrap',
+                  k === value ? 'bg-primary text-white' : 'text-white/70 hover:bg-white/5 hover:text-white',
                 )}
               >
                 {label}
@@ -244,7 +250,105 @@ function ScopeSelect({ value, onChange }: { value: SearchScope; onChange: (v: Se
           </motion.div>
         )}
       </AnimatePresence>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="h-12 px-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-1.5 text-sm font-bold text-white/70 hover:text-white hover:bg-white/10 transition-all active:scale-95 whitespace-nowrap"
+        aria-label="Search scope"
+      >
+        {SCOPE_LABELS[value]}
+        <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', open && 'rotate-180')} />
+      </button>
     </div>
+  );
+}
+
+// ── Rarity filter popup ────────────────────────────────────────────────────────
+function FilterPopup({
+  isOpen, activeRarity, onSelect, onClose,
+}: {
+  isOpen: boolean;
+  activeRarity: string;
+  onSelect: (v: string) => void;
+  onClose: () => void;
+}) {
+  const categories = ALL_CATEGORIES.filter(c => c !== 'All');
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+            onClick={onClose}
+          />
+          {/* Sheet */}
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 380, damping: 38 }}
+            className="fixed bottom-0 left-0 right-0 z-50 bg-[#0f0f12] border-t border-white/10 rounded-t-3xl px-4 pt-4 shadow-2xl"
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
+          >
+            {/* Handle */}
+            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
+
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white text-base">Filter by Rarity</h3>
+              <button
+                onClick={onClose}
+                className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* All option */}
+            <button
+              onClick={() => { onSelect('All'); onClose(); }}
+              className={cn(
+                'w-full py-2.5 px-4 rounded-2xl font-bold text-sm mb-3 border transition-all active:scale-[0.98]',
+                activeRarity === 'All'
+                  ? 'bg-primary/20 border-primary text-primary shadow-[0_0_12px_rgba(255,60,0,0.2)]'
+                  : 'bg-white/5 border-white/10 text-white/60 hover:text-white',
+              )}
+            >
+              All Rarities
+            </button>
+
+            {/* Category pills — wrapping flex grid */}
+            <div className="flex flex-wrap gap-2 pb-1">
+              {categories.map(category => {
+                const isActive = activeRarity === category;
+                return (
+                  <button
+                    key={category}
+                    onClick={() => { onSelect(category); onClose(); }}
+                    className={cn(
+                      'rounded-full transition-all active:scale-95',
+                      isActive
+                        ? 'ring-2 ring-white ring-offset-2 ring-offset-[#0f0f12] scale-105'
+                        : 'opacity-70 hover:opacity-100',
+                    )}
+                  >
+                    <RarityBadge
+                      slug={CATEGORY_SLUG[category] ?? 'regular-common'}
+                      name={category}
+                      category={category}
+                      size="md"
+                      labelOverride={category}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -263,6 +367,7 @@ function ActiveView({
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState<SearchScope>('all');
   const [activeRarity, setActiveRarity] = useState<string>('All');
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const displayData = useMemo(() => {
     const q = search.toLowerCase();
@@ -326,7 +431,7 @@ function ActiveView({
         </div>
 
         {/* Search row with scope selector */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-3">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
             <Input
@@ -339,23 +444,37 @@ function ActiveView({
           <ScopeSelect value={scope} onChange={setScope} />
         </div>
 
-        {/* Rarity chips */}
-        <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 sm:-mx-6 sm:px-6">
-          {ALL_CATEGORIES.map(name => (
+        {/* Filter trigger */}
+        <div className="flex items-center gap-2 pb-2">
+          <button
+            onClick={() => setFilterOpen(true)}
+            className={cn(
+              'flex items-center gap-2 h-9 px-4 rounded-full text-sm font-bold border transition-all active:scale-95',
+              activeRarity !== 'All'
+                ? 'border-primary bg-primary/10 text-primary shadow-[0_0_10px_rgba(255,60,0,0.15)]'
+                : 'border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10',
+            )}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            {activeRarity === 'All' ? 'Filter' : activeRarity}
+          </button>
+          {activeRarity !== 'All' && (
             <button
-              key={name}
-              onClick={() => setActiveRarity(name)}
-              className={cn(
-                'whitespace-nowrap px-4 py-2 rounded-full text-[13px] font-bold transition-all shrink-0 border',
-                activeRarity === name
-                  ? 'bg-primary border-primary text-white shadow-[0_0_15px_rgba(255,60,0,0.3)]'
-                  : 'bg-card/50 border-white/10 text-white/60 hover:bg-card hover:text-white',
-              )}
+              onClick={() => setActiveRarity('All')}
+              className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/20 transition-colors"
+              aria-label="Clear filter"
             >
-              {name}
+              <X className="w-3.5 h-3.5" />
             </button>
-          ))}
+          )}
         </div>
+
+        <FilterPopup
+          isOpen={filterOpen}
+          activeRarity={activeRarity}
+          onSelect={setActiveRarity}
+          onClose={() => setFilterOpen(false)}
+        />
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 relative z-10 pb-20 w-full">
@@ -406,7 +525,6 @@ function ActiveView({
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   transition={{ delay: i * 0.03, type: "spring", stiffness: 300, damping: 25 }}
-                  layout
                 >
                   {/* Row: tap art to play, tap rest to open card view.
                       Using div + onClick (not Link) to avoid iOS double-tap
