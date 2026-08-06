@@ -14,13 +14,14 @@ import { putCardMedia, getCardMedia, deleteCardMedia, listMediaCardIds } from '@
 import { presenceForCard, RADIANT_PATTERNS, DEFAULT_RADIANT_PATTERN } from '@/lib/cardTemplates';
 import { invalidateCardMedia } from '@/lib/useCardMedia';
 import { ConflictQueue } from '@/components/ConflictQueue';
+import { TagPlaylistLinkEditor } from '@/components/TagPlaylistLinkEditor';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ChevronDown, Pencil, Layers, Award, AlertTriangle, Search,
-  Film, Trash2, Plus, X, Check, Lock,
+  Film, Trash2, Plus, X, Check, Lock, Tags,
 } from 'lucide-react';
 
 // ── Section shell ─────────────────────────────────────────────────────────────
@@ -738,6 +739,10 @@ export default function EditMode() {
 
           <Section icon={Layers} title="Visual Tags" description="Custom visual tags for special card appearances">
             <OverrideManager disabled={isDemoMode} />
+          </Section>
+
+          <Section icon={Tags} title="Tag Playlist Links" description="Link Apple Music playlists to any custom tag combination">
+            <TagPlaylistLinkEditor />
           </Section>
 
           <Section icon={Award} title="Artist Badges" description="Assign accomplishment badges for artist pages">

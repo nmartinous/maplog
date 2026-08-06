@@ -16,9 +16,14 @@ export interface PlaylistLink {
   trackCount:  number;
   artworkUrl:  string | null;
   lastSynced:  string | null; // ISO timestamp
+  /**
+   * For tag-based links (key = `tags:<sorted-joined>`): the exact tag set
+   * applied to imported cards. Absent on legacy rarity-slug links.
+   */
+  tags?: string[];
 }
 
-export type PlaylistLinks = Record<string, PlaylistLink>; // keyed by rarity slug
+export type PlaylistLinks = Record<string, PlaylistLink>; // keyed by rarity slug or tags:<sorted>
 
 export function loadPlaylistLinks(): PlaylistLinks {
   try {
