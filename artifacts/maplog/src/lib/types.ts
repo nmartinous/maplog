@@ -22,6 +22,14 @@ export interface MaplogCard {
    * Optional for backwards compatibility — migrated on load from rarityType.
    */
   tags?: string[];
+  /** Uploader flavor text (moments, lyrics) — shown as a quote bubble */
+  flavorText?: string | null;
+  /** Subject text (lyrics: the lyric line; epics: clip subject) */
+  subjectText?: string | null;
+  /** Emoji/short-text pin shown bottom-left on epics */
+  pin?: string | null;
+  /** Radiant pattern template id (see lib/cardTemplates.ts) */
+  patternId?: string | null;
 }
 
 /**

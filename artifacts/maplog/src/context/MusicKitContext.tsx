@@ -119,6 +119,7 @@ export interface MusicKitContextType {
   updateSong: (songId: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => void;
   /** Replace one card's tag pool (Edit Mode; caller validates). No-op in demo mode. */
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
+  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
 
   /** Queued tag-rule conflicts awaiting resolution */
   conflicts: TagConflict[];
@@ -251,6 +252,17 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
   const updateSong = useCallback((songId: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => {
     if (isDemoMode) return;
     const updated = songsRef.current.map(s => s.id === songId ? { ...s, ...patch } : s);
+    commitCollection(updated);
+  }, [isDemoMode, commitCollection]);
+
+  /** Edit one card's display metadata (flavor/subject/pin/pattern). No-op in demo mode. */
+  const updateCardMeta = useCallback((songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => {
+    if (isDemoMode) return;
+    const updated = songsRef.current.map(s =>
+      s.id === songId
+        ? { ...s, cards: s.cards.map(c => c.id === cardId ? { ...c, ...patch } : c) }
+        : s,
+    );
     commitCollection(updated);
   }, [isDemoMode, commitCollection]);
 
@@ -490,6 +502,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         refresh,
         updateSong,
         updateCardTags,
+        updateCardMeta,
         conflicts,
         runConflictScan,
         resolveConflict,

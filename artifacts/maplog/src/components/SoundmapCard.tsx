@@ -4,6 +4,11 @@ import { RarityBadge } from '@/components/RarityBadge';
 import { useArtColor } from '@/lib/useArtColor';
 import { cn } from '@/lib/utils';
 import { Disc3 } from 'lucide-react';
+import { presenceForCard } from '@/lib/cardTemplates';
+import {
+  MediaSlot, EpicPins, epicFrameStyle, MomentStars, FlavorBubble,
+  LyricSubject, RadiantPatternOverlay, RadiantSpin,
+} from '@/components/SpecialCardLayers';
 
 // ── Variant label routing ──────────────────────────────────────────────────────
 
@@ -133,7 +138,23 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const isRare = card.rarityType.slug === 'regular-rare' || card.rarityType.slug === 'shiny-rare';
   const isShiny = card.tags?.includes('shiny') || card.rarityType.slug.startsWith('shiny');
 
-  return (
+  const presence = presenceForCard(card);
+  const special = presence !== 'regular';
+  const bigCard = size === 'lg' || size === 'hero';
+
+  // Per-presence shell styling
+  const shellStyle: React.CSSProperties = presence === 'epic'
+    ? epicFrameStyle(card)
+    : {
+        border: `2px solid ${borderColor}`,
+        transition: 'border-color 0.55s ease, box-shadow 0.55s ease, background-color 0.55s ease',
+        ...(isRare ? {} : { boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22` }),
+        background: presence === 'moment'
+          ? `linear-gradient(165deg, color-mix(in srgb, #991b1b 30%, #07070c) 0%, #07070c 70%)`
+          : `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
+      };
+
+  const cardBody = (
     <div
       className={cn(
         'relative flex flex-col overflow-hidden text-white card-effect',
@@ -141,21 +162,28 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         isRare && 'card-rare-glow',
         className,
       )}
-      style={{
-        border: `2px solid ${borderColor}`,
-        // Smooth color transition when vibrant color resolves from artwork extraction
-        transition: 'border-color 0.55s ease, box-shadow 0.55s ease, background-color 0.55s ease',
-        ...(isRare ? {} : { boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22` }),
-        background: `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
-      }}
+      style={shellStyle}
     >
       {/* Shiny foil overlay — covers art + frame */}
       {isShiny && <div className="foil-overlay" aria-hidden />}
 
-      {/* Art section */}
-      <div className={artPad}>
+      {/* Moment: twinkling star field over the whole card */}
+      {presence === 'moment' && <MomentStars seed={card.id} />}
+
+      {/* Radiant: shimmer sweep + pattern overlay tinted with the art color */}
+      {presence === 'radiant' && (
+        <>
+          <div className="radiant-shimmer" aria-hidden />
+          <RadiantPatternOverlay patternId={card.patternId} color={borderColor} opacity={0.35} />
+        </>
+      )}
+
+      {/* Art / media section */}
+      <div className={cn(artPad, 'relative z-[2]')}>
         <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
-          {card.artworkUrl ? (
+          {presence === 'epic' || presence === 'moment' ? (
+            <MediaSlot card={card} title={title} showHint={bigCard} />
+          ) : card.artworkUrl ? (
             <img
               src={card.artworkUrl}
               alt={title}
@@ -169,10 +197,20 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
             </div>
           )}
 
-          {card.variantLabel?.startsWith('#') && (
+          {presence === 'epic' ? (
+            <EpicPins card={card} cardWidth={cardWidth} />
+          ) : card.variantLabel?.startsWith('#') ? (
             <div className="absolute top-1.5 right-1.5 z-10 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
               {card.variantLabel}
             </div>
+          ) : null}
+
+          {presence === 'lyrics' && card.subjectText && showInfo && (
+            <LyricSubject text={card.subjectText} cardWidth={cardWidth} />
+          )}
+
+          {presence === 'radiant' && (
+            <RadiantPatternOverlay patternId={card.patternId} color={borderColor} opacity={0.55} />
           )}
 
           {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
@@ -183,9 +221,12 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
 
       {/* Info section */}
       {showInfo && (
-        <div className="px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center">
+        <div className="relative z-[2] px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center">
           <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>{title}</p>
           <p className={cn('text-white/55 leading-tight truncate w-full', artistSize)}>{artist}</p>
+          {(presence === 'moment' || presence === 'lyrics') && card.flavorText && (
+            <FlavorBubble text={card.flavorText} compact={size === 'md'} />
+          )}
           <div className="flex items-center justify-center gap-1.5 flex-wrap mt-0.5">
             <RarityBadge
               slug={card.rarityType.slug}
@@ -211,4 +252,28 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
       )}
     </div>
   );
+
+  // Radiant cards spin on drag (big sizes only); the back face shows the
+  // Maplog logo under the same tinted pattern.
+  if (presence === 'radiant' && bigCard) {
+    const back = (
+      <div
+        className={cn('relative flex flex-col items-center justify-center overflow-hidden text-white aspect-auto h-full w-full', sizeClasses[size])}
+        style={{
+          border: `2px solid ${borderColor}`,
+          background: `color-mix(in srgb, ${borderColor} 18%, #0a0a0f)`,
+          minHeight: '100%',
+        }}
+      >
+        <RadiantPatternOverlay patternId={card.patternId} color={borderColor} opacity={0.5} />
+        <div className="radiant-shimmer" aria-hidden />
+        <Disc3 className="w-16 h-16 mb-3" style={{ color: borderColor }} />
+        <p className="font-display font-black text-2xl tracking-tight">Maplog</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mt-1">Radiant</p>
+      </div>
+    );
+    return <RadiantSpin enabled back={back}>{cardBody}</RadiantSpin>;
+  }
+
+  return cardBody;
 }

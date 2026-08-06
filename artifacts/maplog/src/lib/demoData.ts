@@ -7,6 +7,10 @@ const COMMON:   object = { slug: 'regular-common',   name: 'Common',   category:
 const UNCOMMON: object = { slug: 'regular-uncommon', name: 'Uncommon', category: 'Regular', tier: 2 };
 const RARE:     object = { slug: 'regular-rare',     name: 'Rare',     category: 'Regular', tier: 3 };
 const SHINY_RARE: object = { slug: 'shiny-rare',     name: 'Shiny Rare', category: 'Shiny', tier: 6 };
+const EPIC:    object = { slug: 'epic',    name: 'Epic',    category: 'Epic',    tier: 7 };
+const MOMENT:  object = { slug: 'moment',  name: 'Moment',  category: 'Moment',  tier: 8 };
+const LYRIC:   object = { slug: 'lyric',   name: 'Lyrics',  category: 'Lyrics',  tier: 9 };
+const RADIANT: object = { slug: 'radiant', name: 'Radiant', category: 'Radiant', tier: 10 };
 
 export const DEMO_SONGS: MaplogSong[] = [
   {
@@ -131,6 +135,54 @@ export const DEMO_SONGS: MaplogSong[] = [
     artworkUrl: art('infinite'),
     cards: [
       { id: 'demo-10::rare', artworkUrl: art('infinite'), rarityType: RARE as any, variantLabel: null },
+    ],
+  },
+  {
+    id: 'demo-11',
+    title: 'Neon Cathedral',
+    artist: 'The Parallax',
+    album: 'Interference Patterns',
+    genre: 'Art Pop',
+    durationMs: 296000,
+    artworkUrl: art('cathedral'),
+    cards: [
+      { id: 'demo-11::epic', artworkUrl: art('cathedral'), rarityType: EPIC as any, variantLabel: '#4', pin: '🏆' },
+    ],
+  },
+  {
+    id: 'demo-12',
+    title: 'Cold Open',
+    artist: 'Nightform',
+    album: 'Low Fidelity Night',
+    genre: 'Lo-fi',
+    durationMs: 188000,
+    artworkUrl: art('coldopen'),
+    cards: [
+      { id: 'demo-12::moment', artworkUrl: art('coldopen'), rarityType: MOMENT as any, variantLabel: null, flavorText: 'Rooftop set, first snow of the year' },
+    ],
+  },
+  {
+    id: 'demo-13',
+    title: 'Paper Planets',
+    artist: 'Solar Twin',
+    album: 'Second Sun EP',
+    genre: 'Dream Pop',
+    durationMs: 241000,
+    artworkUrl: art('planets'),
+    cards: [
+      { id: 'demo-13::lyric', artworkUrl: art('planets'), rarityType: LYRIC as any, variantLabel: null, subjectText: 'We fold the sky and call it home', flavorText: 'pulled this on my birthday!!' },
+    ],
+  },
+  {
+    id: 'demo-14',
+    title: 'Aurora Divide',
+    artist: 'Meridian Blue',
+    album: 'Ultraviolet Transit',
+    genre: 'Electronic',
+    durationMs: 315000,
+    artworkUrl: art('aurora'),
+    cards: [
+      { id: 'demo-14::radiant', artworkUrl: art('aurora'), rarityType: RADIANT as any, variantLabel: null, patternId: 'orbits' },
     ],
   },
 ];

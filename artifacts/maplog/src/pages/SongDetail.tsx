@@ -171,7 +171,7 @@ export default function SongDetail() {
                           className="shadow-2xl"
                         />
                         {!isFlipped && !(isCurrent && isPlaying) && (
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl">
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl pointer-events-none">
                             <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-[0_0_40px_rgba(255,60,0,0.6)] scale-75 group-hover:scale-100 transition-transform duration-300">
                               <Play className="w-10 h-10 text-white fill-white ml-1.5" />
                             </div>

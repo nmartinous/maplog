@@ -11,6 +11,8 @@ import {
   BADGE_TIERS, BADGE_LABELS, BADGE_COLORS, loadArtistBadges, toggleArtistBadge, artistKey,
 } from '@/lib/badges';
 import { putCardMedia, getCardMedia, deleteCardMedia, listMediaCardIds } from '@/lib/mediaStore';
+import { presenceForCard, RADIANT_PATTERNS, DEFAULT_RADIANT_PATTERN } from '@/lib/cardTemplates';
+import { invalidateCardMedia } from '@/lib/useCardMedia';
 import { ConflictQueue } from '@/components/ConflictQueue';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -86,6 +88,7 @@ function CardMediaControl({ cardId, disabled, hasMedia, onChanged }: {
     setBusy(true);
     try {
       await putCardMedia(cardId, file);
+      invalidateCardMedia(cardId);
       toast.success(file.type.startsWith('video/') ? 'Video attached to this card.' : 'Image attached to this card.');
       onChanged();
     } catch {
@@ -97,7 +100,7 @@ function CardMediaControl({ cardId, disabled, hasMedia, onChanged }: {
 
   const remove = async () => {
     setBusy(true);
-    try { await deleteCardMedia(cardId); onChanged(); toast.info('Media removed.'); }
+    try { await deleteCardMedia(cardId); invalidateCardMedia(cardId); onChanged(); toast.info('Media removed.'); }
     catch { toast.error('Could not remove the media.'); }
     finally { setBusy(false); }
   };
@@ -155,7 +158,7 @@ function CardMediaPreview({ cardId, version }: { cardId: string; version: number
 function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
   mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
 }) {
-  const { songs, updateSong, updateCardTags, isDemoMode } = useMusicKit();
+  const { songs, updateSong, updateCardTags, updateCardMeta, isDemoMode } = useMusicKit();
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -210,6 +213,7 @@ function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
           disabled={isDemoMode}
           updateSong={updateSong}
           updateCardTags={updateCardTags}
+          updateCardMeta={updateCardMeta}
           onClose={() => setSelectedId(null)}
           mediaIds={mediaIds}
           refreshMedia={refreshMedia}
@@ -220,11 +224,12 @@ function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
   );
 }
 
-function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, onClose, mediaIds, refreshMedia, mediaVersion }: {
+function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, updateCardMeta, onClose, mediaIds, refreshMedia, mediaVersion }: {
   song: MaplogSong;
   disabled: boolean;
   updateSong: (id: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => void;
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
+  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
   onClose: () => void;
   mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
 }) {
@@ -287,7 +292,7 @@ function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, onClos
         <p className={labelCls}>Cards ({song.cards.length})</p>
         {song.cards.map(card => (
           <CardTagEditor key={card.id} song={song} card={card} disabled={disabled}
-            updateCardTags={updateCardTags}
+            updateCardTags={updateCardTags} updateCardMeta={updateCardMeta}
             hasMedia={mediaIds.has(card.id)} refreshMedia={refreshMedia} mediaVersion={mediaVersion} />
         ))}
       </div>
@@ -295,9 +300,10 @@ function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, onClos
   );
 }
 
-function CardTagEditor({ song, card, disabled, updateCardTags, hasMedia, refreshMedia, mediaVersion }: {
+function CardTagEditor({ song, card, disabled, updateCardTags, updateCardMeta, hasMedia, refreshMedia, mediaVersion }: {
   song: MaplogSong; card: MaplogCard; disabled: boolean;
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
+  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
   hasMedia: boolean; refreshMedia: () => void; mediaVersion: number;
 }) {
   const currentTags = card.tags ?? [];
@@ -357,6 +363,94 @@ function CardTagEditor({ song, card, disabled, updateCardTags, hasMedia, refresh
             Reset
           </Button>
         </div>
+      )}
+      <CardDisplayEditor song={song} card={card} disabled={disabled} updateCardMeta={updateCardMeta} />
+    </div>
+  );
+}
+
+/** Presence-specific display fields (flavor text, lyric subject, pin, radiant pattern). */
+function CardDisplayEditor({ song, card, disabled, updateCardMeta }: {
+  song: MaplogSong; card: MaplogCard; disabled: boolean;
+  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
+}) {
+  const presence = presenceForCard(card);
+  const [flavor, setFlavor] = useState(card.flavorText ?? '');
+  const [subject, setSubject] = useState(card.subjectText ?? '');
+  const [pin, setPin] = useState(card.pin ?? '');
+
+  if (presence === 'regular') return null;
+
+  const showFlavor = presence === 'moment' || presence === 'lyrics';
+  const showSubject = presence === 'lyrics';
+  const showPin = presence === 'epic';
+  const showPattern = presence === 'radiant';
+
+  const dirty =
+    (showFlavor && flavor.trim() !== (card.flavorText ?? '')) ||
+    (showSubject && subject.trim() !== (card.subjectText ?? '')) ||
+    (showPin && pin.trim() !== (card.pin ?? ''));
+
+  const save = () => {
+    const patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin'>> = {};
+    if (showFlavor) patch.flavorText = flavor.trim() || null;
+    if (showSubject) patch.subjectText = subject.trim() || null;
+    if (showPin) patch.pin = pin.trim() || null;
+    updateCardMeta(song.id, card.id, patch);
+    toast.success('Card display saved.');
+  };
+
+  return (
+    <div className="space-y-2.5 pt-1 border-t border-white/5">
+      <p className={labelCls}>Card display</p>
+      {showSubject && (
+        <div>
+          <label className={labelCls}>Lyric line</label>
+          <input className={inputCls} value={subject} onChange={e => setSubject(e.target.value)}
+            disabled={disabled} placeholder="The lyric shown on the card"
+            data-testid={`card-subject-${card.id}`} />
+        </div>
+      )}
+      {showFlavor && (
+        <div>
+          <label className={labelCls}>{presence === 'lyrics' ? 'Puller flavor text' : 'Uploader flavor text'}</label>
+          <input className={inputCls} value={flavor} onChange={e => setFlavor(e.target.value)}
+            disabled={disabled} placeholder="Shown as a quote bubble"
+            data-testid={`card-flavor-${card.id}`} />
+        </div>
+      )}
+      {showPin && (
+        <div>
+          <label className={labelCls}>Pin (emoji)</label>
+          <input className={inputCls} value={pin} onChange={e => setPin(e.target.value)}
+            disabled={disabled} placeholder="e.g. 🌈 or 🥤" maxLength={8}
+            data-testid={`card-pin-${card.id}`} />
+        </div>
+      )}
+      {showPattern && (
+        <div>
+          <label className={labelCls}>Pattern</label>
+          <div className="flex flex-wrap gap-1.5">
+            {Object.values(RADIANT_PATTERNS).map(p => {
+              const active = (card.patternId ?? DEFAULT_RADIANT_PATTERN) === p.id;
+              return (
+                <button key={p.id} disabled={disabled}
+                  className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
+                    active ? 'bg-violet-500/25 border-violet-400/50 text-violet-200' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10')}
+                  onClick={() => { updateCardMeta(song.id, card.id, { patternId: p.id }); toast.success(`Pattern: ${p.label}`); }}
+                  data-testid={`card-pattern-${p.id}-${card.id}`}>
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {dirty && (
+        <Button size="sm" className="rounded-full font-bold h-8 px-4 text-xs" disabled={disabled}
+          onClick={save} data-testid={`save-card-display-${card.id}`}>
+          Save display
+        </Button>
       )}
     </div>
   );
