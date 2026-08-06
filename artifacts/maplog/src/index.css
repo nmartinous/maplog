@@ -10,6 +10,16 @@ a, button, [role="button"] {
   touch-action: manipulation;
 }
 
+/* Prevent iOS long-press text-selection callouts across the whole app */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Safe-area-aware page header top padding.
    Sits below the iOS status bar / notch / Dynamic Island with breathing room.
    Falls back to 2rem on devices with no safe-area inset (desktop, Android). */

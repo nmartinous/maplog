@@ -93,7 +93,8 @@ type PlayerAction =
   | { type: 'SET_REPEAT'; payload: RepeatMode }
   | { type: 'SET_AUTOPLAY'; payload: boolean }
   | { type: 'SET_AUTOPLAY_NEXT'; payload: MaplogSong | null }
-  | { type: 'LOG_CURRENT_TO_HISTORY' };
+  | { type: 'LOG_CURRENT_TO_HISTORY' }
+  | { type: 'REPLACE_CURRENT'; payload: MaplogSong };
 
 const prefs = loadPrefs();
 
@@ -165,6 +166,18 @@ function reducer(state: PlayerState, action: PlayerAction): PlayerState {
     case 'SET_AUTOPLAY': return { ...state, autoplay: action.payload };
     case 'SET_AUTOPLAY_NEXT': return { ...state, autoplayNext: action.payload };
     case 'LOG_CURRENT_TO_HISTORY': return { ...state, history: pushHistory(state.history, state.currentSong) };
+    case 'REPLACE_CURRENT': {
+      const song = action.payload;
+      const idx = Math.max(0, state.queueIndex);
+      const newQueue = [...state.queue];
+      // Ensure the slot exists (handles edge case of empty queue)
+      if (idx < newQueue.length) { newQueue[idx] = song; } else { newQueue.push(song); }
+      return {
+        ...state, currentSong: song, queue: newQueue, queueIndex: idx,
+        currentTime: 0, duration: 0, activeCardIndex: 0, isPlaying: true,
+        history: pushHistory(state.history, state.currentSong, song.id),
+      };
+    }
     default: return state;
   }
 }
@@ -181,6 +194,7 @@ type PlayerContextType = PlayerState & {
   setQueue: (songs: MaplogSong[]) => void;
   enqueue: (song: MaplogSong) => void;
   reorderQueue: (newUpcoming: MaplogSong[]) => void;
+  replaceCurrentSong: (song: MaplogSong) => void;
   setActiveCardIndex: (index: number) => void;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
@@ -540,6 +554,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const setQueue           = useCallback((songs: MaplogSong[]) => dispatch({ type: 'SET_QUEUE',   payload: songs }), []);
   const enqueue            = useCallback((song: MaplogSong)    => dispatch({ type: 'ENQUEUE',      payload: song  }), []);
+  const replaceCurrentSong = useCallback((song: MaplogSong) => dispatch({ type: 'REPLACE_CURRENT', payload: song }), []);
   const reorderQueue       = useCallback((newUpcoming: MaplogSong[]) => {
     const s = stateRef.current;
     const played = s.queue.slice(0, s.queueIndex + 1);
@@ -684,7 +699,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   return (
     <PlayerContext.Provider
       value={{
-        ...state, play, pause, resume, seek, skipNext, skipPrev, setQueue, enqueue, reorderQueue,
+        ...state, play, pause, resume, seek, skipNext, skipPrev, setQueue, enqueue, reorderQueue, replaceCurrentSong,
         setActiveCardIndex, toggleShuffle, cycleRepeat, toggleAutoplay,
       }}
     >

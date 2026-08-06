@@ -183,7 +183,7 @@ export default function PlaylistDetail() {
                   onClick={() => setLocation(`/song/${encodeURIComponent(song.id)}`)}
                   role="button"
                 >
-                  <ArtMenu song={song} context={inList}>
+                  <ArtMenu song={song}>
                     <div className="w-11 h-11 rounded-xl overflow-hidden bg-white/5 shrink-0 relative">
                       {song.artworkUrl
                         ? <img src={song.artworkUrl} alt="" className="w-full h-full object-cover" />

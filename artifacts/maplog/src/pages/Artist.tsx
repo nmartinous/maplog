@@ -597,7 +597,7 @@ function ArtistPage({ artist, songs, play, navigate }: {
               onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
               data-testid={`artist-song-${song.id}`}
             >
-              <ArtMenu song={song} context={artistSongs} className="rounded-xl shrink-0">
+              <ArtMenu song={song} className="rounded-xl shrink-0">
                 {song.artworkUrl
                   ? <img src={song.artworkUrl} alt="" className="w-11 h-11 rounded-xl object-cover" />
                   : <div className="w-11 h-11 rounded-xl bg-white/5" />}

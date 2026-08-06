@@ -8,23 +8,32 @@ import { cn } from '@/lib/utils';
 
 interface ArtMenuProps {
   song: MaplogSong;
-  /** Songs to use as the playback context (queue). Defaults to [song]. */
-  context?: MaplogSong[];
   children: React.ReactNode;
   className?: string;
 }
 
 /**
- * Wraps album art with a tap-to-open contextual menu offering "Play" and
- * "Add to Queue". Rendered via a portal so it escapes all z-index contexts.
+ * Wraps album art with a tap-to-open contextual menu.
+ *
+ * "Play" — if songs are queued ahead, replaces only the current track and
+ *           keeps the rest of the queue intact; otherwise starts fresh.
+ * "Add to Queue" — appends without interrupting playback.
+ *
+ * Rendered via a portal. All portal events call e.stopPropagation() so they
+ * cannot bubble through React's synthetic tree to the parent row's onClick.
  */
-export function ArtMenu({ song, context, children, className }: ArtMenuProps) {
+export function ArtMenu({ song, children, className }: ArtMenuProps) {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0, above: false });
-  const { play, enqueue } = usePlayer();
+  const { play, enqueue, replaceCurrentSong, queue, queueIndex } = usePlayer();
+
+  const hasUpcoming = queue.slice(queueIndex + 1).length > 0;
 
   const handleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Don't re-open if already open (can happen if a portal event bubbles here
+    // despite stopPropagation on the portal elements — extra safety guard).
+    if (open) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const above = spaceBelow < 100;
@@ -34,6 +43,27 @@ export function ArtMenu({ song, context, children, className }: ArtMenuProps) {
       above,
     });
     setOpen(true);
+  };
+
+  const close = (e: React.MouseEvent) => {
+    e.stopPropagation(); // prevent bubbling through React's component tree
+    setOpen(false);
+  };
+
+  const handlePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasUpcoming) {
+      replaceCurrentSong(song);
+    } else {
+      play(song, [song]);
+    }
+    setOpen(false);
+  };
+
+  const handleEnqueue = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    enqueue(song);
+    setOpen(false);
   };
 
   return (
@@ -51,11 +81,9 @@ export function ArtMenu({ song, context, children, className }: ArtMenuProps) {
         <AnimatePresence>
           {open && (
             <>
-              {/* Invisible backdrop to close on outside tap */}
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setOpen(false)}
-              />
+              {/* Backdrop — stopPropagation prevents React tree bubbling */}
+              <div className="fixed inset-0 z-40" onClick={close} />
+
               {/* Menu */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.88, y: menuPos.above ? 6 : -6 }}
@@ -69,19 +97,20 @@ export function ArtMenu({ song, context, children, className }: ArtMenuProps) {
                   bottom: menuPos.above ? window.innerHeight - menuPos.y + 6 : undefined,
                   transform: 'translateX(-50%)',
                   zIndex: 50,
-                  minWidth: 152,
+                  minWidth: 160,
                 }}
                 className="bg-[#1c1c22] border border-white/15 rounded-2xl shadow-2xl overflow-hidden"
+                onClick={e => e.stopPropagation()} // catch any bubbling from children
               >
                 <button
-                  onClick={() => { play(song, context ?? [song]); setOpen(false); }}
+                  onClick={handlePlay}
                   className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-white hover:bg-white/10 active:bg-white/15 transition-colors border-b border-white/8"
                 >
                   <Play className="w-4 h-4 text-primary fill-primary shrink-0" />
-                  Play
+                  {hasUpcoming ? 'Play Now' : 'Play'}
                 </button>
                 <button
-                  onClick={() => { enqueue(song); setOpen(false); }}
+                  onClick={handleEnqueue}
                   className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors"
                 >
                   <ListPlus className="w-4 h-4 text-white/50 shrink-0" />
