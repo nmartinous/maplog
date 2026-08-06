@@ -194,10 +194,10 @@ button, a, [role="button"] {
   background: linear-gradient(
     128deg,
     transparent               0%,
-    rgba(160, 140, 255, 0.13) 22%,
-    rgba(130, 210, 255, 0.13) 45%,
-    rgba(140, 255, 200, 0.09) 65%,
-    rgba(200, 140, 255, 0.11) 82%,
+    rgba(160, 140, 255, 0.24) 22%,
+    rgba(130, 210, 255, 0.22) 45%,
+    rgba(140, 255, 200, 0.17) 65%,
+    rgba(200, 140, 255, 0.21) 82%,
     transparent               100%
   );
   background-size: 300% 300%;
@@ -218,9 +218,9 @@ button, a, [role="button"] {
   width: 28%;
   background: linear-gradient(90deg,
     transparent                  0%,
-    rgba(255, 255, 255, 0.04)   38%,
-    rgba(255, 255, 255, 0.11)   50%,
-    rgba(255, 255, 255, 0.04)   62%,
+    rgba(255, 255, 255, 0.07)   38%,
+    rgba(255, 255, 255, 0.22)   50%,
+    rgba(255, 255, 255, 0.07)   62%,
     transparent                  100%);
   mix-blend-mode: screen;
   animation: foil-gloss 15s ease-in-out infinite;

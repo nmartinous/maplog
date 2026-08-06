@@ -180,6 +180,7 @@ type PlayerContextType = PlayerState & {
   skipPrev: () => void;
   setQueue: (songs: MaplogSong[]) => void;
   enqueue: (song: MaplogSong) => void;
+  reorderQueue: (newUpcoming: MaplogSong[]) => void;
   setActiveCardIndex: (index: number) => void;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
@@ -539,6 +540,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const setQueue           = useCallback((songs: MaplogSong[]) => dispatch({ type: 'SET_QUEUE',   payload: songs }), []);
   const enqueue            = useCallback((song: MaplogSong)    => dispatch({ type: 'ENQUEUE',      payload: song  }), []);
+  const reorderQueue       = useCallback((newUpcoming: MaplogSong[]) => {
+    const s = stateRef.current;
+    const played = s.queue.slice(0, s.queueIndex + 1);
+    dispatch({
+      type: 'APPLY_QUEUE_ORDER',
+      payload: {
+        queue: [...played, ...newUpcoming],
+        queueIndex: s.queueIndex,
+        shuffle: s.shuffle,
+        originalQueue: s.originalQueue,
+      },
+    });
+  }, []);
   const setActiveCardIndex = useCallback((i: number)           => dispatch({ type: 'SET_ACTIVE_CARD_INDEX', payload: i }), []);
 
   const persistPrefs = useCallback((partial: Partial<PlayerPrefs>) => {
@@ -670,7 +684,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   return (
     <PlayerContext.Provider
       value={{
-        ...state, play, pause, resume, seek, skipNext, skipPrev, setQueue, enqueue,
+        ...state, play, pause, resume, seek, skipNext, skipPrev, setQueue, enqueue, reorderQueue,
         setActiveCardIndex, toggleShuffle, cycleRepeat, toggleAutoplay,
       }}
     >

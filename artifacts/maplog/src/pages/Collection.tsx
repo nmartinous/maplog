@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import {
   Search, Play, Library, RefreshCw, Music2, Layers, ChevronDown, SlidersHorizontal, X,
 } from 'lucide-react';
+import { ArtMenu } from '@/components/ArtMenu';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -397,12 +398,6 @@ function ActiveView({
       });
   }, [songs, search, scope, activeRarity]);
 
-  const handlePlay = (e: React.MouseEvent, song: MaplogSong) => {
-    e.stopPropagation();
-    play(song, [song]);
-    // Don't navigate — stay in collection
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
@@ -532,18 +527,15 @@ function ActiveView({
                     tabIndex={0}
                     onKeyDown={e => e.key === 'Enter' && navigate(`/song/${encodeURIComponent(song.id)}`)}
                   >
-                    {/* Album art — tap plays the song */}
-                    <div
-                      className="shrink-0 relative rounded-xl active:scale-90 transition-transform"
-                      onClick={e => handlePlay(e, song)}
-                      role="button"
-                      aria-label={`Play ${song.title}`}
-                    >
-                      <AlbumArt song={song} topCard={topCard} size={64} />
-                      <span className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <Play className="h-5 w-5 text-white fill-white ml-0.5" />
-                      </span>
-                    </div>
+                    {/* Album art — tap opens play/queue menu */}
+                    <ArtMenu song={song} context={displayData.map(d => d.song)} className="shrink-0 rounded-xl active:scale-90 transition-transform">
+                      <div className="relative">
+                        <AlbumArt song={song} topCard={topCard} size={64} />
+                        <span className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <Play className="h-5 w-5 text-white fill-white ml-0.5" />
+                        </span>
+                      </div>
+                    </ArtMenu>
 
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                       <p className="font-bold text-[16px] text-white leading-tight truncate mb-1">{song.title}</p>

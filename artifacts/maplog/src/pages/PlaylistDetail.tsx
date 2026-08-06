@@ -8,6 +8,7 @@ import {
 import {
   ArrowLeft, Play, Plus, Music2, Trash2, X, Search, Pencil, Check, ListMusic, Volume2,
 } from 'lucide-react';
+import { ArtMenu } from '@/components/ArtMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -177,25 +178,33 @@ export default function PlaylistDetail() {
                   isCurrent ? 'bg-primary/10 border border-primary/20' : 'hover:bg-white/5',
                 )}
               >
-                <button
-                  className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                  onClick={() => play(song, inList)}
+                <div
+                  className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                  onClick={() => setLocation(`/song/${encodeURIComponent(song.id)}`)}
+                  role="button"
                 >
-                  <div className="w-11 h-11 rounded-xl overflow-hidden bg-white/5 shrink-0 relative">
-                    {song.artworkUrl
-                      ? <img src={song.artworkUrl} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center"><Music2 className="w-4 h-4 text-white/30" /></div>}
-                    {isCurrent && isPlaying && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <Volume2 className="w-4 h-4 text-primary" />
-                      </div>
-                    )}
-                  </div>
+                  <ArtMenu song={song} context={inList}>
+                    <div className="w-11 h-11 rounded-xl overflow-hidden bg-white/5 shrink-0 relative">
+                      {song.artworkUrl
+                        ? <img src={song.artworkUrl} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center"><Music2 className="w-4 h-4 text-white/30" /></div>}
+                      {isCurrent && isPlaying && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <Volume2 className="w-4 h-4 text-primary" />
+                        </div>
+                      )}
+                    </div>
+                  </ArtMenu>
                   <div className="flex-1 min-w-0">
                     <p className={cn('text-[15px] font-bold truncate leading-tight', isCurrent ? 'text-primary' : 'text-white')}>{song.title}</p>
-                    <p className="text-xs text-white/50 truncate mt-0.5">{song.artist}</p>
+                    <button
+                      onClick={e => { e.stopPropagation(); setLocation(`/artists/${encodeURIComponent(song.artist)}`); }}
+                      className="text-xs text-white/50 truncate mt-0.5 text-left hover:text-white/80 transition-colors w-full"
+                    >
+                      {song.artist}
+                    </button>
                   </div>
-                </button>
+                </div>
                 <button
                   onClick={() => handleRemove(song.id)}
                   className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white/30 hover:text-destructive hover:bg-destructive/10 active:scale-90 transition-all"

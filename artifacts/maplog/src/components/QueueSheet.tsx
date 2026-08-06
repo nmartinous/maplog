@@ -2,12 +2,20 @@ import React from 'react';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import {
   ListOrdered, Volume2, X, Shuffle, Repeat, Repeat1, Infinity as InfinityIcon,
-  History, Sparkles, Music2,
+  History, Sparkles, Music2, GripVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MaplogSong } from '@/lib/types';
+import {
+  DndContext, DragEndEvent, PointerSensor, TouchSensor,
+  useSensor, useSensors, closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 function ToggleChip({ active, onClick, icon: Icon, label }: {
   active: boolean; onClick: () => void; icon: React.ElementType; label: string;
@@ -48,10 +56,7 @@ function SongRow({ song, index, leading, muted, onClick, active, isPlaying }: {
   isPlaying?: boolean;
 }) {
   return (
-    <motion.button
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: Math.min(index ?? 0, 10) * 0.03 }}
+    <button
       onClick={onClick}
       disabled={!onClick}
       className={cn(
@@ -83,15 +88,59 @@ function SongRow({ song, index, leading, muted, onClick, active, isPlaying }: {
           ))}
         </div>
       )}
-    </motion.button>
+    </button>
+  );
+}
+
+function SortableSongItem({ id, song, index, onPlay }: {
+  id: string; song: MaplogSong; index: number; onPlay: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.45 : 1 }}
+      className="flex items-center gap-1"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        style={{ touchAction: 'none' }}
+        className="shrink-0 px-1 py-3 text-white/20 hover:text-white/50 active:text-white/70 cursor-grab active:cursor-grabbing"
+        aria-label="Drag to reorder"
+        tabIndex={-1}
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <SongRow
+          song={song}
+          index={index}
+          leading={<span className="text-sm font-bold text-white/50">{index + 1}</span>}
+          onClick={onPlay}
+        />
+      </div>
+    </div>
   );
 }
 
 export function QueueSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const {
     queue, queueIndex, currentSong, isPlaying, play, history, autoplayNext,
-    shuffle, repeat, autoplay, toggleShuffle, cycleRepeat, toggleAutoplay,
+    shuffle, repeat, autoplay, toggleShuffle, cycleRepeat, toggleAutoplay, reorderQueue,
   } = usePlayer();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+  );
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const oldIdx = upcoming.findIndex((_, i) => `q-${i}` === active.id);
+    const newIdx = upcoming.findIndex((_, i) => `q-${i}` === over.id);
+    if (oldIdx !== -1 && newIdx !== -1) reorderQueue(arrayMove(upcoming, oldIdx, newIdx));
+  };
 
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
   const repeatLabel = repeat === 'off' ? 'Repeat' : repeat === 'all' ? 'Repeat All' : 'Repeat One';
@@ -151,25 +200,29 @@ export function QueueSheet({ open, onClose }: { open: boolean; onClose: () => vo
                 Queue is empty{autoplay ? '' : ' — playback will stop after this song'}.
               </p>
             ) : (
-              <div className="space-y-1">
-                {upcoming.map((song, i) => (
-                  <SongRow
-                    key={`${song.id}-${i}`}
-                    song={song}
-                    index={i}
-                    leading={<span className="text-sm font-bold">{i + 1}</span>}
-                    onClick={() => play(song)}
-                  />
-                ))}
-                {showAutoplayNext && autoplayNext && (
-                  <SongRow
-                    song={autoplayNext}
-                    muted
-                    leading={<Sparkles className="h-4 w-4 text-primary" />}
-                    onClick={() => play(autoplayNext)}
-                  />
-                )}
-              </div>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={upcoming.map((_, i) => `q-${i}`)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-1">
+                    {upcoming.map((song, i) => (
+                      <SortableSongItem
+                        key={`${song.id}-${i}`}
+                        id={`q-${i}`}
+                        song={song}
+                        index={i}
+                        onPlay={() => play(song)}
+                      />
+                    ))}
+                    {showAutoplayNext && autoplayNext && (
+                      <SongRow
+                        song={autoplayNext}
+                        muted
+                        leading={<Sparkles className="h-4 w-4 text-primary" />}
+                        onClick={() => play(autoplayNext)}
+                      />
+                    )}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
             {showAutoplayNext && (
               <p className="px-3 pt-1 text-[11px] text-white/30 font-medium">

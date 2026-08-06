@@ -45,11 +45,9 @@ export const CATEGORY_SLUG: Record<string, string> = {
   'Moment':          'moment',
 };
 
-/** All rarity category names for filter chips */
+/** All rarity category names for filter chips (implemented categories only) */
 export const ALL_CATEGORIES = [
-  'All', 'Regular', 'Shiny', 'Epic',
-  'Special Edition', 'Special Epic', 'Streak Epic',
-  'Lyric', 'Radiant', 'Moment',
+  'All', 'Regular', 'Shiny', 'Epic', 'Lyric', 'Radiant', 'Moment',
 ] as const;
 
 /** All rarity types in tier order (for pickers) */

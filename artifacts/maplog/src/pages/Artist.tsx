@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArtMenu } from '@/components/ArtMenu';
 import { useLocation, useRoute } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -596,9 +597,11 @@ function ArtistPage({ artist, songs, play, navigate }: {
               onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
               data-testid={`artist-song-${song.id}`}
             >
-              {song.artworkUrl
-                ? <img src={song.artworkUrl} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0" />
-                : <div className="w-11 h-11 rounded-xl bg-white/5 shrink-0" />}
+              <ArtMenu song={song} context={artistSongs} className="rounded-xl shrink-0">
+                {song.artworkUrl
+                  ? <img src={song.artworkUrl} alt="" className="w-11 h-11 rounded-xl object-cover" />
+                  : <div className="w-11 h-11 rounded-xl bg-white/5" />}
+              </ArtMenu>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-white truncate">{song.title}</p>
                 <p className="text-xs text-white/40 truncate">{song.album || song.genre || ''}</p>
@@ -606,13 +609,6 @@ function ArtistPage({ artist, songs, play, navigate }: {
               <span className="text-[10px] font-black uppercase tracking-wider text-white/30 shrink-0">
                 {song.cards.length} card{song.cards.length === 1 ? '' : 's'}
               </span>
-              <button
-                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0 active:scale-90 transition"
-                onClick={e => { e.stopPropagation(); play(song, artistSongs); }}
-                aria-label={`Play ${song.title}`}
-              >
-                <Music2 className="w-4 h-4 text-white/60" />
-              </button>
             </div>
           ))}
         </div>
