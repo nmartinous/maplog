@@ -1,5 +1,10 @@
-import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { getAllCardMedia, replaceAllCardMedia, type CardMedia } from './mediaStore';
+import {
+  streamZip, unzipToBlobs, assertWithinZipCap,
+  MAX_BACKUP_BYTES, BACKUP_SIZE_WARN_BYTES, formatBytes,
+} from './backupStream';
+
+export { MAX_BACKUP_BYTES, BACKUP_SIZE_WARN_BYTES, formatBytes };
 
 /**
  * Backup — versioned export/import of everything the user authors outside
@@ -10,9 +15,18 @@ import { getAllCardMedia, replaceAllCardMedia, type CardMedia } from './mediaSto
  * Format: a zip containing `manifest.json` (version + all localStorage
  * payloads) and `media/<n>` files (one per card upload, mapped by the
  * manifest). Legacy plain-JSON collection exports are also importable.
+ *
+ * Memory: export and import stream through fflate's Zip/Unzip APIs in small
+ * chunks, and accumulated bytes are folded into Blobs (browser-managed,
+ * off-heap storage) as they grow — see backupStream.ts. This keeps large
+ * video-heavy backups from freezing or crashing iOS Safari, where the old
+ * zipSync/unzipSync approach held everything in memory at once.
  */
 
 export const BACKUP_VERSION = 1;
+
+/** Legacy plain-JSON exports come from localStorage, so they're small. */
+export const MAX_LEGACY_JSON_BYTES = 64 * 1024 * 1024; // 64 MiB
 
 /** Every user-authored localStorage key covered by the backup. */
 export const BACKUP_KEYS = [
@@ -58,22 +72,40 @@ export interface BackupSummary {
 
 // ── Export ─────────────────────────────────────────────────────────────────────
 
-export async function createBackupZip(): Promise<Blob> {
+function collectLocalStorageData(): Record<string, string> {
   const data: Record<string, string> = {};
   for (const key of BACKUP_KEYS) {
     const raw = localStorage.getItem(key);
     if (raw != null) data[key] = raw;
   }
+  return data;
+}
 
+/**
+ * Estimate the backup size BEFORE building it (media bytes + manifest data),
+ * so the UI can warn or refuse up front rather than after the expensive part.
+ */
+export async function estimateBackupBytes(): Promise<number> {
   const mediaEntries = await getAllCardMedia();
-  const files: Record<string, Uint8Array> = {};
-  const media: MediaManifestEntry[] = [];
-  for (let i = 0; i < mediaEntries.length; i++) {
-    const m = mediaEntries[i];
-    const path = `media/${i}`;
-    files[path] = new Uint8Array(await m.blob.arrayBuffer());
-    media.push({ cardId: m.cardId, file: path, mimeType: m.mimeType, updatedAt: m.updatedAt });
-  }
+  const mediaBytes = mediaEntries.reduce((n, m) => n + m.blob.size, 0);
+  const dataBytes = Object.values(collectLocalStorageData())
+    .reduce((n, s) => n + s.length, 0);
+  return mediaBytes + dataBytes;
+}
+
+export async function createBackupZip(): Promise<Blob> {
+  const data = collectLocalStorageData();
+  const mediaEntries = await getAllCardMedia();
+
+  // Guard against exceeding the zip format's 4 GiB limit before starting.
+  assertWithinZipCap(mediaEntries.reduce((n, m) => n + m.blob.size, 0));
+
+  const media: MediaManifestEntry[] = mediaEntries.map((m, i) => ({
+    cardId: m.cardId,
+    file: `media/${i}`,
+    mimeType: m.mimeType,
+    updatedAt: m.updatedAt,
+  }));
 
   const manifest: BackupManifest = {
     format: 'maplog-backup',
@@ -82,19 +114,19 @@ export async function createBackupZip(): Promise<Blob> {
     data,
     media,
   };
-  files['manifest.json'] = strToU8(JSON.stringify(manifest));
 
-  // Media blobs are already compressed formats (jpg/mp4); level 0 keeps
-  // export fast. The manifest is small either way.
-  const zipped = zipSync(files, { level: 0 });
-  return new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' });
+  return streamZip(
+    JSON.stringify(manifest),
+    mediaEntries.map((m, i) => ({ path: `media/${i}`, blob: m.blob })),
+  );
 }
 
 // ── Import ─────────────────────────────────────────────────────────────────────
 
 export interface ParsedBackup {
   manifest: BackupManifest;
-  files: Record<string, Uint8Array>;
+  /** zip entry path → contents (Blob keeps large media off the JS heap) */
+  files: Record<string, Blob>;
   summary: BackupSummary;
 }
 
@@ -116,12 +148,24 @@ function countCollection(raw: string | undefined): { songs: number; cards: numbe
  * collection export. Throws with a user-readable message when invalid.
  */
 export async function parseBackupFile(file: File): Promise<ParsedBackup> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  // Refuse oversized inputs BEFORE reading anything into memory.
+  if (file.size > MAX_BACKUP_BYTES) {
+    throw new Error(
+      `This backup is ${formatBytes(file.size)} — larger than Maplog can restore (${formatBytes(MAX_BACKUP_BYTES)} max).`
+    );
+  }
 
   // Legacy JSON export (starts with '[' — an array of songs)
-  const head = strFromU8(bytes.slice(0, 1)).trim();
-  if (file.name.endsWith('.json') || head === '[') {
-    const text = strFromU8(bytes);
+  const head = (await file.slice(0, 16).text()).trim();
+  if (file.name.endsWith('.json') || head.startsWith('[')) {
+    // Legacy exports are localStorage JSON — a few MB at most. Cap well below
+    // that ceiling so a huge renamed file can't be loaded into JS memory.
+    if (file.size > MAX_LEGACY_JSON_BYTES) {
+      throw new Error(
+        `That file is ${formatBytes(file.size)} — too large to be a Maplog collection export (${formatBytes(MAX_LEGACY_JSON_BYTES)} max).`
+      );
+    }
+    const text = await file.text();
     const parsed = JSON.parse(text);
     if (!Array.isArray(parsed)) throw new Error('Not a valid Maplog backup.');
     const manifest: BackupManifest = {
@@ -135,18 +179,18 @@ export async function parseBackupFile(file: File): Promise<ParsedBackup> {
     return { manifest, files: {}, summary: { songs, cards, mediaFiles: 0, createdAt: null, version: 0, legacy: true } };
   }
 
-  let files: Record<string, Uint8Array>;
+  let files: Record<string, Blob>;
   try {
-    files = unzipSync(bytes);
+    files = await unzipToBlobs(file);
   } catch {
     throw new Error("Couldn't read that file — it isn't a Maplog backup.");
   }
-  const manifestRaw = files['manifest.json'];
-  if (!manifestRaw) throw new Error('This zip is missing its Maplog manifest.');
+  const manifestBlob = files['manifest.json'];
+  if (!manifestBlob) throw new Error('This zip is missing its Maplog manifest.');
 
   let manifest: BackupManifest;
   try {
-    manifest = JSON.parse(strFromU8(manifestRaw));
+    manifest = JSON.parse(await manifestBlob.text());
   } catch {
     throw new Error('The backup manifest is corrupted.');
   }
@@ -188,21 +232,20 @@ export async function restoreBackup({ manifest, files }: ParsedBackup): Promise<
     // exist in the zip, or the backup is corrupt and nothing is touched.
     const entries: CardMedia[] = [];
     for (const entry of manifest.media ?? []) {
-      const bytes = files[entry.file];
-      if (!bytes) throw new Error('This backup is incomplete or corrupted — nothing was changed.');
-      const buf = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
-        ? bytes.buffer as ArrayBuffer
-        : bytes.slice().buffer as ArrayBuffer;
-      const blob = new Blob([buf], { type: entry.mimeType });
+      const blob = files[entry.file];
+      if (!blob) throw new Error('This backup is incomplete or corrupted — nothing was changed.');
       entries.push({
         cardId: entry.cardId,
         type: entry.mimeType.startsWith('video/') ? 'video' : 'image',
         mimeType: entry.mimeType,
-        blob,
+        // Re-type the blob without copying its bytes.
+        blob: blob.slice(0, blob.size, entry.mimeType),
         updatedAt: entry.updatedAt ?? new Date().toISOString(),
       });
     }
     // Single transaction: clear + writes commit together or not at all.
+    // The blobs are references into browser-managed storage, so this stays
+    // memory-light even for large backups.
     await replaceAllCardMedia(entries);
   }
 

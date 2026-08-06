@@ -4,3 +4,4 @@
 - [Apple Music Import](apple-music-import.md) — playlist links resolve via the official API + dev token; scraping and paste-lines flows are dead ends
 - [Art Color Extraction](art-color-extraction.md) — Safari serves tainted cached copies to crossOrigin <img>; extract via fetch(cors)+createImageBitmap, never cache failures
 - [Framer Motion Pitfalls](framer-motion-pitfalls.md) — no mode="wait" on always-visible chrome swaps; grep design-pass diffs for stubbed-out components
+- [Backup Streaming](backup-streaming.md) — zip backups must stream + fold into Blobs (never zipSync); cap decompressed size/entries; size-check before the expensive step

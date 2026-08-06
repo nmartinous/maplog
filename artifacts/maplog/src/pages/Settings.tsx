@@ -15,8 +15,26 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  createBackupZip, parseBackupFile, restoreBackup, backupFileName, type ParsedBackup,
+  createBackupZip, parseBackupFile, restoreBackup, backupFileName, estimateBackupBytes,
+  BACKUP_SIZE_WARN_BYTES, formatBytes, type ParsedBackup,
 } from '@/lib/backup';
+
+/**
+ * Warn BEFORE building when the backup will be very large (estimated from
+ * media sizes), so the user is informed ahead of the expensive operation.
+ */
+async function warnIfHugeBackup() {
+  try {
+    const estimated = await estimateBackupBytes();
+    if (estimated > BACKUP_SIZE_WARN_BYTES) {
+      toast.warning(
+        `This backup will be about ${formatBytes(estimated)}. Very large backups can be slow to save or share on iPhone.`
+      );
+    }
+  } catch {
+    // Estimation is best-effort; never block the export on it.
+  }
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -280,6 +298,7 @@ export default function Settings() {
     if (exporting) return;
     setExportState('building');
     try {
+      await warnIfHugeBackup();
       const blob = await createBackupZip();
       const a = Object.assign(document.createElement('a'), {
         href: URL.createObjectURL(blob),
@@ -300,6 +319,7 @@ export default function Settings() {
     if (exporting) return;
     setExportState('building');
     try {
+      await warnIfHugeBackup();
       const blob = await createBackupZip();
       const filename = backupFileName();
       const file = new File([blob], filename, { type: 'application/zip' });
@@ -338,6 +358,7 @@ export default function Settings() {
     }
     setExportState('building');
     try {
+      await warnIfHugeBackup();
       const blob = await createBackupZip();
       const filename = backupFileName();
       setExportState('uploading');
