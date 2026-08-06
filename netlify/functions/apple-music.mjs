@@ -106,16 +106,9 @@ function getDeveloperToken() {
 
   const signer = createSign('SHA256');
   signer.update(msg);
-  const sigDer = signer.sign(privKey);
-
-  // Convert DER-encoded ECDSA sig → raw r||s (IEEE P1363) required by JWT ES256
-  let off = 2;
-  off++;
-  const rLen = sigDer[off++]; const r = sigDer.slice(off, off + rLen); off += rLen;
-  off++;
-  const sLen = sigDer[off++]; const s = sigDer.slice(off, off + sLen);
-  const pad32 = (x) => Buffer.concat([Buffer.alloc(Math.max(0, 32 - x.length)), x]);
-  const sig = Buffer.concat([pad32(r), pad32(s)]).toString('base64url');
+  // dsaEncoding:'ieee-p1363' outputs raw r||s (64 bytes for P-256) directly —
+  // no manual DER parsing needed, and no risk of off-by-one from DER sign-padding.
+  const sig = signer.sign({ key: privKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
 
   const token = `${msg}.${sig}`;
   cachedToken = { token, exp: exp * 1000 };
