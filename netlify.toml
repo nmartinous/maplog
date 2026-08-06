@@ -7,6 +7,7 @@
   PNPM_VERSION = "10.26.1"
   BASE_PATH    = "/"
   NODE_ENV     = "production"
+  PORT         = "3000"
 
 # SPA fallback — all routes serve index.html
 [[redirects]]
