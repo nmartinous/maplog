@@ -3,7 +3,7 @@ import type { MaplogCard } from '@/lib/types';
 import { epicFrameForCard, radiantPatternCss, type EpicBorderKind } from '@/lib/cardTemplates';
 import { useCardMedia } from '@/lib/useCardMedia';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
-import { Film, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -72,16 +72,6 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
     return () => { mounted = false; window.removeEventListener('deviceorientation', handler); };
   }, [iosPerm]);
 
-  const requestPerm = async () => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (DeviceOrientationEvent as any).requestPermission();
-      setIosPerm(result === 'granted' ? 'granted' : 'denied');
-    } catch {
-      setIosPerm('denied');
-    }
-  };
-
   // ZOOM controls how much the image overflows each edge.
   // At max tilt (offset = ±1) the image pans by ±ZOOM%, so the edge
   // of the image sits exactly flush with the card boundary.
@@ -103,42 +93,36 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
           willChange: 'top, left',
         }}
       />
-      {(iosPerm === 'unknown' || iosPerm === 'auto') && (
-        <button
-          type="button"
-          className="absolute inset-0 flex items-end justify-center pb-4 bg-transparent"
-          onClick={requestPerm}
-          aria-label="Enable tilt parallax"
-        >
-          <span className="text-[10px] font-bold text-white/55 uppercase tracking-widest bg-black/50 rounded-full px-3 py-1.5 backdrop-blur-sm">
-            Tap to enable tilt
-          </span>
-        </button>
-      )}
+      {/* No tap overlay — parallax silently activates when iOS grants permission,
+          or stays static when the user hasn't enabled motion controls in Settings. */}
     </div>
   );
 }
 
-/** Card-slot media from Edit Mode uploads; falls back to parallax art or empty hint. */
-export function MediaSlot({ card, title, showHint }: { card: MaplogCard; title: string; showHint: boolean }) {
+/** Card-slot media from Edit Mode uploads; falls back to parallax art. No other content. */
+export function MediaSlot({ card, title }: { card: MaplogCard; title: string }) {
   const media = useCardMedia(card.id);
 
   if (media?.type === 'video') {
-    return <video src={media.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />;
+    return (
+      <video
+        src={media.url}
+        className="absolute inset-0 w-full h-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
+    );
   }
   if (media?.type === 'image') {
     return <img src={media.url} alt={title} className="absolute inset-0 w-full h-full object-cover" />;
   }
-  // No upload yet — show parallax art for still epics, or the empty-slot hint
+  // No upload — parallax artwork (or dark void if no artwork URL)
   if (card.artworkUrl) {
     return <ParallaxArt artworkUrl={card.artworkUrl} title={title} />;
   }
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-black/30 to-black/60">
-      <Film className="w-[22%] h-[22%] text-white/25" />
-      {showHint && <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest">Empty clip slot</p>}
-    </div>
-  );
+  return null;
 }
 
 // ── Epic pins ─────────────────────────────────────────────────────────────────

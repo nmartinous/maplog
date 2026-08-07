@@ -133,7 +133,6 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
     sm: 'rounded-lg', md: 'rounded-xl', lg: 'rounded-xl', hero: 'rounded-2xl',
   };
 
-  const artPad    = size === 'sm' ? 'p-1.5' : 'p-2';
   const widthMap  = { sm: 96, md: 160, lg: 256, hero: 300 };
   const cardWidth = widthMap[size];
 
@@ -148,6 +147,8 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const bigCard = size === 'lg' || size === 'hero';
   const isEpic = presence === 'epic';
   const showInfo = size !== 'sm';
+  // Epics: no inner padding — video/parallax fills flush to the border edge
+  const artPad = isEpic ? 'p-0' : (size === 'sm' ? 'p-1.5' : 'p-2');
 
   // For typed epic playlists (common/uncommon/rare/unnumbered), use the new
   // neon border system. Legacy epic slugs fall back to the gold epicFrameStyle.
@@ -205,9 +206,10 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
 
       {/* Art / media section */}
       <div className={cn(artPad, 'relative z-[2]')}>
-        <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
+        {/* Epics: no inner radius — parent card's overflow-hidden + rounded corners clip correctly */}
+        <div className={cn('relative aspect-square overflow-hidden', !isEpic && artRadius[size])}>
           {presence === 'epic' || presence === 'moment' ? (
-            <MediaSlot card={card} title={title} showHint={bigCard} />
+            <MediaSlot card={card} title={title} />
           ) : card.artworkUrl ? (
             <img
               src={card.artworkUrl}

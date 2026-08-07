@@ -273,7 +273,7 @@ function MotionControlsRow() {
     <Row
       icon={Smartphone}
       label="Motion Controls"
-      description="Automatically enable tilt-parallax on epic cards without a per-card tap prompt."
+      description="Tilt-parallax activates automatically when an epic card opens. Turn off to keep artwork static."
     >
       <button
         type="button"
