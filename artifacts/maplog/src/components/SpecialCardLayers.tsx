@@ -254,7 +254,7 @@ export function EpicBorderWrap({
   if (kind === 'unnumbered') return <>{children}</>;
 
   // Radius matches the card body's Tailwind rounded class exactly (no padding gap)
-  const radiiMap: Record<typeof size, number> = { sm: 12, md: 16, lg: 16, hero: 24 };
+  const radiiMap: Record<typeof size, number> = { sm: 12, md: 24, lg: 24, hero: 32 };
   const r = radiiMap[size];
 
   const wrapClass  = kind === 'common'   ? 'epic-green-wrap'

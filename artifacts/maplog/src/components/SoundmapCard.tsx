@@ -131,11 +131,14 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
 
   // Epic cards use a narrower, taller slot so the video fills without
   // showing its own internal border content. Only epics use these.
+  // Corner radii are larger than regular cards so the clip boundary sits well
+  // outside the video card's inner border arc at every corner (math: need ≥24px
+  // for md/lg and ≥32px for hero to clear the corner-arc inner edge after scale).
   const epicSizeClasses = {
     sm:   'w-24 rounded-xl',
-    md:   'w-[140px] rounded-2xl',
-    lg:   'w-[216px] rounded-2xl',
-    hero: 'w-[248px] sm:w-[284px] landscape-compact:w-[140px] rounded-3xl',
+    md:   'w-[140px] rounded-3xl',
+    lg:   'w-[216px] rounded-3xl',
+    hero: 'w-[248px] sm:w-[284px] landscape-compact:w-[140px] rounded-[32px]',
   };
 
   const artRadius = {
