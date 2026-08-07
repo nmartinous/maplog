@@ -377,162 +377,91 @@ input[type="range"]:focus {
   .radiant-pattern-drift { animation: none; }
 }
 
-/* ── Epic rotating borders ──────────────────────────────────────────────────── */
-/*
- * All three numbered epic types use a rotating conic-gradient wrapper.
- * The spin animation also varies blur + brightness at irregular intervals
- * to produce a subtle "audio visualizer on low" wave effect as the color
- * stops pass the card edges.
+/* ── Epic border glow ────────────────────────────────────────────────────────
+ * Two bright lobes orbit the card 180° apart, driven entirely by animated
+ * box-shadow offsets. box-shadow follows border-radius natively — no
+ * rotating rectangle shape, no ::before spin, no bounding-box edge leak.
  *
- * Green (common) / Purple (uncommon) cycle through shades of their color.
- * Rainbow (rare) cycles the full spectrum.
+ * Shadow layers per keyframe:
+ *   1. thin constant ring   (0 0 0 2px <color>)
+ *   2. leading lobe         (offset x/y  18px blur  4px spread)
+ *   3. trailing lobe        (−offset x/y 14px blur  2px spread, dimmer)
+ *
+ * 8-step orbit approximates smooth circular travel around the card.
  */
 
 /* ── Green (Epic Common) ── */
-@keyframes epic-spin-green {
-  0%   { transform: rotate(0deg);   filter: blur(4px)   brightness(1.00); }
-  12%  {                             filter: blur(7px)   brightness(1.55); }
-  28%  {                             filter: blur(3px)   brightness(0.80); }
-  44%  {                             filter: blur(9px)   brightness(1.65); }
-  50%  { transform: rotate(180deg); filter: blur(4px)   brightness(1.10); }
-  63%  {                             filter: blur(8px)   brightness(1.45); }
-  76%  {                             filter: blur(3px)   brightness(0.82); }
-  88%  {                             filter: blur(6px)   brightness(1.40); }
-  100% { transform: rotate(360deg); filter: blur(4px)   brightness(1.00); }
+@keyframes green-lobe-orbit {
+  0%    { box-shadow: 0 0 0 2px #4ade80, 0 -14px 18px 4px #4ade80cc, 0   14px 14px 2px #22c55e44; }
+  12.5% { box-shadow: 0 0 0 2px #4ade80, 10px -10px 18px 4px #4ade80cc, -10px 10px 14px 2px #22c55e44; }
+  25%   { box-shadow: 0 0 0 2px #4ade80, 14px   0  18px 4px #4ade80cc, -14px  0   14px 2px #22c55e44; }
+  37.5% { box-shadow: 0 0 0 2px #4ade80, 10px  10px 18px 4px #4ade80cc, -10px -10px 14px 2px #22c55e44; }
+  50%   { box-shadow: 0 0 0 2px #4ade80, 0   14px 18px 4px #4ade80cc, 0  -14px 14px 2px #22c55e44; }
+  62.5% { box-shadow: 0 0 0 2px #4ade80, -10px 10px 18px 4px #4ade80cc, 10px  -10px 14px 2px #22c55e44; }
+  75%   { box-shadow: 0 0 0 2px #4ade80, -14px  0  18px 4px #4ade80cc, 14px    0   14px 2px #22c55e44; }
+  87.5% { box-shadow: 0 0 0 2px #4ade80, -10px -10px 18px 4px #4ade80cc, 10px  10px 14px 2px #22c55e44; }
+  100%  { box-shadow: 0 0 0 2px #4ade80, 0 -14px 18px 4px #4ade80cc, 0   14px 14px 2px #22c55e44; }
 }
-
 .epic-green-wrap {
   position: relative;
-  /* overflow: visible so the spinning ::before bleeds outside as the glow halo */
-  animation: green-ring-glow 4.5s ease-in-out infinite;
+  animation: green-lobe-orbit 4.5s linear infinite;
 }
-.epic-green-wrap::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: conic-gradient(
-    #14532d  0deg,
-    #16a34a  45deg,
-    #4ade80  90deg,
-    #bbf7d0  135deg,
-    #22c55e  180deg,
-    #15803d  225deg,
-    #4ade80  270deg,
-    #dcfce7  315deg,
-    #14532d  360deg
-  );
-  transform-origin: 50% 50%;
-  border-radius: 50%; /* circle → no rotating rectangle corners */
-  animation: epic-spin-green 6s linear infinite;
-  filter: blur(8px);
-}
+.epic-green-wrap::before { display: none; }
 .epic-green-inner {
   position: relative;
   z-index: 1;
   overflow: hidden;
   border-radius: inherit;
 }
-@keyframes green-ring-glow {
-  0%,100% { box-shadow: 0 0 0 2px #4ade80, 0 0 16px 3px #16a34a66; }
-  50%      { box-shadow: 0 0 0 2px #bbf7d0, 0 0 24px 6px #22c55e44; }
-}
 
 /* ── Purple (Epic Uncommon) ── */
-@keyframes epic-spin-purple {
-  0%   { transform: rotate(0deg);   filter: blur(4px)   brightness(1.00); }
-  15%  {                             filter: blur(8px)   brightness(1.60); }
-  30%  {                             filter: blur(3px)   brightness(0.78); }
-  47%  {                             filter: blur(10px)  brightness(1.65); }
-  50%  { transform: rotate(180deg); filter: blur(4px)   brightness(1.05); }
-  61%  {                             filter: blur(7px)   brightness(1.48); }
-  74%  {                             filter: blur(3px)   brightness(0.80); }
-  87%  {                             filter: blur(8px)   brightness(1.42); }
-  100% { transform: rotate(360deg); filter: blur(4px)   brightness(1.00); }
+@keyframes purple-lobe-orbit {
+  0%    { box-shadow: 0 0 0 2px #c084fc, 0 -14px 18px 4px #c084fccc, 0   14px 14px 2px #7e22ce44; }
+  12.5% { box-shadow: 0 0 0 2px #c084fc, 10px -10px 18px 4px #c084fccc, -10px 10px 14px 2px #7e22ce44; }
+  25%   { box-shadow: 0 0 0 2px #c084fc, 14px   0  18px 4px #c084fccc, -14px  0   14px 2px #7e22ce44; }
+  37.5% { box-shadow: 0 0 0 2px #c084fc, 10px  10px 18px 4px #c084fccc, -10px -10px 14px 2px #7e22ce44; }
+  50%   { box-shadow: 0 0 0 2px #c084fc, 0   14px 18px 4px #c084fccc, 0  -14px 14px 2px #7e22ce44; }
+  62.5% { box-shadow: 0 0 0 2px #c084fc, -10px 10px 18px 4px #c084fccc, 10px  -10px 14px 2px #7e22ce44; }
+  75%   { box-shadow: 0 0 0 2px #c084fc, -14px  0  18px 4px #c084fccc, 14px    0   14px 2px #7e22ce44; }
+  87.5% { box-shadow: 0 0 0 2px #c084fc, -10px -10px 18px 4px #c084fccc, 10px 10px 14px 2px #7e22ce44; }
+  100%  { box-shadow: 0 0 0 2px #c084fc, 0 -14px 18px 4px #c084fccc, 0   14px 14px 2px #7e22ce44; }
 }
-
 .epic-purple-wrap {
   position: relative;
-  animation: purple-ring-glow 4.5s ease-in-out infinite;
+  animation: purple-lobe-orbit 4.5s linear infinite;
 }
-.epic-purple-wrap::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: conic-gradient(
-    #3b0764  0deg,
-    #7e22ce  45deg,
-    #c084fc  90deg,
-    #e9d5ff  135deg,
-    #a855f7  180deg,
-    #6b21a8  225deg,
-    #c084fc  270deg,
-    #f3e8ff  315deg,
-    #3b0764  360deg
-  );
-  transform-origin: 50% 50%;
-  border-radius: 50%;
-  animation: epic-spin-purple 6s linear infinite;
-  filter: blur(8px);
-}
+.epic-purple-wrap::before { display: none; }
 .epic-purple-inner {
   position: relative;
   z-index: 1;
   overflow: hidden;
   border-radius: inherit;
 }
-@keyframes purple-ring-glow {
-  0%,100% { box-shadow: 0 0 0 2px #c084fc, 0 0 16px 3px #7e22ce66; }
-  50%      { box-shadow: 0 0 0 2px #f3e8ff, 0 0 24px 6px #a855f744; }
-}
 
 /* ── Rainbow (Epic Rare) ── */
-@keyframes epic-rainbow-spin {
-  0%   { transform: rotate(0deg);   filter: blur(4px) brightness(1.00); }
-  20%  {                             filter: blur(7px) brightness(1.40); }
-  40%  {                             filter: blur(3px) brightness(0.88); }
-  50%  { transform: rotate(180deg); filter: blur(8px) brightness(1.50); }
-  70%  {                             filter: blur(3px) brightness(0.88); }
-  85%  {                             filter: blur(7px) brightness(1.38); }
-  100% { transform: rotate(360deg); filter: blur(4px) brightness(1.00); }
+/* Lobe color orbits the spectrum in sync with the position orbit.
+   Both the ring and the lobe shift through red→orange→yellow→green→blue→purple. */
+@keyframes rainbow-lobe-orbit {
+  0%    { box-shadow: 0 0 0 2px #ff2244, 0   -14px 18px 4px #ff2244cc, 0    14px 14px 2px #ff224444; }
+  12.5% { box-shadow: 0 0 0 2px #ff8800, 10px -10px 18px 4px #ff8800cc, -10px 10px 14px 2px #ff880044; }
+  25%   { box-shadow: 0 0 0 2px #ccff00, 14px   0  18px 4px #ccff00cc, -14px   0  14px 2px #ccff0044; }
+  37.5% { box-shadow: 0 0 0 2px #00ffaa, 10px  10px 18px 4px #00ffaacc, -10px -10px 14px 2px #00ffaa44; }
+  50%   { box-shadow: 0 0 0 2px #0088ff, 0    14px 18px 4px #0088ffcc,  0   -14px 14px 2px #0088ff44; }
+  62.5% { box-shadow: 0 0 0 2px #aa00ff, -10px 10px 18px 4px #aa00ffcc, 10px  -10px 14px 2px #aa00ff44; }
+  75%   { box-shadow: 0 0 0 2px #ff00aa, -14px  0  18px 4px #ff00aacc,  14px    0  14px 2px #ff00aa44; }
+  87.5% { box-shadow: 0 0 0 2px #ff2244, -10px -10px 18px 4px #ff2244cc, 10px  10px 14px 2px #ff224444; }
+  100%  { box-shadow: 0 0 0 2px #ff2244, 0   -14px 18px 4px #ff2244cc,  0    14px 14px 2px #ff224444; }
 }
-
 .epic-rainbow-wrap {
   position: relative;
-  animation: rainbow-ring-glow 3s linear infinite;
+  animation: rainbow-lobe-orbit 4s linear infinite;
 }
-.epic-rainbow-wrap::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: conic-gradient(
-    #ff0000  0deg,
-    #ff6600  51deg,
-    #ffff00  102deg,
-    #00ff44  153deg,
-    #0088ff  204deg,
-    #8800ff  255deg,
-    #ff00aa  306deg,
-    #ff0000  360deg
-  );
-  transform-origin: 50% 50%;
-  border-radius: 50%;
-  animation: epic-rainbow-spin 4s linear infinite;
-  filter: blur(8px);
-}
+.epic-rainbow-wrap::before { display: none; }
 .epic-rainbow-inner {
   position: relative;
   z-index: 1;
   overflow: hidden;
   border-radius: inherit;
-}
-@keyframes rainbow-ring-glow {
-  0%   { box-shadow: 0 0 0 2px #ff2244, 0 0 18px 3px #ff224466; }
-  17%  { box-shadow: 0 0 0 2px #ff8800, 0 0 18px 3px #ff880066; }
-  33%  { box-shadow: 0 0 0 2px #ccff00, 0 0 18px 3px #ccff0066; }
-  50%  { box-shadow: 0 0 0 2px #00ffaa, 0 0 18px 3px #00ffaa66; }
-  67%  { box-shadow: 0 0 0 2px #0088ff, 0 0 18px 3px #0088ff66; }
-  83%  { box-shadow: 0 0 0 2px #aa00ff, 0 0 18px 3px #aa00ff66; }
-  100% { box-shadow: 0 0 0 2px #ff2244, 0 0 18px 3px #ff224466; }
 }
 
 /* ── Rare-epic chrome: text color + box-shadow border cycle the rainbow ──────── */
@@ -545,10 +474,10 @@ input[type="range"]:focus {
   83%  { color: #aa00ff; }
   100% { color: #ff2244; }
 }
-/** Apply to rare-epic play button and number badge — pairs with rainbow-ring-glow. */
+/** Apply to rare-epic play button and number badge — pairs with rainbow-lobe-orbit. */
 .epic-rare-chrome {
   animation: epic-rare-text-color 3s linear infinite,
-             rainbow-ring-glow    3s linear infinite;
+             rainbow-lobe-orbit   4s linear infinite;
   border: 1.5px solid transparent !important;
   background: #0a0a0f !important;
 }
@@ -557,6 +486,5 @@ input[type="range"]:focus {
   .epic-green-wrap   { animation: none; box-shadow: 0 0 0 2px #4ade80; }
   .epic-purple-wrap  { animation: none; box-shadow: 0 0 0 2px #c084fc; }
   .epic-rainbow-wrap { animation: none; box-shadow: 0 0 0 2px #ff8800; }
-  .epic-green-wrap::before, .epic-purple-wrap::before, .epic-rainbow-wrap::before { animation: none; filter: none; }
   .epic-rare-chrome  { animation: none; color: #ff8800; box-shadow: 0 0 0 2px #ff8800; }
 }
