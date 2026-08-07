@@ -39,7 +39,11 @@ const RARITY_ACCENT: Record<string, string> = {
   'epic-unnumbered':  'from-white/10 to-white/5 text-white/70',
 };
 
-type SyncSummary = { rarity: string; added: number; removed: number; error?: string }[];
+type SyncSummary = {
+  rarity: string; added: number; removed: number; error?: string;
+  /** What Apple's public snapshot actually returned — distinguishes "Apple hasn't propagated your edits yet" from a sync bug. */
+  trackTotal?: number; lastModified?: string | null;
+}[];
 
 /**
  * Rarity ↔ Apple Music playlist linking + one-tap "Refresh all" sync.
@@ -113,13 +117,13 @@ export function RarityPlaylistSync() {
     link: PlaylistLink,
   ): Promise<SyncSummary[number] & { addedSongs: MaplogSong[] }> => {
     try {
-      const { name, songs: tracks } = await fetchPlaylist(link.url);
+      const { name, lastModified, songs: tracks } = await fetchPlaylist(link.url);
       const { added, removed, addedSongs } = syncRarity(rarity, tracks);
       updateLinksRef.current = {
         ...updateLinksRef.current,
         [rarity.slug]: { ...link, name, trackCount: tracks.length, artworkUrl: tracks[0]?.artworkUrl || link.artworkUrl, lastSynced: new Date().toISOString() },
       };
-      return { rarity: rarity.name, added, removed, addedSongs };
+      return { rarity: rarity.name, added, removed, addedSongs, trackTotal: tracks.length, lastModified };
     } catch (err) {
       return { rarity: rarity.name, added: 0, removed: 0, addedSongs: [], error: err instanceof Error ? err.message : 'Sync failed' };
     }
@@ -253,16 +257,27 @@ export function RarityPlaylistSync() {
               </button>
               <p className="text-xs font-bold uppercase tracking-widest text-white/50">Last sync</p>
               {summary.map(r => (
-                <div key={r.rarity} className="flex items-center gap-2 text-sm">
-                  {r.error
-                    ? <XCircle className="w-4 h-4 text-destructive shrink-0" />
-                    : <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
-                  <span className="font-bold text-white">{r.rarity}:</span>
-                  {r.error
-                    ? <span className="text-destructive text-xs">{r.error}</span>
-                    : <span className="text-white/60">{r.added} added, {r.removed} removed</span>}
+                <div key={r.rarity} className="text-sm space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    {r.error
+                      ? <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                      : <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
+                    <span className="font-bold text-white">{r.rarity}:</span>
+                    {r.error
+                      ? <span className="text-destructive text-xs">{r.error}</span>
+                      : <span className="text-white/60">{r.added} added, {r.removed} removed</span>}
+                  </div>
+                  {!r.error && r.trackTotal != null && (
+                    <p className="pl-6 text-xs text-white/40">
+                      Apple returned {r.trackTotal} track{r.trackTotal !== 1 ? 's' : ''}
+                      {r.lastModified && ` · playlist snapshot updated ${new Date(r.lastModified).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`}
+                    </p>
+                  )}
                 </div>
               ))}
+              <p className="text-[11px] leading-snug text-white/35">
+                If a song you just added is missing but the snapshot date is old, Apple hasn't published your edit yet — shared playlists can take a while to update. Try again later.
+              </p>
             </div>
           </motion.div>
         )}

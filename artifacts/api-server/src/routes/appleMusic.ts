@@ -404,6 +404,10 @@ router.get("/apple-music/playlist", async (req, res) => {
     }
     const meta = (await metaRes.json()) as any;
     const name = meta?.data?.[0]?.attributes?.name ?? "Apple Music Playlist";
+    // When Apple last regenerated this playlist's public snapshot. Shared
+    // user playlists (pl.u-…) lag behind edits made in the Music app, so
+    // surfacing this lets the client tell "stale snapshot" from a real bug.
+    const lastModified = meta?.data?.[0]?.attributes?.lastModifiedDate ?? null;
 
     // Paginate through all tracks (100 per page, capped at 1000 for safety)
     const songs: any[] = [];
@@ -433,7 +437,7 @@ router.get("/apple-music/playlist", async (req, res) => {
     // no-store: playlist contents must always be fetched fresh so refresh
     // picks up newly added songs (iOS PWA caches aggressively).
     res.set("Cache-Control", "no-store");
-    res.json({ name, songs });
+    res.json({ name, lastModified, songs });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     res.status(502).json({ error: msg });

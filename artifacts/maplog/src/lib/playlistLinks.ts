@@ -43,7 +43,12 @@ export function savePlaylistLinks(links: PlaylistLinks): void {
 export const LINKABLE_RARITIES: MaplogRarityType[] = LINKABLE_RARITY_TIERS;
 
 /** Fetch + normalize a playlist via the API server. */
-export async function fetchPlaylist(url: string): Promise<{ name: string; songs: import('./types').MaplogSong[] }> {
+export async function fetchPlaylist(url: string): Promise<{
+  name: string;
+  /** When Apple last regenerated the playlist's public snapshot (ISO), if known. */
+  lastModified: string | null;
+  songs: import('./types').MaplogSong[];
+}> {
   // cache: 'no-store' — iOS Safari PWA caches same-URL GETs, which made
   // refresh serve a stale playlist snapshot and miss newly added songs.
   // `_ts` cache-buster: intermediary caches (Netlify CDN / service worker /
@@ -67,5 +72,5 @@ export async function fetchPlaylist(url: string): Promise<{ name: string; songs:
     previewUrl: t.previewUrl ?? null,
     cards: [],
   }));
-  return { name: data.name, songs };
+  return { name: data.name, lastModified: data.lastModified ?? null, songs };
 }

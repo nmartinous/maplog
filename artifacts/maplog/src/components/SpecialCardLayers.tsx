@@ -269,7 +269,7 @@ export function EpicCardOverlay({
       {!hasMedia && (
         <div
           className="absolute flex flex-col"
-          style={{ left: px(20), right: px(20), bottom: px(48) }}
+          style={{ left: px(20), right: px(20), bottom: px(44) }}
         >
           <p
             className="font-bold leading-tight truncate w-full text-white"
@@ -307,7 +307,7 @@ export function EpicCardOverlay({
           <button
             type="button"
             className="absolute pointer-events-auto opacity-0 select-none"
-            style={{ left: px(20), bottom: px(48), width: '55%', height: px(20) }}
+            style={{ left: px(20), bottom: px(44), width: '55%', height: px(20) }}
             onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
             aria-label={`View artist ${artist}`}
           />
@@ -316,7 +316,7 @@ export function EpicCardOverlay({
           <button
             type="button"
             className="absolute pointer-events-auto text-white/60 active:opacity-60 transition-opacity flex items-center justify-center"
-            style={{ right: px(34), bottom: px(44), width: px(28), height: px(24), filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.9))' }}
+            style={{ right: px(28), bottom: px(40), width: px(28), height: px(24), filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.9))' }}
             onClick={e => { e.stopPropagation(); onPlay?.(); }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
@@ -330,15 +330,15 @@ export function EpicCardOverlay({
              (speech-bubble + number) chip that sits right of its genre pill. ── */}
       <div
         className="absolute flex items-center pointer-events-auto"
-        style={{ left: px(20), bottom: px(22), gap: px(6) }}
+        style={{ left: px(16), bottom: px(18), gap: px(6) }}
       >
         {/* Scaled epic pill (RarityBadge has fixed sizing → too big on cards) */}
         <span
           className="inline-flex items-center font-bold rounded-full text-[#eac54f] leading-none shrink-0"
           style={{
             fontSize: px(11),
-            padding: `${px(5)}px ${px(10)}px`,
-            gap: px(4),
+            padding: `${px(5)}px ${px(7)}px`,
+            gap: px(3),
             background: 'linear-gradient(90deg, #6b5800 0%, #4a2a00 100%)',
             border: '1px solid #b4840055',
             boxShadow: '0 0 8px #b4840050',
@@ -357,8 +357,9 @@ export function EpicCardOverlay({
               fontSize: px(11),
               padding: `${px(5)}px ${px(10)}px`,
               gap: px(4),
-              // Wide enough to also hide the video's speech-bubble count chip
-              minWidth: hasMedia ? px(92) : undefined,
+              // Wide enough to also cover Soundmap's genre + speech-bubble
+              // count chips (badge row spans both in the reference layout)
+              minWidth: px(108),
               maxWidth: px(150),
             }}
           >
