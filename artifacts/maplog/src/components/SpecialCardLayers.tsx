@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import type { MaplogCard } from '@/lib/types';
 import { epicFrameForCard, radiantPatternCss, type EpicBorderKind } from '@/lib/cardTemplates';
 import { useCardMedia } from '@/lib/useCardMedia';
