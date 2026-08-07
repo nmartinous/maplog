@@ -404,6 +404,8 @@ input[type="range"]:focus {
 .epic-green-wrap {
   position: relative;
   overflow: hidden;
+  /* Animated ring glow replaces the inner padding-based gradient border */
+  animation: green-ring-glow 4.5s ease-in-out infinite;
 }
 .epic-green-wrap::before {
   content: '';
@@ -421,11 +423,19 @@ input[type="range"]:focus {
     #14532d  360deg
   );
   transform-origin: 50% 50%;
-  animation: epic-spin-green 4.5s linear infinite;
+  /* ::before is fully covered by card content — pause to save GPU */
+  animation-play-state: paused;
+  transform: scale(2.5);
 }
 .epic-green-inner {
   position: relative;
   z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+}
+@keyframes green-ring-glow {
+  0%,100% { box-shadow: 0 0 0 2px #4ade80, 0 0 16px 3px #16a34a66; }
+  50%      { box-shadow: 0 0 0 2px #bbf7d0, 0 0 24px 6px #22c55e44; }
 }
 
 /* ── Purple (Epic Uncommon) ── */
@@ -444,6 +454,7 @@ input[type="range"]:focus {
 .epic-purple-wrap {
   position: relative;
   overflow: hidden;
+  animation: purple-ring-glow 4.5s ease-in-out infinite;
 }
 .epic-purple-wrap::before {
   content: '';
@@ -461,11 +472,18 @@ input[type="range"]:focus {
     #3b0764  360deg
   );
   transform-origin: 50% 50%;
-  animation: epic-spin-purple 4.5s linear infinite;
+  animation-play-state: paused;
+  transform: scale(2.5);
 }
 .epic-purple-inner {
   position: relative;
   z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+}
+@keyframes purple-ring-glow {
+  0%,100% { box-shadow: 0 0 0 2px #c084fc, 0 0 16px 3px #7e22ce66; }
+  50%      { box-shadow: 0 0 0 2px #f3e8ff, 0 0 24px 6px #a855f744; }
 }
 
 /* ── Rainbow (Epic Rare) ── */
@@ -482,6 +500,7 @@ input[type="range"]:focus {
 .epic-rainbow-wrap {
   position: relative;
   overflow: hidden;
+  animation: rainbow-ring-glow 3s linear infinite;
 }
 .epic-rainbow-wrap::before {
   content: '';
@@ -498,15 +517,28 @@ input[type="range"]:focus {
     #ff0000  360deg
   );
   transform-origin: 50% 50%;
-  animation: epic-rainbow-spin 3s linear infinite;
+  animation-play-state: paused;
+  transform: scale(2.5);
 }
 .epic-rainbow-inner {
   position: relative;
   z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+}
+@keyframes rainbow-ring-glow {
+  0%   { box-shadow: 0 0 0 2px #ff2244, 0 0 18px 3px #ff224466; }
+  17%  { box-shadow: 0 0 0 2px #ff8800, 0 0 18px 3px #ff880066; }
+  33%  { box-shadow: 0 0 0 2px #ccff00, 0 0 18px 3px #ccff0066; }
+  50%  { box-shadow: 0 0 0 2px #00ffaa, 0 0 18px 3px #00ffaa66; }
+  67%  { box-shadow: 0 0 0 2px #0088ff, 0 0 18px 3px #0088ff66; }
+  83%  { box-shadow: 0 0 0 2px #aa00ff, 0 0 18px 3px #aa00ff66; }
+  100% { box-shadow: 0 0 0 2px #ff2244, 0 0 18px 3px #ff224466; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .epic-green-wrap::before  { animation: none; transform: scale(2.5); filter: none; }
-  .epic-purple-wrap::before { animation: none; transform: scale(2.5); filter: none; }
-  .epic-rainbow-wrap::before { animation: none; transform: scale(2.5); filter: none; }
+  .epic-green-wrap   { animation: none; box-shadow: 0 0 0 2px #4ade80; }
+  .epic-purple-wrap  { animation: none; box-shadow: 0 0 0 2px #c084fc; }
+  .epic-rainbow-wrap { animation: none; box-shadow: 0 0 0 2px #ff8800; }
+  .epic-green-wrap::before, .epic-purple-wrap::before, .epic-rainbow-wrap::before { animation: none; transform: scale(2.5); filter: none; }
 }

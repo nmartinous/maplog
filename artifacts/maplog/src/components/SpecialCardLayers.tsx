@@ -30,9 +30,10 @@ import { cn } from '@/lib/utils';
 const MOTION_GRANTED_KEY = 'maplog:motionGranted';
 
 function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string }) {
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  // Low-pass filter state — smooths out sensor jitter between frames
-  const smoothRef = useRef({ x: 0, y: 0 });
+  // object-position x: 50 = centered, pans between ~20 and ~80 on tilt
+  const [xPct, setXPct] = useState(50);
+  // Low-pass filter on the raw gamma reading (-1 … +1)
+  const smoothX = useRef(0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const needsIosPerm = typeof (DeviceOrientationEvent as any).requestPermission === 'function';
@@ -43,14 +44,12 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
   // 'denied'   = user declined
   const [iosPerm, setIosPerm] = useState<'granted' | 'auto' | 'unknown' | 'denied'>(() => {
     if (!needsIosPerm) return 'granted';
-    const motionPref    = localStorage.getItem('maplog:motionControls') === '1';
-    const prevGranted   = localStorage.getItem(MOTION_GRANTED_KEY) === '1';
+    const motionPref  = localStorage.getItem('maplog:motionControls') === '1';
+    const prevGranted = localStorage.getItem(MOTION_GRANTED_KEY) === '1';
     return (motionPref || prevGranted) ? 'auto' : 'unknown';
   });
 
   // Silently attempt iOS permission on mount when pref is on or previously granted.
-  // After first user approval iOS returns 'granted' immediately on subsequent calls
-  // within the same PWA origin, so this effectively "always allows" once opted in.
   useEffect(() => {
     if (iosPerm !== 'auto') return;
     let cancelled = false;
@@ -72,40 +71,40 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
   useEffect(() => {
     if (iosPerm !== 'granted') return;
     let mounted = true;
-    // Exponential low-pass filter — alpha controls smoothing vs. responsiveness.
-    // 0.10 = very smooth (slower), 0.25 = snappier but still damped.
+    // Exponential low-pass: alpha=0.12 → heavy smoothing, no jitter
     const ALPHA = 0.12;
+    // Pan range: ±RANGE% from center (50%). object-fit:cover guarantees no gaps.
+    // Artwork is square; container is taller-than-wide, so the image always
+    // overflows horizontally — any object-position within 0-100% is safe.
+    const RANGE = 28;
     const handler = (e: DeviceOrientationEvent) => {
       if (!mounted) return;
-      // gamma = left(-90)..right(90); beta ≈ 45 when phone held upright portrait
-      const rawX = Math.max(-1, Math.min(1, (e.gamma  ?? 0)       / 25));
-      const rawY = Math.max(-1, Math.min(1, ((e.beta ?? 45) - 45) / 25));
-      smoothRef.current = {
-        x: ALPHA * rawX + (1 - ALPHA) * smoothRef.current.x,
-        y: ALPHA * rawY + (1 - ALPHA) * smoothRef.current.y,
-      };
-      setOffset({ ...smoothRef.current });
+      // gamma = left(-90°)…right(90°); clamp to ±1 at ±25°
+      const raw = Math.max(-1, Math.min(1, (e.gamma ?? 0) / 25));
+      smoothX.current = ALPHA * raw + (1 - ALPHA) * smoothX.current;
+      setXPct(50 + smoothX.current * RANGE);
     };
     window.addEventListener('deviceorientation', handler, { passive: true });
     return () => { mounted = false; window.removeEventListener('deviceorientation', handler); };
   }, [iosPerm]);
 
-  // ZOOM: at max tilt (offset ±1) trailing edge is flush. 35 adds a 5% gap buffer.
-  const ZOOM = 35;
   return (
     <div className="absolute inset-0 overflow-hidden">
+      {/*
+        object-fit: cover fills the entire container regardless of aspect ratio.
+        Container is taller than wide; square artwork scales to fill the height,
+        overflowing horizontally. object-position pans only on x — y is always
+        50% so top and bottom of the art are always flush with the card edges.
+        No gap is ever possible because cover always fills the full area.
+      */}
       <img
         src={artworkUrl}
         alt={title}
-        className="absolute object-cover select-none pointer-events-none"
+        className="absolute inset-0 w-full h-full select-none pointer-events-none"
         style={{
-          width:  `${100 + ZOOM * 2}%`,
-          height: `${100 + ZOOM * 2}%`,
-          top:  `${-ZOOM + offset.y * ZOOM}%`,
-          left: `${-ZOOM + offset.x * ZOOM}%`,
-          // Longer transition smooths residual jitter between sensor samples
-          transition: 'top 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          willChange: 'top, left',
+          objectFit: 'cover',
+          objectPosition: `${xPct}% 50%`,
+          transition: 'object-position 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         }}
       />
     </div>
@@ -251,8 +250,8 @@ export function EpicBorderWrap({
 }) {
   if (kind === 'unnumbered') return <>{children}</>;
 
-  // Outer radius = card corner radius + border width so the ring hugs the card
-  const radiiMap: Record<typeof size, number> = { sm: 15, md: 19, lg: 19, hero: 27 };
+  // Radius matches the card body's Tailwind rounded class exactly (no padding gap)
+  const radiiMap: Record<typeof size, number> = { sm: 12, md: 16, lg: 16, hero: 24 };
   const r = radiiMap[size];
 
   const wrapClass  = kind === 'common'   ? 'epic-green-wrap'
@@ -263,7 +262,9 @@ export function EpicBorderWrap({
                    :                       'epic-rainbow-inner';
 
   return (
-    <div className={wrapClass} style={{ borderRadius: r, padding: 3 }}>
+    // padding: 0 — card body fills the full wrapper; box-shadow glow ring
+    // provides the colored border without an internal gap
+    <div className={wrapClass} style={{ borderRadius: r, padding: 0 }}>
       <div className={innerClass}>{children}</div>
     </div>
   );
