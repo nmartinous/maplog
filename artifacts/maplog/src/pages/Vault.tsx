@@ -35,8 +35,11 @@ const FILTERS: { label: string; tags: string[] }[] = [
 /** Type an epic number, see what it's worth. */
 function EpicValueCalculator() {
   const [input, setInput] = useState('');
-  const n = parseInt(input, 10);
-  const valid = Number.isFinite(n) && n >= 1;
+  // Strict positive-integer parse: reject decimals ("1.5"), exponent
+  // notation ("1e2"), and anything parseInt would silently truncate.
+  const trimmed = input.trim();
+  const n = /^\d+$/.test(trimmed) ? Number(trimmed) : NaN;
+  const valid = Number.isSafeInteger(n) && n >= 1;
   const value = valid ? epicNumberValue(n) : null;
 
   return (
@@ -66,7 +69,7 @@ function EpicValueCalculator() {
             </>
           ) : (
             <p className="text-xs text-white/35">
-              {input.trim() === '' ? `Unnumbered = ${exactValue(EPIC_UNNUMBERED_VALUE)}` : 'Enter a number ≥ 1'}
+              {trimmed === '' ? `Unnumbered = ${exactValue(EPIC_UNNUMBERED_VALUE)}` : 'Enter a whole number ≥ 1'}
             </p>
           )}
         </div>
