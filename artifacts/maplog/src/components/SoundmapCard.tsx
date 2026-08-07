@@ -204,45 +204,52 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         </>
       )}
 
+      {/* Epic: media + pins fill the full card absolutely (incl. padding & info area) */}
+      {isEpic && <MediaSlot card={card} title={title} />}
+      {isEpic && <EpicPins card={card} cardWidth={cardWidth} />}
+
       {/* Art / media section */}
       <div className={cn(artPad, 'relative z-[2]')}>
-        <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
-          {presence === 'epic' || presence === 'moment' ? (
-            <MediaSlot card={card} title={title} />
-          ) : card.artworkUrl ? (
-            <img
-              src={card.artworkUrl}
-              alt={title}
-              className="absolute inset-0 w-full h-full object-cover"
-              crossOrigin="anonymous"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center"
-              style={{ background: `linear-gradient(160deg, ${borderColor}22 0%, #0d0d0d 100%)` }}>
-              <Disc3 className="opacity-[0.07]" style={{ width: '55%', height: '55%', color: borderColor }} />
-            </div>
-          )}
+        {isEpic ? (
+          /* Pure height spacer — MediaSlot above covers the card absolutely */
+          <div className="aspect-square" />
+        ) : (
+          <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
+            {presence === 'moment' ? (
+              <MediaSlot card={card} title={title} />
+            ) : card.artworkUrl ? (
+              <img
+                src={card.artworkUrl}
+                alt={title}
+                className="absolute inset-0 w-full h-full object-cover"
+                crossOrigin="anonymous"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center"
+                style={{ background: `linear-gradient(160deg, ${borderColor}22 0%, #0d0d0d 100%)` }}>
+                <Disc3 className="opacity-[0.07]" style={{ width: '55%', height: '55%', color: borderColor }} />
+              </div>
+            )}
 
-          {presence === 'epic' ? (
-            <EpicPins card={card} cardWidth={cardWidth} />
-          ) : card.variantLabel?.startsWith('#') ? (
-            <div className="absolute top-1.5 right-1.5 z-10 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
-              {card.variantLabel}
-            </div>
-          ) : null}
+            {card.variantLabel?.startsWith('#') ? (
+              <div className="absolute top-1.5 right-1.5 z-10 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
+                {card.variantLabel}
+              </div>
+            ) : null}
 
-          {presence === 'lyrics' && card.subjectText && showInfo && (
-            <LyricSubject text={card.subjectText} cardWidth={cardWidth} />
-          )}
+            {presence === 'lyrics' && card.subjectText && showInfo && (
+              <LyricSubject text={card.subjectText} cardWidth={cardWidth} />
+            )}
 
-          {presence === 'radiant' && (
-            <RadiantPatternOverlay patternId={card.patternId} color={borderColor} opacity={0.55} />
-          )}
+            {presence === 'radiant' && (
+              <RadiantPatternOverlay patternId={card.patternId} color={borderColor} opacity={0.55} />
+            )}
 
-          {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
-            <ArtStamp label={card.variantLabel} cardWidth={cardWidth} />
-          )}
-        </div>
+            {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
+              <ArtStamp label={card.variantLabel} cardWidth={cardWidth} />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Info section — epics render invisible so card height matches regular cards */}

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { MaplogCard } from '@/lib/types';
 import { epicFrameForCard, radiantPatternCss, type EpicBorderKind } from '@/lib/cardTemplates';
 import { useCardMedia } from '@/lib/useCardMedia';
@@ -27,33 +27,44 @@ import { cn } from '@/lib/utils';
  * we attempt to request permission automatically on mount; otherwise we show
  * a "Tap to enable tilt" overlay until they grant it per-card.
  */
+const MOTION_GRANTED_KEY = 'maplog:motionGranted';
+
 function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-
-  // Read the global motion-controls preference once on mount.
-  const motionPref = localStorage.getItem('maplog:motionControls') === '1';
+  // Low-pass filter state — smooths out sensor jitter between frames
+  const smoothRef = useRef({ x: 0, y: 0 });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const needsIosPerm = typeof (DeviceOrientationEvent as any).requestPermission === 'function';
 
-  // 'granted'  = events will fire (Android/desktop, or iOS after approval)
-  // 'auto'     = iOS, pref enabled → attempt requestPermission() on mount
-  // 'unknown'  = iOS, pref disabled → show tap overlay
-  // 'denied'   = user declined or API threw
+  // 'granted'  = events will fire
+  // 'auto'     = attempt requestPermission() on mount (pref on, or previously granted)
+  // 'unknown'  = no pref, no history
+  // 'denied'   = user declined
   const [iosPerm, setIosPerm] = useState<'granted' | 'auto' | 'unknown' | 'denied'>(() => {
     if (!needsIosPerm) return 'granted';
-    return motionPref ? 'auto' : 'unknown';
+    const motionPref    = localStorage.getItem('maplog:motionControls') === '1';
+    const prevGranted   = localStorage.getItem(MOTION_GRANTED_KEY) === '1';
+    return (motionPref || prevGranted) ? 'auto' : 'unknown';
   });
 
-  // If pref is on, attempt to request permission immediately on mount.
-  // iOS requires this to be in response to a user gesture, but some PWA
-  // contexts allow it during navigation. If it throws/denies, fall back to overlay.
+  // Silently attempt iOS permission on mount when pref is on or previously granted.
+  // After first user approval iOS returns 'granted' immediately on subsequent calls
+  // within the same PWA origin, so this effectively "always allows" once opted in.
   useEffect(() => {
     if (iosPerm !== 'auto') return;
     let cancelled = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (DeviceOrientationEvent as any).requestPermission()
-      .then((r: string) => { if (!cancelled) setIosPerm(r === 'granted' ? 'granted' : 'unknown'); })
+      .then((r: string) => {
+        if (cancelled) return;
+        if (r === 'granted') {
+          localStorage.setItem(MOTION_GRANTED_KEY, '1');
+          setIosPerm('granted');
+        } else {
+          setIosPerm('unknown');
+        }
+      })
       .catch(() => { if (!cancelled) setIosPerm('unknown'); });
     return () => { cancelled = true; };
   }, [iosPerm]);
@@ -61,25 +72,28 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
   useEffect(() => {
     if (iosPerm !== 'granted') return;
     let mounted = true;
+    // Exponential low-pass filter — alpha controls smoothing vs. responsiveness.
+    // 0.10 = very smooth (slower), 0.25 = snappier but still damped.
+    const ALPHA = 0.12;
     const handler = (e: DeviceOrientationEvent) => {
       if (!mounted) return;
       // gamma = left(-90)..right(90); beta ≈ 45 when phone held upright portrait
-      const x = Math.max(-1, Math.min(1, (e.gamma  ?? 0)        / 25));
-      const y = Math.max(-1, Math.min(1, ((e.beta ?? 45) - 45)  / 25));
-      setOffset({ x, y });
+      const rawX = Math.max(-1, Math.min(1, (e.gamma  ?? 0)       / 25));
+      const rawY = Math.max(-1, Math.min(1, ((e.beta ?? 45) - 45) / 25));
+      smoothRef.current = {
+        x: ALPHA * rawX + (1 - ALPHA) * smoothRef.current.x,
+        y: ALPHA * rawY + (1 - ALPHA) * smoothRef.current.y,
+      };
+      setOffset({ ...smoothRef.current });
     };
     window.addEventListener('deviceorientation', handler, { passive: true });
     return () => { mounted = false; window.removeEventListener('deviceorientation', handler); };
   }, [iosPerm]);
 
-  // ZOOM controls how much the image overflows each edge.
-  // At max tilt (offset = ±1) the image pans by ±ZOOM%, so the trailing
-  // edge is flush at ZOOM=30. We use 35 for a 5% safety buffer so
-  // sub-pixel rounding and aggressive tilts never expose a gap.
+  // ZOOM: at max tilt (offset ±1) trailing edge is flush. 35 adds a 5% gap buffer.
   const ZOOM = 35;
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* No crossOrigin here — we display only, never read pixels */}
       <img
         src={artworkUrl}
         alt={title}
@@ -89,12 +103,11 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
           height: `${100 + ZOOM * 2}%`,
           top:  `${-ZOOM + offset.y * ZOOM}%`,
           left: `${-ZOOM + offset.x * ZOOM}%`,
-          transition: 'top 0.15s ease-out, left 0.15s ease-out',
+          // Longer transition smooths residual jitter between sensor samples
+          transition: 'top 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           willChange: 'top, left',
         }}
       />
-      {/* No tap overlay — parallax silently activates when iOS grants permission,
-          or stays static when the user hasn't enabled motion controls in Settings. */}
     </div>
   );
 }
