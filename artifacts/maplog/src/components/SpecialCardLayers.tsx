@@ -345,7 +345,8 @@ export function EpicCardOverlay({
              (speech-bubble + number) chip that sits right of its genre pill. ── */}
       <div
         className="absolute flex items-center pointer-events-auto"
-        style={{ left: px(14), bottom: px(23), gap: px(6) }}
+        // left +1 / gap −1: nudges the rarity pill right 1px while the genre badge stays put
+        style={{ left: px(15), bottom: px(22), gap: px(5) }}
       >
         {/* Scaled epic pill (RarityBadge has fixed sizing → too big on cards) */}
         <span
