@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Disc3 } from 'lucide-react';
 import { presenceForCard, epicBorderKind } from '@/lib/cardTemplates';
 import {
-  MediaSlot, EpicPins, epicFrameStyle, EpicBorderWrap,
+  MediaSlot, EpicPins, EpicCardOverlay, epicFrameStyle, EpicBorderWrap,
   MomentStars, FlavorBubble,
   LyricSubject, RadiantPatternOverlay, RadiantSpin,
 } from '@/components/SpecialCardLayers';
@@ -116,9 +116,13 @@ interface SoundmapCardProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'hero';
   onArtistClick?: () => void;
+  /** Called when the user taps the play button inside the epic overlay. */
+  onPlay?: () => void;
+  /** Whether the song is currently playing — drives play/pause icon in the overlay. */
+  isPlaying?: boolean;
 }
 
-export function SoundmapCard({ card, title, artist, genre, className, size = 'md', onArtistClick }: SoundmapCardProps) {
+export function SoundmapCard({ card, title, artist, genre, className, size = 'md', onArtistClick, onPlay, isPlaying = false }: SoundmapCardProps) {
   const fallbackBorder = rarityFallbackColor(card.rarityType.slug);
   const borderColor = useArtColor(card.artworkUrl ?? null, fallbackBorder);
 
@@ -219,7 +223,19 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
 
       {/* Epic: media + pins fill the full card absolutely (incl. padding & info area) */}
       {isEpic && <MediaSlot card={card} title={title} />}
-      {isEpic && <EpicPins card={card} cardWidth={cardWidth} />}
+      {isEpic && <EpicPins card={card} cardWidth={cardWidth} kind={epicKind ?? undefined} />}
+      {isEpic && (epicKind === 'common' || epicKind === 'uncommon' || epicKind === 'rare') && (
+        <EpicCardOverlay
+          card={card}
+          title={title}
+          artist={artist}
+          genre={genre}
+          cardWidth={cardWidth}
+          onArtistClick={onArtistClick}
+          onPlay={onPlay}
+          isPlaying={isPlaying}
+        />
+      )}
 
       {/* Art / media section */}
       <div className={cn(artPad, 'relative z-[2]')}>

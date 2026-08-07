@@ -52,6 +52,22 @@ function AlbumArt({ song, topCard, size = 44 }: { song: MaplogSong; topCard?: Ma
   );
 }
 
+// ── Numbered-variant badge for the collection art thumbnail ───────────────────
+function CollectionNumBadge({ label, slug }: { label: string; slug: string }) {
+  const color = slug === 'epic-common'   ? '#4ade80'
+              : slug === 'epic-uncommon' ? '#c084fc'
+              : slug === 'epic-rare'     ? '#f472b6'
+              : 'rgba(255,255,255,0.7)';
+  return (
+    <div
+      className="absolute -top-1.5 -right-1.5 z-10 font-black rounded-full leading-none shadow-lg pointer-events-none"
+      style={{ fontSize: 7, padding: '0.3em 0.55em', background: '#0a0a0f', color, border: `1px solid ${color}55` }}
+    >
+      {label}
+    </div>
+  );
+}
+
 // ── Scope selector — horizontal row, opens to the LEFT ────────────────────────
 function ScopeSelect({ value, onChange }: { value: SearchScope; onChange: (v: SearchScope) => void }) {
   const [open, setOpen] = useState(false);
@@ -346,8 +362,11 @@ function ActiveView({
             {displayData.map(({ song, topCard }) => (
               <div key={song.id} className="flex items-center gap-2 px-3 py-2 rounded-2xl glass-panel overflow-hidden min-w-0">
                 {/* Art — display only, no interaction */}
-                <div className="shrink-0">
+                <div className="relative shrink-0">
                   <AlbumArt song={song} topCard={topCard} size={48} />
+                  {topCard?.variantLabel?.startsWith('#') && (
+                    <CollectionNumBadge label={topCard.variantLabel} slug={topCard.rarityType.slug} />
+                  )}
                 </div>
 
                 {/* Stacked: title / artist / rarity badge */}

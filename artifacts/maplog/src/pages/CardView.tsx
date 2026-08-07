@@ -125,22 +125,22 @@ function useMeasuredScale(slotWRatio: number, songId: string | undefined) {
  * direction: 1 = navigating forward (next), -1 = navigating back (prev).
  * The card enters from the leading edge and the old card exits to the opposite.
  */
+// Horizontal swipes (|dir|=1) slide left/right.
+// Vertical filtered swipes (|dir|=2) slide up/down so direction feels natural.
 const slideVariants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? '60%' : '-60%',
-    opacity: 0,
-    scale: 0.88,
-  }),
-  center: {
-    x: 0,
-    opacity: 1,
-    scale: 1,
+  enter: (dir: number) => {
+    const vert = Math.abs(dir) >= 2;
+    return vert
+      ? { y: dir > 0 ? '60%' : '-60%', x: 0, opacity: 0, scale: 0.88 }
+      : { x: dir > 0 ? '60%' : '-60%', y: 0, opacity: 0, scale: 0.88 };
   },
-  exit: (direction: number) => ({
-    x: direction > 0 ? '-60%' : '60%',
-    opacity: 0,
-    scale: 0.88,
-  }),
+  center: { x: 0, y: 0, opacity: 1, scale: 1 },
+  exit: (dir: number) => {
+    const vert = Math.abs(dir) >= 2;
+    return vert
+      ? { y: dir > 0 ? '-60%' : '60%', x: 0, opacity: 0, scale: 0.88 }
+      : { x: dir > 0 ? '-60%' : '60%', y: 0, opacity: 0, scale: 0.88 };
+  },
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -163,6 +163,42 @@ export default function CardView() {
   const hasPrev = collectionIndex > 0;
   const hasNext = collectionIndex >= 0 && collectionIndex < songs.length - 1;
 
+  // ── Filter-aware navigation ────────────────────────────────────────────────
+  // Read the active collection filter once on mount (sessionStorage written by
+  // Collection.tsx). Vertical swipes outside the card navigate within this list.
+  const [cvFilter] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('maplog:collection:filter') ?? 'null')
+        ?? { search: '', scope: 'all', activeRarity: 'All' };
+    } catch { return { search: '', scope: 'all', activeRarity: 'All' }; }
+  });
+
+  const filteredSongs = useMemo(() => {
+    const { search, scope, activeRarity } = cvFilter;
+    if (!search && activeRarity === 'All') return songs;
+    const q = search.toLowerCase();
+    return songs.filter(s => {
+      if (q) {
+        const inTitle  = s.title.toLowerCase().includes(q);
+        const inArtist = s.artist.toLowerCase().includes(q);
+        const inAlbum  = (s.album ?? '').toLowerCase().includes(q);
+        const match = scope === 'song'   ? inTitle
+                    : scope === 'artist' ? inArtist
+                    : scope === 'album'  ? inAlbum
+                    : inTitle || inArtist || inAlbum;
+        if (!match) return false;
+      }
+      if (activeRarity !== 'All' && !s.cards.some(c => c.rarityType.category === activeRarity)) return false;
+      return true;
+    });
+  }, [songs, cvFilter]);
+
+  const hasFilterActive = cvFilter.search !== '' || cvFilter.activeRarity !== 'All';
+  const filteredIndex = useMemo(
+    () => filteredSongs.findIndex(s => s.id === songId),
+    [filteredSongs, songId],
+  );
+
   // Track the slide direction so AnimatePresence knows which way to animate.
   const [direction, setDirection] = useState(0);
 
@@ -174,9 +210,23 @@ export default function CardView() {
     setLocation(`/card/${encodeURIComponent(nextSong.id)}`);
   }, [collectionIndex, songs, setLocation]);
 
+  /** Navigate within the active filter via vertical swipe. */
+  const goToFiltered = useCallback((delta: number) => {
+    const nextIndex = filteredIndex + delta;
+    if (nextIndex < 0 || nextIndex >= filteredSongs.length) return;
+    const nextSong = filteredSongs[nextIndex];
+    // |direction| >= 2 signals vertical animation in slideVariants.
+    setDirection(delta > 0 ? 2 : -2);
+    setLocation(`/card/${encodeURIComponent(nextSong.id)}`);
+  }, [filteredIndex, filteredSongs, setLocation]);
+
   // ── Swipe gesture via pointer events ────────────────────────────────────────
   const pointerStartX = useRef<number | null>(null);
   const pointerStartY = useRef<number | null>(null);
+  /** Stable ref to the scaled card element — set in JSX so onPointerUp can
+   *  read its bounding rect without needing cardRef from useMeasuredScale
+   *  (which is declared later and would cause a TDZ error in the callback). */
+  const cardElRef = useRef<HTMLDivElement | null>(null);
   /**
    * Set to true when a qualifying swipe is detected in onPointerUp.
    * onZoneClickCapture (capture-phase) reads this and stops the click event
@@ -196,22 +246,36 @@ export default function CardView() {
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (pointerStartX.current === null || pointerStartY.current === null) return;
-    const dx = e.clientX - pointerStartX.current;
-    const dy = e.clientY - pointerStartY.current;
+    const startX = pointerStartX.current;
+    const startY = pointerStartY.current;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
     pointerStartX.current = null;
     pointerStartY.current = null;
 
-    // Require predominantly horizontal swipe
-    if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-    if (Math.abs(dy) > Math.abs(dx) * 0.8) return;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
 
-    // Mark that a swipe occurred — the capture-phase click handler will
-    // consume the synthetic click that follows pointerUp before it reaches
-    // the card's onClick (which would otherwise trigger play/resume).
-    swipedRef.current = true;
-    if (dx < 0) goTo(1);  // swipe left → next
-    else        goTo(-1); // swipe right → prev
-  }, [goTo]);
+    // Predominantly horizontal swipe → prev/next in the full collection
+    if (absDx >= SWIPE_THRESHOLD && absDy <= absDx * 0.8) {
+      swipedRef.current = true;
+      goTo(dx < 0 ? 1 : -1);
+      return;
+    }
+
+    // Predominantly vertical swipe that started OUTSIDE the card slot →
+    // prev/next in the active filter (prevents conflict with card interactions).
+    if (hasFilterActive && absDy >= SWIPE_THRESHOLD && absDx <= absDy * 0.8) {
+      const rect = cardElRef.current?.getBoundingClientRect();
+      const outsideCard = !rect
+        || startX < rect.left || startX > rect.right
+        || startY < rect.top  || startY > rect.bottom;
+      if (outsideCard) {
+        swipedRef.current = true;
+        goToFiltered(dy < 0 ? 1 : -1); // swipe up = forward in filter
+      }
+    }
+  }, [goTo, goToFiltered, hasFilterActive]);
 
   /**
    * Capture-phase click handler on the swipe zone.
@@ -327,10 +391,12 @@ export default function CardView() {
           ) : (
             <p className="text-xs font-bold text-white/50 truncate">{song.title}</p>
           )}
-          {/* Collection position indicator */}
+          {/* Position indicator — shows filtered count when a filter is active */}
           {collectionIndex >= 0 && songs.length > 1 && (
             <p className="text-[9px] text-white/30 mt-0.5 font-medium">
-              {collectionIndex + 1} / {songs.length}
+              {hasFilterActive && filteredIndex >= 0
+                ? `${filteredIndex + 1} / ${filteredSongs.length} filtered`
+                : `${collectionIndex + 1} / ${songs.length}`}
             </p>
           )}
         </div>
@@ -388,6 +454,7 @@ export default function CardView() {
             exit="exit"
             transition={{
               x: { type: 'spring', stiffness: 320, damping: 32 },
+              y: { type: 'spring', stiffness: 320, damping: 32 },
               opacity: { duration: 0.2 },
               scale: { duration: 0.2 },
             }}
@@ -399,7 +466,7 @@ export default function CardView() {
             }}
           >
             <div
-              ref={cardRef}
+              ref={el => { (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = el; cardElRef.current = el; }}
               style={{
                 position:        card ? 'absolute' : 'relative',
                 top:             card ? 0 : undefined,
@@ -420,6 +487,8 @@ export default function CardView() {
                 onArtistClick={() =>
                   setLocation(`/artists/${encodeURIComponent(song.artist)}`)
                 }
+                onPlay={handleCardTap}
+                isPlaying={isCurrent && isPlaying}
               />
             </div>
           </motion.div>
