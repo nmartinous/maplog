@@ -129,23 +129,33 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
     hero: 'w-[280px] sm:w-[320px] landscape-compact:w-[160px] rounded-3xl',
   };
 
+  // Epic cards use a narrower, taller slot so the video fills without
+  // showing its own internal border content. Only epics use these.
+  const epicSizeClasses = {
+    sm:   'w-24 rounded-xl',
+    md:   'w-36 rounded-2xl',
+    lg:   'w-56 rounded-2xl',
+    hero: 'w-[252px] sm:w-[288px] landscape-compact:w-[144px] rounded-3xl',
+  };
+
   const artRadius = {
     sm: 'rounded-lg', md: 'rounded-xl', lg: 'rounded-xl', hero: 'rounded-2xl',
   };
 
-  const widthMap  = { sm: 96, md: 160, lg: 256, hero: 300 };
-  const cardWidth = widthMap[size];
+  // Compute presence/isEpic first — used to pick the correct size maps below
+  const presence = presenceForCard(card);
+  const special  = presence !== 'regular';
+  const bigCard  = size === 'lg' || size === 'hero';
+  const isEpic   = presence === 'epic';
+  const isRare   = card.rarityType.slug === 'regular-rare' || card.rarityType.slug === 'shiny-rare';
+  const isShiny  = card.tags?.includes('shiny') || card.rarityType.slug.startsWith('shiny');
+
+  const widthMap     = { sm: 96,  md: 160, lg: 256, hero: 300 };
+  const epicWidthMap = { sm: 96,  md: 144, lg: 224, hero: 270 };
+  const cardWidth = (isEpic ? epicWidthMap : widthMap)[size];
 
   const titleSize  = size === 'hero' ? 'text-xl'  : size === 'lg' ? 'text-base' : 'text-sm';
   const artistSize = size === 'hero' ? 'text-sm'  : 'text-xs';
-
-  const isRare = card.rarityType.slug === 'regular-rare' || card.rarityType.slug === 'shiny-rare';
-  const isShiny = card.tags?.includes('shiny') || card.rarityType.slug.startsWith('shiny');
-
-  const presence = presenceForCard(card);
-  const special = presence !== 'regular';
-  const bigCard = size === 'lg' || size === 'hero';
-  const isEpic = presence === 'epic';
   // sm cards never show info; epics render it invisible so card height matches regulars
   const showInfo = size !== 'sm';
   const artPad = size === 'sm' ? 'p-1.5' : 'p-2';
@@ -184,7 +194,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
     <div
       className={cn(
         'relative flex flex-col overflow-hidden text-white card-effect',
-        sizeClasses[size],
+        isEpic ? epicSizeClasses[size] : sizeClasses[size],
         isRare && 'card-rare-glow',
         className,
       )}
@@ -211,8 +221,10 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
       {/* Art / media section */}
       <div className={cn(artPad, 'relative z-[2]')}>
         {isEpic ? (
-          /* Pure height spacer — MediaSlot above covers the card absolutely */
-          <div className="aspect-square" />
+          /* Taller-than-square spacer — sets slot height; MediaSlot fills absolutely.
+             Ratio targets the inner card content in the recorded video so object-fit:cover
+             clips the video's own border flush with our card edge. */
+          <div className="aspect-[5/6]" />
         ) : (
           <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
             {presence === 'moment' ? (
