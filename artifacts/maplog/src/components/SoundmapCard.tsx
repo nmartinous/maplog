@@ -146,10 +146,9 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const special = presence !== 'regular';
   const bigCard = size === 'lg' || size === 'hero';
   const isEpic = presence === 'epic';
-  // Epics show only the media slot + pins — no title/artist/genre/rarity below
-  const showInfo = size !== 'sm' && !isEpic;
-  // Epics: no inner padding — video/parallax fills flush to the border edge
-  const artPad = isEpic ? 'p-0' : (size === 'sm' ? 'p-1.5' : 'p-2');
+  // sm cards never show info; epics render it invisible so card height matches regulars
+  const showInfo = size !== 'sm';
+  const artPad = size === 'sm' ? 'p-1.5' : 'p-2';
 
   // For typed epic playlists (common/uncommon/rare/unnumbered), use the new
   // neon border system. Legacy epic slugs fall back to the gold epicFrameStyle.
@@ -207,8 +206,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
 
       {/* Art / media section */}
       <div className={cn(artPad, 'relative z-[2]')}>
-        {/* Epics: no inner radius — parent card's overflow-hidden + rounded corners clip correctly */}
-        <div className={cn('relative aspect-square overflow-hidden', !isEpic && artRadius[size])}>
+        <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
           {presence === 'epic' || presence === 'moment' ? (
             <MediaSlot card={card} title={title} />
           ) : card.artworkUrl ? (
@@ -247,9 +245,9 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         </div>
       </div>
 
-      {/* Info section */}
+      {/* Info section — epics render invisible so card height matches regular cards */}
       {showInfo && (
-        <div className="relative z-[2] px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center">
+        <div className={cn('relative z-[2] px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center', isEpic && 'invisible pointer-events-none select-none')} aria-hidden={isEpic}>
           <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>{title}</p>
           {onArtistClick ? (
             <button

@@ -108,7 +108,6 @@ export function MediaSlot({ card, title }: { card: MaplogCard; title: string }) 
       <video
         src={media.url}
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ transform: 'scale(1.12) translateY(5%)', transformOrigin: 'center center' }}
         autoPlay
         muted
         loop
