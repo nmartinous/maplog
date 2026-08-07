@@ -21,6 +21,9 @@ import { EpicImportWizard, type WizardItem } from '@/components/EpicImportWizard
 const NUMBERED_EPIC_SLUGS = new Set(['epic-common', 'epic-uncommon', 'epic-rare']);
 const EPIC_WIZARD_SLUGS   = new Set(['epic-common', 'epic-uncommon', 'epic-rare', 'epic-unnumbered']);
 
+/** Tags that indicate an epic card has been through the setup wizard */
+const EPIC_SETUP_TAGS = new Set(['canvas', 'parallax']);
+
 // ── Per-rarity accent colors (matches card rarity palette) ────────────────────
 const RARITY_ACCENT: Record<string, string> = {
   'regular-common':   'from-zinc-500/20 to-zinc-700/10 text-zinc-300',
@@ -43,7 +46,7 @@ type SyncSummary = { rarity: string; added: number; removed: number; error?: str
  * Lives in Settings; the Playlists tab is for user-created playlists.
  */
 export function RarityPlaylistSync() {
-  const { songs, syncRarity, runConflictScan, updateCardMeta } = useMusicKit();
+  const { songs, syncRarity, runConflictScan, updateCardMeta, updateCardTags } = useMusicKit();
   const [conflictReport, setConflictReport] = useState<TagConflict[] | null>(null);
 
   const [links, setLinks] = useState<PlaylistLinks>(() => loadPlaylistLinks());
@@ -150,18 +153,34 @@ export function RarityPlaylistSync() {
     else if (totalAdded === 0 && totalRemoved === 0) toast.success('Everything is already in sync.');
     else toast.success(`Synced: +${totalAdded} added, −${totalRemoved} removed.`);
 
-    // Build wizard items for newly imported epic cards that need configuration
+    // Build wizard items: newly imported epics + existing epics missing canvas/parallax tag
     const wizItems: WizardItem[] = [];
+    const newlyAddedIds = new Set<string>();
     for (const result of results) {
       for (const song of result.addedSongs) {
         for (const card of song.cards) {
           if (!EPIC_WIZARD_SLUGS.has(card.rarityType.slug)) continue;
+          newlyAddedIds.add(card.id);
           wizItems.push({
             song,
             card,
             isNumbered: NUMBERED_EPIC_SLUGS.has(card.rarityType.slug),
           });
         }
+      }
+    }
+    // Also catch existing epic cards that somehow skipped wizard setup
+    for (const song of songs) {
+      for (const card of song.cards) {
+        if (!EPIC_WIZARD_SLUGS.has(card.rarityType.slug)) continue;
+        if (newlyAddedIds.has(card.id)) continue; // already queued
+        const hasSetupTag = (card.tags ?? []).some(t => EPIC_SETUP_TAGS.has(t));
+        if (hasSetupTag) continue;
+        wizItems.push({
+          song,
+          card,
+          isNumbered: NUMBERED_EPIC_SLUGS.has(card.rarityType.slug),
+        });
       }
     }
     if (wizItems.length > 0) setWizardItems(wizItems);
@@ -358,12 +377,20 @@ export function RarityPlaylistSync() {
         })}
       </div>
 
-      {/* Epic import wizard — appears after sync when new epic cards were added */}
+      {/* Epic import wizard — appears after sync when new/unconfigured epic cards need setup */}
       {wizardItems && (
         <EpicImportWizard
           items={wizardItems}
-          onSaveLabel={(songId, cardId, label) => {
+          onSave={(songId, cardId, label, isCanvas) => {
+            // Save number label
             updateCardMeta(songId, cardId, { variantLabel: label });
+            // Add canvas or parallax tag to the card's existing tag pool
+            const song = songs.find(s => s.id === songId);
+            const card = song?.cards.find(c => c.id === cardId);
+            if (card) {
+              const existingTags = (card.tags ?? []).filter(t => !EPIC_SETUP_TAGS.has(t));
+              updateCardTags(songId, cardId, [...existingTags, isCanvas ? 'canvas' : 'parallax']);
+            }
           }}
           onDone={() => setWizardItems(null)}
         />

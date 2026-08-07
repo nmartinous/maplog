@@ -146,9 +146,8 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const presence = presenceForCard(card);
   const special = presence !== 'regular';
   const bigCard = size === 'lg' || size === 'hero';
-  // Epic cards have no info section — content fills the whole card slot
   const isEpic = presence === 'epic';
-  const showInfo = size !== 'sm' && !isEpic;
+  const showInfo = size !== 'sm';
 
   // For typed epic playlists (common/uncommon/rare/unnumbered), use the new
   // neon border system. Legacy epic slugs fall back to the gold epicFrameStyle.

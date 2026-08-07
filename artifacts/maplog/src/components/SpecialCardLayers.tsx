@@ -21,22 +21,42 @@ import { cn } from '@/lib/utils';
  * artwork, giving a live depth effect on iOS/Android.
  *
  * iOS 13+ requires an explicit user-gesture permission call before
- * DeviceOrientationEvent fires. We detect this and show a tap overlay
- * until the user grants it.
+ * DeviceOrientationEvent fires.
+ *
+ * If the user has opted into motion controls globally (maplog:motionControls),
+ * we attempt to request permission automatically on mount; otherwise we show
+ * a "Tap to enable tilt" overlay until they grant it per-card.
  */
 function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
-  // Detect whether we need to ask iOS for permission.
-  // 'granted' = already have it (Android / desktop / iOS that already approved).
-  // 'unknown' = iOS, need to request on next user gesture.
-  // 'denied'  = user declined or an error occurred.
-  const [iosPerm, setIosPerm] = useState<'granted' | 'unknown' | 'denied'>(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return typeof (DeviceOrientationEvent as any).requestPermission === 'function'
-      ? 'unknown'
-      : 'granted';
+  // Read the global motion-controls preference once on mount.
+  const motionPref = localStorage.getItem('maplog:motionControls') === '1';
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const needsIosPerm = typeof (DeviceOrientationEvent as any).requestPermission === 'function';
+
+  // 'granted'  = events will fire (Android/desktop, or iOS after approval)
+  // 'auto'     = iOS, pref enabled → attempt requestPermission() on mount
+  // 'unknown'  = iOS, pref disabled → show tap overlay
+  // 'denied'   = user declined or API threw
+  const [iosPerm, setIosPerm] = useState<'granted' | 'auto' | 'unknown' | 'denied'>(() => {
+    if (!needsIosPerm) return 'granted';
+    return motionPref ? 'auto' : 'unknown';
   });
+
+  // If pref is on, attempt to request permission immediately on mount.
+  // iOS requires this to be in response to a user gesture, but some PWA
+  // contexts allow it during navigation. If it throws/denies, fall back to overlay.
+  useEffect(() => {
+    if (iosPerm !== 'auto') return;
+    let cancelled = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (DeviceOrientationEvent as any).requestPermission()
+      .then((r: string) => { if (!cancelled) setIosPerm(r === 'granted' ? 'granted' : 'unknown'); })
+      .catch(() => { if (!cancelled) setIosPerm('unknown'); });
+    return () => { cancelled = true; };
+  }, [iosPerm]);
 
   useEffect(() => {
     if (iosPerm !== 'granted') return;
@@ -62,7 +82,11 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
     }
   };
 
-  const ZOOM = 15; // % overflow on each side so panning never reveals a gap
+  // ZOOM controls how much the image overflows each edge.
+  // At max tilt (offset = ±1) the image pans by ±ZOOM%, so the edge
+  // of the image sits exactly flush with the card boundary.
+  // We add an extra 5% safety margin so subpixel rounding never exposes a gap.
+  const ZOOM = 30;
   return (
     <div className="absolute inset-0 overflow-hidden">
       {/* No crossOrigin here — we display only, never read pixels */}
@@ -79,7 +103,7 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
           willChange: 'top, left',
         }}
       />
-      {iosPerm === 'unknown' && (
+      {(iosPerm === 'unknown' || iosPerm === 'auto') && (
         <button
           type="button"
           className="absolute inset-0 flex items-end justify-center pb-4 bg-transparent"

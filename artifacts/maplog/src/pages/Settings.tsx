@@ -6,7 +6,7 @@ import {
   Trash2, Download, Upload, Shield, ExternalLink,
   Info, ChevronRight, CheckCircle2, XCircle, Loader2,
   ChevronDown, ChevronUp, Music2, Target, AlertTriangle, Pencil,
-  Share2, CloudUpload,
+  Share2, CloudUpload, Smartphone,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -253,6 +253,46 @@ function PlaylistImport({ addToCollection, collection }: {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── Motion controls toggle ────────────────────────────────────────────────────
+
+const MOTION_KEY = 'maplog:motionControls';
+
+function MotionControlsRow() {
+  const [enabled, setEnabled] = useState(() => localStorage.getItem(MOTION_KEY) === '1');
+
+  const toggle = () => {
+    const next = !enabled;
+    setEnabled(next);
+    localStorage.setItem(MOTION_KEY, next ? '1' : '0');
+  };
+
+  return (
+    <Row
+      icon={Smartphone}
+      label="Motion Controls"
+      description="Automatically enable tilt-parallax on epic cards without a per-card tap prompt."
+    >
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={toggle}
+        className={cn(
+          'relative w-12 h-7 rounded-full transition-colors shrink-0',
+          enabled ? 'bg-primary' : 'bg-white/15',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform',
+            enabled ? 'translate-x-5' : 'translate-x-0',
+          )}
+        />
+      </button>
+    </Row>
   );
 }
 
@@ -608,6 +648,7 @@ export default function Settings() {
         <Section title="Experience">
           <Row icon={Info} label="Playback"
             description="Songs stream in full from Apple Music when connected; otherwise 30-second previews play." />
+          <MotionControlsRow />
         </Section>
 
         <Section title="About Maplog">

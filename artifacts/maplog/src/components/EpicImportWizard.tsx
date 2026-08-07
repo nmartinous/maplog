@@ -15,20 +15,19 @@ export interface WizardItem {
 
 interface EpicImportWizardProps {
   items: WizardItem[];
-  onSaveLabel: (songId: string, cardId: string, label: string | null) => void;
+  /** Called for each card when the wizard completes that item */
+  onSave: (songId: string, cardId: string, label: string | null, isCanvas: boolean) => void;
   onDone: () => void;
 }
 
 /** Per-item decisions collected before saving */
 interface Decision {
-  numbered: boolean;
-  numberText: string; // raw input, will be prefixed with #
+  numberText: string; // raw input, will be prefixed with #; empty = skip
   isCanvas: boolean;
   videoFile: File | null;
 }
 
-const DEFAULT_DECISION = (isNumbered: boolean): Decision => ({
-  numbered: isNumbered,
+const DEFAULT_DECISION = (): Decision => ({
   numberText: '',
   isCanvas: false,
   videoFile: null,
@@ -36,15 +35,15 @@ const DEFAULT_DECISION = (isNumbered: boolean): Decision => ({
 
 /**
  * Bottom-sheet wizard that appears after syncing epic playlists.
- * For each newly added epic card it asks:
- *   1. (if from numbered playlist) Is this numbered? If so, what number?
- *   2. Is this a canvas epic (has a video) or parallax (still art)?
+ * For each epic card it asks:
+ *   1. (if from a numbered playlist) Copy number (optional, skippable)
+ *   2. Canvas video or parallax art?
  *   3. If canvas — upload the screen recording.
  */
-export function EpicImportWizard({ items, onSaveLabel, onDone }: EpicImportWizardProps) {
+export function EpicImportWizard({ items, onSave, onDone }: EpicImportWizardProps) {
   const [idx, setIdx] = useState(0);
   const [decisions, setDecisions] = useState<Decision[]>(
-    () => items.map(it => DEFAULT_DECISION(it.isNumbered)),
+    () => items.map(() => DEFAULT_DECISION()),
   );
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,7 +57,7 @@ export function EpicImportWizard({ items, onSaveLabel, onDone }: EpicImportWizar
   };
 
   // ── Determine which steps to show ─────────────────────────────────────────
-  // Step A: number (only for numbered playlists)
+  // Step A: copy number (only for numbered playlists — skippable)
   // Step B: canvas or parallax (always)
   // Step C: video upload (only if isCanvas)
   type Step = 'number' | 'canvas' | 'upload';
@@ -100,11 +99,9 @@ export function EpicImportWizard({ items, onSaveLabel, onDone }: EpicImportWizar
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const d  = decisions[i];
-      // Save number label
-      const label = d.numbered && d.numberText.trim()
-        ? `#${d.numberText.trim()}`
-        : null;
-      onSaveLabel(it.song.id, it.card.id, label);
+      // Save number label (if entered)
+      const label = d.numberText.trim() ? `#${d.numberText.trim()}` : null;
+      onSave(it.song.id, it.card.id, label, d.isCanvas);
       // Save video if provided
       if (d.isCanvas && d.videoFile) {
         try {
@@ -202,7 +199,7 @@ export function EpicImportWizard({ items, onSaveLabel, onDone }: EpicImportWizar
             className="px-6 pt-5 pb-6 space-y-5"
           >
 
-            {/* ── STEP: Number ── */}
+            {/* ── STEP: Copy Number ── */}
             {step === 'number' && (
               <>
                 <div className="flex items-center gap-3">
@@ -210,50 +207,27 @@ export function EpicImportWizard({ items, onSaveLabel, onDone }: EpicImportWizar
                     <Hash className="w-4 h-4 text-white/60" />
                   </div>
                   <div>
-                    <p className="font-bold text-white text-sm">Is this a numbered epic?</p>
-                    <p className="text-xs text-white/45 mt-0.5">Numbered epics display a copy number badge.</p>
+                    <p className="font-bold text-white text-sm">What is the copy number?</p>
+                    <p className="text-xs text-white/45 mt-0.5">Displays a copy-number badge on the card. Leave blank to skip.</p>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    className={cn(
-                      'flex-1 h-11 rounded-2xl border font-bold text-sm transition-all',
-                      dec.numbered
-                        ? 'bg-white/10 border-white/20 text-white'
-                        : 'bg-transparent border-white/10 text-white/40',
-                    )}
-                    onClick={() => patchDec({ numbered: true })}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    className={cn(
-                      'flex-1 h-11 rounded-2xl border font-bold text-sm transition-all',
-                      !dec.numbered
-                        ? 'bg-white/10 border-white/20 text-white'
-                        : 'bg-transparent border-white/10 text-white/40',
-                    )}
-                    onClick={() => patchDec({ numbered: false, numberText: '' })}
-                  >
-                    No
-                  </button>
+                <div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoFocus
+                    placeholder="e.g. 47"
+                    className="w-full h-12 rounded-2xl bg-black/30 border border-white/10 px-4 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    value={dec.numberText}
+                    onChange={e => patchDec({ numberText: e.target.value.replace(/[^0-9]/g, '') })}
+                  />
+                  {dec.numberText ? (
+                    <p className="text-xs text-white/35 mt-1.5 px-1">Will be displayed as #{dec.numberText}</p>
+                  ) : (
+                    <p className="text-xs text-white/25 mt-1.5 px-1">No badge will be shown.</p>
+                  )}
                 </div>
-
-                {dec.numbered && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoFocus
-                      placeholder="e.g. 47"
-                      className="w-full h-12 rounded-2xl bg-black/30 border border-white/10 px-4 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      value={dec.numberText}
-                      onChange={e => patchDec({ numberText: e.target.value.replace(/[^0-9]/g, '') })}
-                    />
-                    <p className="text-xs text-white/35 mt-1.5 px-1">Will be displayed as #{dec.numberText || '?'}</p>
-                  </motion.div>
-                )}
 
                 <Button
                   className="w-full rounded-full font-bold h-11"
