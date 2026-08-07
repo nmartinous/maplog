@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useMusicKit } from '@/context/MusicKitContext';
+import { readCollectionFilter, applyCollectionFilter, isFilterActive } from '@/lib/collectionFilter';
 import { usePlayer } from '@/context/AudioPlayerContext';
 import useEmblaCarousel from 'embla-carousel-react';
 import { SoundmapCard } from '@/components/SoundmapCard';
@@ -16,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const { getSong } = useMusicKit();
+  const { getSong, songs: allSongs } = useMusicKit();
   const { play, resume, enqueue, currentSong, isPlaying } = usePlayer();
 
   const songId = decodeURIComponent(id ?? '');
@@ -40,6 +41,55 @@ export default function SongDetail() {
   }, [emblaApi]);
 
   useEffect(() => { setIsFlipped(false); }, [activeSnap, song?.id]);
+
+  // ── Filter-aware vertical swipe navigation (TikTok-style) ──────────────────
+  // The collection grid saves its active filter to sessionStorage; a vertical
+  // swipe here moves to the prev/next song in that filtered list.
+  const [cvFilter] = useState(readCollectionFilter);
+  const filteredSongs = useMemo(
+    () => applyCollectionFilter(allSongs, cvFilter),
+    [allSongs, cvFilter],
+  );
+  const hasFilterActive = isFilterActive(cvFilter);
+
+  /** Set when a qualifying swipe fired — suppresses the synthetic click. */
+  const swipedRef = useRef(false);
+  /** Pans starting inside a RadiantSpin surface belong to drag-to-spin. */
+  const ignorePanRef = useRef(false);
+
+  const goToFiltered = useCallback((delta: number) => {
+    const list = filteredSongs;
+    const idx = list.findIndex(s => s.id === songId);
+    if (idx < 0) return;
+    const next = list[idx + delta];
+    if (!next) return;
+    setLocation(`/song/${encodeURIComponent(next.id)}`, { replace: true });
+  }, [filteredSongs, songId, setLocation]);
+
+  const onZonePanStart = useCallback((e: PointerEvent | MouseEvent | TouchEvent) => {
+    swipedRef.current = false;
+    const target = e.target as HTMLElement | null;
+    ignorePanRef.current = !!target?.closest?.('[data-radiant-spin]');
+  }, []);
+
+  const onZonePanEnd = useCallback((_: unknown, info: { offset: { x: number; y: number } }) => {
+    if (ignorePanRef.current) { ignorePanRef.current = false; return; }
+    const dy = info.offset.y;
+    const dx = info.offset.x;
+    // Predominantly vertical swipe → prev/next in the active filter.
+    // Horizontal stays with embla (multi-card browsing).
+    if (Math.abs(dy) >= 40 && Math.abs(dx) <= Math.abs(dy) * 0.8) {
+      swipedRef.current = true;
+      goToFiltered(dy < 0 ? 1 : -1); // swipe up = forward
+    }
+  }, [goToFiltered]);
+
+  const onZoneClickCapture = useCallback((e: React.MouseEvent) => {
+    if (swipedRef.current) {
+      swipedRef.current = false;
+      e.stopPropagation();
+    }
+  }, []);
 
   // Tapping the card starts playback but never pauses it — pausing lives in
   // the mini player controls.
@@ -135,7 +185,13 @@ export default function SongDetail() {
         </div>
       </div>
 
-      <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-4 w-full">
+      <motion.div
+        className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-4 w-full"
+        style={{ touchAction: 'none' }}
+        onPanStart={onZonePanStart}
+        onPanEnd={onZonePanEnd}
+        onClickCapture={onZoneClickCapture}
+      >
         {cards.length > 0 ? (
           <div className="w-full flex flex-col items-center h-full justify-center">
             <div className="w-full max-w-[400px] overflow-visible py-4 px-4 flex-1 flex flex-col justify-center" ref={emblaRef}>
@@ -152,15 +208,6 @@ export default function SongDetail() {
                       transition={{ type: "spring", stiffness: 260, damping: 25 }}
                       className="relative"
                       style={{ transformStyle: 'preserve-3d', zIndex: i === activeSnap ? 50 : 0, touchAction: 'pan-x' }}
-                      onPanEnd={(e, info) => {
-                        if (i !== activeSnap) return;
-                        // Vertical swipe toggles the flip; ignore mostly-horizontal
-                        // pans so embla keeps card-to-card swiping.
-                        if (Math.abs(info.offset.y) <= Math.abs(info.offset.x)) return;
-                        if (Math.abs(info.offset.y) > 40 || Math.abs(info.velocity.y) > 200) {
-                          setIsFlipped(f => !f);
-                        }
-                      }}
                     >
                       <div className="cursor-pointer group" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }} onClick={handleCardTap}>
                         <SoundmapCard
@@ -217,7 +264,7 @@ export default function SongDetail() {
             <p className="text-sm text-white/50">You don't own any cards for this song.</p>
           </div>
         )}
-      </div>
+      </motion.div>
 
       <QueueSheet open={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
 

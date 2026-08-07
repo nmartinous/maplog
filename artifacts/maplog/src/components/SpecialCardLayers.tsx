@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { MaplogCard } from '@/lib/types';
 import { epicBorderKind, epicFrameForCard, radiantPatternCss, type EpicBorderKind } from '@/lib/cardTemplates';
-import { RarityBadge } from '@/components/RarityBadge';
 import { useCardMedia } from '@/lib/useCardMedia';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
@@ -302,7 +301,7 @@ export function EpicCardOverlay({
         </div>
       )}
 
-      {/* ── Canvas: invisible tap zones over the video's own artist text and ▶ ── */}
+      {/* ── Canvas: artist tap zone (invisible) + VISIBLE play glyph over the video's ▶ ── */}
       {hasMedia && (
         <>
           <button
@@ -312,31 +311,56 @@ export function EpicCardOverlay({
             onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
             aria-label={`View artist ${artist}`}
           />
+          {/* Visible grey ▶ — sits ON TOP of the video's own play glyph so the
+              control is always visible and reflects OUR playing state. */}
           <button
             type="button"
-            className="absolute pointer-events-auto opacity-0 select-none"
-            style={{ right: px(12), bottom: px(28), width: px(32), height: px(26) }}
+            className="absolute pointer-events-auto text-white/60 active:opacity-60 transition-opacity flex items-center justify-center"
+            style={{ right: px(14), bottom: px(28), width: px(28), height: px(24), filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.9))' }}
             onClick={e => { e.stopPropagation(); onPlay?.(); }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
-          />
+          >
+            {playGlyph}
+          </button>
         </>
       )}
 
-      {/* ── Action row: RarityBadge + genre badge, covering the video's pills ── */}
+      {/* ── Action row: epic pill + genre badge, covering the video's pill row.
+             The genre badge is wide enough to also cover the video's lyric
+             (speech-bubble + number) chip that sits right of its genre pill. ── */}
       <div
         className="absolute flex items-center pointer-events-auto"
-        style={{ left: px(20), bottom: px(2), gap: px(6) }}
+        style={{ left: px(20), bottom: px(10), gap: px(6) }}
       >
-        <RarityBadge
-          slug={card.rarityType.slug}
-          name={card.rarityType.name}
-          category={card.rarityType.category}
-          size="sm"
-        />
+        {/* Scaled epic pill (RarityBadge has fixed sizing → too big on cards) */}
+        <span
+          className="inline-flex items-center font-bold rounded-full text-[#eac54f] leading-none shrink-0"
+          style={{
+            fontSize: px(11),
+            padding: `${px(5)}px ${px(10)}px`,
+            gap: px(4),
+            background: 'linear-gradient(90deg, #6b5800 0%, #4a2a00 100%)',
+            border: '1px solid #b4840055',
+            boxShadow: '0 0 8px #b4840050',
+          }}
+        >
+          <svg width={px(10)} height={px(10)} viewBox="0 0 10 10" fill="none" className="shrink-0" aria-hidden>
+            <polygon points="5,0.5 9.5,5 5,9.5 0.5,5" fill="#eac54f" />
+            <polygon points="5,0.5 9.5,5 5,4.2" fill="white" fillOpacity="0.22" />
+          </svg>
+          Epic
+        </span>
         {genre && (
           <span
             className="inline-flex items-center font-semibold rounded-full bg-[#18181f] text-white/60 border border-white/15 leading-none overflow-hidden"
-            style={{ fontSize: px(11), padding: `${px(5)}px ${px(10)}px`, gap: px(4), maxWidth: px(96) }}
+            style={{
+              fontSize: px(11),
+              padding: `${px(5)}px ${px(10)}px`,
+              gap: px(4),
+              // Wide enough to also hide the video's speech-bubble count chip
+              minWidth: hasMedia ? px(92) : undefined,
+              maxWidth: px(150),
+            }}
           >
             <svg width={px(9)} height={px(9)} viewBox="0 0 9 9" fill="none" className="shrink-0 flex-none">
               <path d="M1 1.5h7M1 4.5h5M1 7.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />

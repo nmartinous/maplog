@@ -29,6 +29,7 @@ import { useArtColor } from '@/lib/useArtColor';
 import { SoundmapCard } from '@/components/SoundmapCard';
 import { Button } from '@/components/ui/button';
 import { presenceForCard, epicBorderKind } from '@/lib/cardTemplates';
+import { readCollectionFilter, applyCollectionFilter, isFilterActive } from '@/lib/collectionFilter';
 
 // ── Zone constants (from mockup-sandbox/src/components/mockups/zoneConstants.ts) ─
 /** Card slot is 75 % of viewport width at most. */
@@ -175,34 +176,12 @@ export default function CardView() {
   // ── Filter-aware navigation ────────────────────────────────────────────────
   // Read the active collection filter once on mount (sessionStorage written by
   // Collection.tsx). Vertical swipes outside the card navigate within this list.
-  const [cvFilter] = useState(() => {
-    try {
-      return JSON.parse(sessionStorage.getItem('maplog:collection:filter') ?? 'null')
-        ?? { search: '', scope: 'all', activeRarity: 'All' };
-    } catch { return { search: '', scope: 'all', activeRarity: 'All' }; }
-  });
-
-  const filteredSongs = useMemo(() => {
-    const { search, scope, activeRarity } = cvFilter;
-    if (!search && activeRarity === 'All') return songs;
-    const q = search.toLowerCase();
-    return songs.filter(s => {
-      if (q) {
-        const inTitle  = s.title.toLowerCase().includes(q);
-        const inArtist = s.artist.toLowerCase().includes(q);
-        const inAlbum  = (s.album ?? '').toLowerCase().includes(q);
-        const match = scope === 'song'   ? inTitle
-                    : scope === 'artist' ? inArtist
-                    : scope === 'album'  ? inAlbum
-                    : inTitle || inArtist || inAlbum;
-        if (!match) return false;
-      }
-      if (activeRarity !== 'All' && !s.cards.some(c => c.rarityType.category === activeRarity)) return false;
-      return true;
-    });
-  }, [songs, cvFilter]);
-
-  const hasFilterActive = cvFilter.search !== '' || cvFilter.activeRarity !== 'All';
+  const [cvFilter] = useState(readCollectionFilter);
+  const filteredSongs = useMemo(
+    () => applyCollectionFilter(songs, cvFilter),
+    [songs, cvFilter],
+  );
+  const hasFilterActive = isFilterActive(cvFilter);
   const filteredIndex = useMemo(
     () => filteredSongs.findIndex(s => s.id === displaySongId),
     [filteredSongs, displaySongId],
