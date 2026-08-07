@@ -21,7 +21,7 @@ import React, {
 } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, Disc3 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Disc3, Volume2, VolumeX } from 'lucide-react';
 
 import { useMusicKit } from '@/context/MusicKitContext';
 import { usePlayer } from '@/context/AudioPlayerContext';
@@ -150,7 +150,7 @@ export default function CardView() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { getSong, songs } = useMusicKit();
-  const { play, resume, currentSong, isPlaying } = usePlayer();
+  const { play, pause, resume, currentSong, isPlaying } = usePlayer();
 
   const songId = decodeURIComponent(id ?? '');
 
@@ -267,7 +267,64 @@ export default function CardView() {
     }
   }, []);
 
-  const topCard    = song?.cards[0] ?? null;
+  // Resolve current card early (needed for moment detection below)
+  const topCardEarly = song?.cards[0] ?? null;
+
+  // ── Moment mute control ────────────────────────────────────────────────────
+  const isMoment = topCardEarly ? presenceForCard(topCardEarly) === 'moment' : false;
+
+  // Default: muted when a song is already playing; unmuted when nothing plays.
+  const [momentMuted, setMomentMuted] = useState(() => isPlaying);
+
+  // Re-sync default when navigating to a new card
+  useEffect(() => { setMomentMuted(isPlaying); }, [displaySongId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If a song starts playing while the moment is unmuted, auto-mute so the
+  // user isn't hit with two audio streams simultaneously.
+  useEffect(() => {
+    if (isMoment && isPlaying && !momentMuted) {
+      setMomentMuted(true);
+    }
+  }, [isMoment, isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track whether we paused the song on behalf of the moment.
+  const pausedByMomentRef = useRef(false);
+
+  // When navigating away from a moment card, resume the song if we paused it.
+  useEffect(() => {
+    if (!isMoment && pausedByMomentRef.current) {
+      resume();
+      pausedByMomentRef.current = false;
+    }
+  }, [isMoment, resume]);
+
+  // On unmount (leaving CardView entirely) also resume.
+  useEffect(() => () => {
+    if (pausedByMomentRef.current) {
+      resume();
+      pausedByMomentRef.current = false;
+    }
+  }, [resume]);
+
+  const toggleMomentMute = () => {
+    if (momentMuted) {
+      // Unmuting — if a song is playing, pause it so only the moment plays.
+      if (isPlaying) {
+        pause();
+        pausedByMomentRef.current = true;
+      }
+      setMomentMuted(false);
+    } else {
+      // Muting — resume the song if we paused it for the moment.
+      if (pausedByMomentRef.current) {
+        resume();
+        pausedByMomentRef.current = false;
+      }
+      setMomentMuted(true);
+    }
+  };
+
+  const topCard    = topCardEarly;
   const artworkUrl = topCard?.artworkUrl ?? song?.artworkUrl ?? null;
   const fallback   = topCard ? rarityColor(topCard.rarityType.slug) : '#444444';
 
@@ -379,8 +436,20 @@ export default function CardView() {
           )}
         </div>
 
-        {/* Spacer keeps the title centred */}
-        <div className="w-11 shrink-0" aria-hidden />
+        {/* Moment mute toggle — replaces the right spacer on moment cards */}
+        {isMoment ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMomentMute}
+            className="w-11 h-11 rounded-full glass-panel hover:bg-white/10 active:scale-90 transition-all text-white shadow-lg shrink-0"
+            aria-label={momentMuted ? 'Unmute moment' : 'Mute moment'}
+          >
+            {momentMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </Button>
+        ) : (
+          <div className="w-11 shrink-0" aria-hidden />
+        )}
       </div>
 
       {/* ── Card background zone — swipe surface (Framer pan = window-level) ── */}
@@ -465,8 +534,9 @@ export default function CardView() {
                 onArtistClick={() =>
                   setLocation(`/artists/${encodeURIComponent(song.artist)}`)
                 }
-                onPlay={handleCardTap}
+                onPlay={isMoment ? undefined : handleCardTap}
                 isPlaying={isCurrent && isPlaying}
+                momentMuted={momentMuted}
               />
             </div>
           </motion.div>

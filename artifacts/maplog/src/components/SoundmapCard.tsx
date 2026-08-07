@@ -120,9 +120,14 @@ interface SoundmapCardProps {
   onPlay?: () => void;
   /** Whether the song is currently playing — drives play/pause icon in the overlay. */
   isPlaying?: boolean;
+  /**
+   * Moment-specific: whether the video is muted. Defaults to true (always
+   * silent in collection). CardView passes false when the user unmutes.
+   */
+  momentMuted?: boolean;
 }
 
-export function SoundmapCard({ card, title, artist, genre, className, size = 'md', onArtistClick, onPlay, isPlaying = false }: SoundmapCardProps) {
+export function SoundmapCard({ card, title, artist, genre, className, size = 'md', onArtistClick, onPlay, isPlaying = false, momentMuted = true }: SoundmapCardProps) {
   const fallbackBorder = rarityFallbackColor(card.rarityType.slug);
   const borderColor = useArtColor(card.artworkUrl ?? null, fallbackBorder);
 
@@ -189,7 +194,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
       transition: 'border-color 0.55s ease, box-shadow 0.55s ease, background-color 0.55s ease',
       ...(isRare ? {} : { boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22` }),
       background: presence === 'moment'
-        ? `linear-gradient(165deg, color-mix(in srgb, #991b1b 30%, #07070c) 0%, #07070c 70%)`
+        ? '#07070c'
         : `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
     };
   })();
@@ -203,6 +208,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         'relative flex flex-col overflow-hidden text-white card-effect',
         isEpic ? epicSizeClasses[size] : sizeClasses[size],
         isRare && 'card-rare-glow',
+        presence === 'moment' && 'card-moment-glow',
         className,
       )}
       style={shellStyle}
@@ -247,7 +253,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         ) : (
           <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
             {presence === 'moment' ? (
-              <MediaSlot card={card} title={title} />
+              <MediaSlot card={card} title={title} muted={momentMuted} />
             ) : card.artworkUrl ? (
               <img
                 src={card.artworkUrl}
@@ -283,8 +289,31 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         )}
       </div>
 
-      {/* Info section — epics render invisible so card height matches regular cards */}
-      {showInfo && (
+      {/* Info section — epics invisible; moments show only full-width Moment badge */}
+      {showInfo && presence === 'moment' ? (
+        /* Full-width centered Moment badge — no title, no artist, no genre */
+        <div className="relative z-[2] px-3 py-2.5">
+          <div
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl"
+            style={{
+              background: 'rgba(120,10,10,0.72)',
+              border: '1px solid rgba(239,68,68,0.35)',
+              backdropFilter: 'blur(6px)',
+            }}
+          >
+            {/* Five-point star */}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z"
+                fill="rgba(254,202,202,0.95)"
+                stroke="rgba(254,202,202,0.4)"
+                strokeWidth="0.5"
+              />
+            </svg>
+            <span className="font-bold text-[13px] text-red-100 leading-none">Moment</span>
+          </div>
+        </div>
+      ) : showInfo && (
         <div className={cn('relative z-[2] px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center', isEpic && 'invisible pointer-events-none select-none')} aria-hidden={isEpic}>
           <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>{title}</p>
           {onArtistClick ? (
@@ -298,7 +327,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
           ) : (
             <p className={cn('text-white/55 leading-tight truncate w-full', artistSize)}>{artist}</p>
           )}
-          {(presence === 'moment' || presence === 'lyrics') && card.flavorText && (
+          {presence === 'lyrics' && card.flavorText && (
             <FlavorBubble text={card.flavorText} compact={size === 'md'} />
           )}
           <div className="flex items-center justify-center gap-1.5 flex-wrap mt-0.5">

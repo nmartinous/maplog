@@ -16,6 +16,7 @@ import {
   loadConflicts, saveConflicts, makeConflictId, conflictFingerprint, type TagConflict,
 } from '@/lib/conflicts';
 import { gcOrphanedMedia } from '@/lib/mediaStore';
+import { MOMENT_RARITY } from '@/lib/cardTemplates';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,14 @@ export interface MusicKitContextType {
   /** Replace one card's tag pool (Edit Mode; caller validates). */
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
   updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId' | 'variantLabel'>>) => void;
+
+  /**
+   * Create a standalone Moment entry (title + artist).
+   * Returns the new synthetic songId and cardId so the caller can immediately
+   * open the media upload for the video. Throws if a Moment with that title
+   * already exists (case-insensitive).
+   */
+  addMoment: (title: string, artist: string) => { songId: string; cardId: string };
 
   /** Queued tag-rule conflicts awaiting resolution */
   conflicts: TagConflict[];
@@ -378,6 +387,38 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     return { added, removed, addedSongs };
   }, [commitCollection]);
 
+  /** Create a standalone Moment entry. Throws on duplicate title. */
+  const addMoment = useCallback((title: string, artist: string): { songId: string; cardId: string } => {
+    const norm = title.trim().toLowerCase();
+    if (!norm) throw new Error('Moment title cannot be empty.');
+    const duplicate = songsRef.current.some(s =>
+      s.title.trim().toLowerCase() === norm &&
+      s.cards.some(c => c.tags?.includes('moment') || c.rarityType.slug === 'moment'),
+    );
+    if (duplicate) throw new Error(`A Moment named "${title.trim()}" already exists.`);
+
+    const songId = `moment::${Date.now()}::${Math.random().toString(36).slice(2, 7)}`;
+    const cardId = `${songId}::moment`;
+    const newSong: MaplogSong = {
+      id: songId,
+      title: title.trim(),
+      artist: artist.trim(),
+      album: '',
+      durationMs: 0,
+      artworkUrl: '',
+      cards: [{
+        id: cardId,
+        artworkUrl: null,
+        rarityType: MOMENT_RARITY,
+        variantLabel: null,
+        tags: ['moment'],
+      }],
+    };
+    const updated = [...songsRef.current, newSong].sort((a, b) => a.title.localeCompare(b.title));
+    commitCollection(updated);
+    return { songId, cardId };
+  }, [commitCollection]);
+
   /** Remove a song and GC its media from IndexedDB. */
   const removeSong = useCallback((songId: string) => {
     const updated = songsRef.current.filter(s => s.id !== songId);
@@ -511,6 +552,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         updateSong,
         updateCardTags,
         updateCardMeta,
+        addMoment,
         conflicts,
         runConflictScan,
         resolveConflict,

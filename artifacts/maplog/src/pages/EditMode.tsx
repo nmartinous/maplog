@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ChevronDown, Pencil, Layers, Award, AlertTriangle, Search,
-  Film, Trash2, Plus, X, Check, Tags, Hash,
+  Film, Trash2, Plus, X, Check, Tags, Hash, Clapperboard,
 } from 'lucide-react';
 
 // ── Section shell ─────────────────────────────────────────────────────────────
@@ -152,6 +152,130 @@ function CardMediaPreview({ cardId, version }: { cardId: string; version: number
   return kind === 'video'
     ? <video src={url} className="w-16 h-16 rounded-xl object-cover border border-white/10" muted playsInline loop autoPlay />
     : <img src={url} alt="" className="w-16 h-16 rounded-xl object-cover border border-white/10" />;
+}
+
+// ── Moments manager ───────────────────────────────────────────────────────────
+
+/** Add / remove standalone Moment entries. */
+function MomentsManager({ mediaIds, refreshMedia, mediaVersion }: {
+  mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
+}) {
+  const { songs, addMoment, removeSong } = useMusicKit();
+  const [title, setTitle] = useState('');
+  const [artist, setArtist] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [newCardId, setNewCardId] = useState<string | null>(null);
+
+  // All moment entries already in the collection
+  const moments = useMemo(
+    () => songs.filter(s => s.cards.some(c => c.tags?.includes('moment') || c.rarityType.slug === 'moment')),
+    [songs],
+  );
+
+  // Artist autocomplete from existing collection + moments
+  const artists = useMemo(
+    () => [...new Set(songs.map(s => s.artist).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [songs],
+  );
+
+  const handleAdd = async () => {
+    if (!title.trim()) { toast.error('Give the moment a title.'); return; }
+    if (!artist.trim()) { toast.error('Add an artist name.'); return; }
+    setBusy(true);
+    try {
+      const { cardId } = addMoment(title.trim(), artist.trim());
+      setNewCardId(cardId);
+      refreshMedia();
+      setTitle('');
+      setArtist('');
+      toast.success('Moment added — attach a video below.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add moment.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemove = (songId: string) => {
+    removeSong(songId);
+    refreshMedia();
+    toast.info('Moment removed.');
+  };
+
+  return (
+    <div className="space-y-5">
+
+      {/* Existing moments */}
+      {moments.length > 0 ? (
+        <div className="space-y-2">
+          {moments.map(s => {
+            const card = s.cards[0];
+            const hasVideo = card && mediaIds.has(card.id);
+            return (
+              <div key={s.id} className="rounded-xl bg-white/[0.03] border border-white/5 p-3.5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <CardMediaPreview cardId={card.id} version={mediaVersion} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{s.title}</p>
+                    <p className="text-[11px] text-white/40 truncate">{s.artist}</p>
+                  </div>
+                  <Button variant="ghost" size="sm"
+                    className="rounded-full text-white/40 hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0 shrink-0"
+                    onClick={() => handleRemove(s.id)} aria-label="Remove moment">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                {card && (
+                  <div className="flex items-center gap-3">
+                    <CardMediaControl
+                      cardId={card.id}
+                      disabled={false}
+                      hasMedia={hasVideo}
+                      onChanged={refreshMedia}
+                    />
+                    {!hasVideo && (
+                      <p className="text-[11px] text-amber-400/80">No video attached yet</p>
+                    )}
+                  </div>
+                )}
+                {/* Newly created moment — auto-expanded media control */}
+                {card && card.id === newCardId && !hasVideo && (
+                  <p className="text-[11px] text-white/40">Tap "Add media" above to attach the clip.</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-sm text-white/40">No moments yet. Add one below.</p>
+      )}
+
+      {/* Add form */}
+      <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 space-y-3">
+        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">New moment</p>
+        <div>
+          <label className={labelCls}>Title (must be unique)</label>
+          <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="Mac Miller's NPR Tiny Desk" disabled={busy}
+            data-testid="moment-title" />
+        </div>
+        <div>
+          <label className={labelCls}>Artist</label>
+          <input className={inputCls} list="moment-artists" value={artist}
+            onChange={e => setArtist(e.target.value)} placeholder="Mac Miller" disabled={busy}
+            data-testid="moment-artist" />
+          <datalist id="moment-artists">
+            {artists.map(a => <option key={a} value={a} />)}
+          </datalist>
+        </div>
+        <Button size="sm" className="rounded-full font-bold h-9 px-5 text-xs" disabled={busy || !title.trim() || !artist.trim()}
+          onClick={handleAdd} data-testid="moment-add">
+          <Plus className="w-4 h-4 mr-1.5" /> Add moment
+        </Button>
+      </div>
+
+    </div>
+  );
 }
 
 // ── Song editor ───────────────────────────────────────────────────────────────
@@ -809,6 +933,10 @@ export default function EditMode() {
         </div>
 
         <div className="space-y-4">
+          <Section icon={Clapperboard} title="Moments" description="Standalone artist clips — add video, title, and artist">
+            <MomentsManager mediaIds={mediaIds} refreshMedia={refreshMedia} mediaVersion={mediaVersion} />
+          </Section>
+
           <Section icon={Pencil} title="Songs" description="Edit a song's info, card tags, and card media" defaultOpen={songs.length > 0}>
             <SongEditor mediaIds={mediaIds} refreshMedia={refreshMedia} mediaVersion={mediaVersion} />
           </Section>

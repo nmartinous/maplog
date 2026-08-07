@@ -120,17 +120,33 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
   );
 }
 
-/** Card-slot media from Edit Mode uploads; falls back to parallax art. No other content. */
-export function MediaSlot({ card, title }: { card: MaplogCard; title: string }) {
+/**
+ * Card-slot media from Edit Mode uploads; falls back to parallax art.
+ *
+ * `muted` controls the video's audio output — defaults to true (always
+ * silent for canvases/epics). Moment cards in CardView pass false when the
+ * user unmutes via the mute button. React's `muted` attribute is not
+ * reactive, so we drive it imperatively through a ref.
+ */
+export function MediaSlot({ card, title, muted = true }: {
+  card: MaplogCard; title: string; muted?: boolean;
+}) {
   const media = useCardMedia(card.id);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+
+  // React doesn't reactively update the `muted` property — drive it via ref
+  React.useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted;
+  }, [muted]);
 
   if (media?.type === 'video') {
     return (
       <video
+        ref={videoRef}
         src={media.url}
         className="absolute inset-0 w-full h-full object-cover"
         autoPlay
-        muted
+        muted          /* initial value — kept in sync by the effect above */
         loop
         playsInline
         // Slight zoom clips the video's own internal borders so only the

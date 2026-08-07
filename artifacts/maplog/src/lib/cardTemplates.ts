@@ -1,10 +1,24 @@
-import type { MaplogCard } from './types';
+import type { MaplogCard, MaplogRarityType } from './types';
 
 /**
  * Card templates — reusable frame/pattern/background definitions for the
  * special rarities (epics, moments, lyrics, radiants), modeled on the user's
  * Soundmap reference captures. New variants only need a template entry here.
  */
+
+// ── Moment rarity constant ────────────────────────────────────────────────────
+
+/**
+ * Canonical rarity type for manually-added Moment cards.
+ * Moments are standalone artist clips — not tied to a playlist song.
+ * Tier 8 places them at the top of any per-song card stack.
+ */
+export const MOMENT_RARITY: MaplogRarityType = {
+  slug: 'moment',
+  name: 'Moment',
+  category: 'moment',
+  tier: 8,
+};
 
 // ── Presence routing ──────────────────────────────────────────────────────────
 

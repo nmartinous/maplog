@@ -130,6 +130,8 @@ export function rarityBucket(slug: string): string | null {
  * Returns null when the card has no priced base rarity (epics etc.).
  */
 export function cardValue(card: { rarityType: { slug: string }; tags?: string[]; variantLabel?: string | null }): number | null {
+  // Moments have a flat value regardless of number or modifiers.
+  if (card.rarityType.slug === 'moment') return 10_000;
   // Epics are priced by their number, not by base rarity/modifiers.
   // (Checked first: epic slugs like 'epic-common' would otherwise fall
   // into the common/uncommon/rare buckets below.)
