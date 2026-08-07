@@ -505,11 +505,38 @@ export function EpicBorderWrap({
                    : kind === 'uncommon' ? 'epic-purple-inner'
                    :                       'epic-rainbow-inner';
 
+  const ringClass = kind === 'common'   ? 'epic-wave-ring-green'
+                  : kind === 'uncommon' ? 'epic-wave-ring-purple'
+                  :                       'epic-wave-ring-rainbow';
+  const clipR = r + 12;
+
   return (
-    // padding: 0 — card body fills the full wrapper; the ::before conic
-    // gradient spins at scale(2.5) and bleeds outside as the waving halo.
-    <div className={wrapClass} style={{ borderRadius: r, padding: 0 }}>
-      <div className={innerClass}>{children}</div>
+    <div style={{ position: 'relative', borderRadius: r }}>
+      {/*
+        Rounded overflow:hidden clip — 12px larger than the card on each side.
+        The .epic-wave-ring's blur can spread up to 12px outside the card border
+        before being clipped to this rounded shape. Rectangular bleed is impossible
+        because the clip's own border-radius defines the outer boundary.
+      */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: -12,
+          borderRadius: clipR,
+          overflow: 'hidden',
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        <div
+          className={`epic-wave-ring ${ringClass}`}
+          style={{ borderRadius: r }}
+        />
+      </div>
+      <div className={wrapClass} style={{ borderRadius: r, padding: 0, position: 'relative', zIndex: 1 }}>
+        <div className={innerClass}>{children}</div>
+      </div>
     </div>
   );
 }
