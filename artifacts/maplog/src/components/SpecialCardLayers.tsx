@@ -248,6 +248,18 @@ export function EpicCardOverlay({
     textShadow: '0 0 8px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.8)',
   };
 
+  // Play badge styled to match the top-right number pin (same dark shell +
+  // per-kind neon border). Opaque, so it fully covers the video's own ▶.
+  const pinColor = kind === 'common' ? '#4ade80' : kind === 'uncommon' ? '#c084fc' : 'rgba(255,255,255,0.8)';
+  const playBadgeStyle: React.CSSProperties = {
+    width: px(30),
+    height: px(30),
+    background: '#0a0a0f',
+    border: `1.5px solid ${pinColor}`,
+    color: pinColor,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+  };
+
   const playGlyph = isPlaying ? (
     <svg width={px(12)} height={px(12)} viewBox="0 0 10 10" fill="currentColor">
       <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" />
@@ -287,11 +299,11 @@ export function EpicCardOverlay({
             >
               {artist}
             </button>
-            {/* Small grey play glyph on the artist line — matches native exactly */}
+            {/* Play badge on the artist line — styled like the number pin */}
             <button
               type="button"
-              className="pointer-events-auto shrink-0 text-white/50 active:opacity-60 transition-opacity flex items-center justify-center"
-              style={{ width: px(24), height: px(20), filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.9))' }}
+              className="pointer-events-auto shrink-0 rounded-full active:opacity-60 transition-opacity flex items-center justify-center"
+              style={playBadgeStyle}
               onClick={e => { e.stopPropagation(); onPlay?.(); }}
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
@@ -311,12 +323,12 @@ export function EpicCardOverlay({
             onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
             aria-label={`View artist ${artist}`}
           />
-          {/* Visible grey ▶ — sits ON TOP of the video's own play glyph so the
-              control is always visible and reflects OUR playing state. */}
+          {/* Play badge — opaque number-pin styling sits ON TOP of the video's
+              own play glyph so it's fully hidden and reflects OUR playing state. */}
           <button
             type="button"
-            className="absolute pointer-events-auto text-white/60 active:opacity-60 transition-opacity flex items-center justify-center"
-            style={{ right: px(28), bottom: px(40), width: px(28), height: px(24), filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.9))' }}
+            className="absolute pointer-events-auto rounded-full active:opacity-60 transition-opacity flex items-center justify-center"
+            style={{ ...playBadgeStyle, right: px(16), bottom: px(36) }}
             onClick={e => { e.stopPropagation(); onPlay?.(); }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
@@ -330,7 +342,7 @@ export function EpicCardOverlay({
              (speech-bubble + number) chip that sits right of its genre pill. ── */}
       <div
         className="absolute flex items-center pointer-events-auto"
-        style={{ left: px(16), bottom: px(18), gap: px(6) }}
+        style={{ left: px(18), bottom: px(21), gap: px(6) }}
       >
         {/* Scaled epic pill (RarityBadge has fixed sizing → too big on cards) */}
         <span
