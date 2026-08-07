@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { MaplogCard } from '@/lib/types';
 import { epicBorderKind, epicFrameForCard, radiantPatternCss, type EpicBorderKind } from '@/lib/cardTemplates';
+import { RarityBadge } from '@/components/RarityBadge';
 import { useCardMedia } from '@/lib/useCardMedia';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
@@ -150,32 +151,31 @@ export function EpicPins({
 }: {
   card: MaplogCard;
   cardWidth: number;
-  /** Pass the epicBorderKind so the badge can use the matching neon color. */
   kind?: EpicBorderKind;
 }) {
   const numbered = card.variantLabel?.startsWith('#') ? card.variantLabel : null;
   const pin      = card.pin ?? null;
   const pinSize  = Math.max(20, cardWidth * 0.17);
 
-  // Badge color follows the card's neon family; falls back to neutral white.
-  const color = kind === 'common'   ? '#4ade80'
-              : kind === 'uncommon' ? '#c084fc'
-              : kind === 'rare'     ? '#f472b6'
-              : 'rgba(255,255,255,0.8)';
+  const isRare = kind === 'rare';
+  const color  = kind === 'common'   ? '#4ade80'
+               : kind === 'uncommon' ? '#c084fc'
+               : 'rgba(255,255,255,0.8)'; // rare uses rainbow class, others fallback
 
   return (
     <>
       {numbered && (
-        // Positioned slightly off the hard corner so it sits over the video's
-        // own number badge cleanly. Dark card background + neon border/text.
         <div
-          className="absolute top-3 right-3 z-30 font-black rounded-full leading-none shadow-lg"
+          className={cn(
+            'absolute top-2 right-2 z-30 font-black rounded-full leading-none shadow-lg',
+            isRare ? 'epic-rare-chrome' : '',
+          )}
           style={{
             fontSize:   Math.max(9, cardWidth * 0.06),
             padding:    '0.35em 0.6em',
             background: '#0a0a0f',
-            color,
-            border:     `1.5px solid ${color}66`,
+            // Rare gets its border from the .epic-rare-chrome box-shadow animation.
+            ...(isRare ? {} : { color, border: `1.5px solid ${color}` }),
           }}
         >
           {numbered}
@@ -197,14 +197,15 @@ export function EpicPins({
 // ── Epic card overlay (info-area badges, artist tap, play button) ─────────────
 
 /**
- * Overlays the invisible info section of typed epic cards with:
- *   - Rarity & genre badges styled in the card's neon color
- *   - A tappable artist name area (always active; visible text for parallax)
- *   - A functional play/pause button matching the neon border
- *   - Song title text (parallax-only; canvas cards show the video design)
+ * Overlays the invisible info section of typed epic cards.
  *
- * Mirrors the exact layout of the invisible SoundmapCard info section so
- * every element lines up over its counterpart in the recorded video.
+ * Layout mirrors the native Soundmap video-card info section:
+ *   - Title (parallax-only — canvas already shows its own)
+ *   - Artist name (always visible and tappable for both canvas and parallax)
+ *   - Flex-1 spacer to push the action row to the bottom
+ *   - Action row (left-aligned): RarityBadge | genre badge | play button
+ *     These three sit in the SAME horizontal row so they cover the native
+ *     video card's "+Epic", "♪ icon", and "▶" elements exactly.
  */
 export function EpicCardOverlay({
   card,
@@ -225,48 +226,45 @@ export function EpicCardOverlay({
   onPlay?: () => void;
   isPlaying?: boolean;
 }) {
-  const kind  = epicBorderKind(card);
-  const color = kind === 'common'   ? '#4ade80'
-              : kind === 'uncommon' ? '#c084fc'
-              : kind === 'rare'     ? '#f472b6'
-              : null;
+  const kind = epicBorderKind(card);
+  // Unnumbered / legacy epics keep their existing look.
+  if (kind !== 'common' && kind !== 'uncommon' && kind !== 'rare') return null;
+
+  const isRare = kind === 'rare';
+  // Neon color for non-rare buttons (rare gets rainbow via CSS class).
+  const color = kind === 'common' ? '#4ade80' : '#c084fc';
 
   const media    = useCardMedia(card.id);
   const hasMedia = media !== null;
 
-  // Unnumbered / legacy epics keep their existing look — no overlay.
-  if (!color) return null;
-
-  const bg         = '#0a0a0f';
-  const titleSize  = cardWidth >= 240 ? 'text-xl'  : cardWidth >= 180 ? 'text-base' : 'text-sm';
-  const artistSize = cardWidth >= 240 ? 'text-sm'  : 'text-xs';
+  const bg        = '#0a0a0f';
+  const titleSize = cardWidth >= 240 ? 'text-xl' : cardWidth >= 180 ? 'text-base' : 'text-sm';
+  const subSize   = cardWidth >= 240 ? 'text-sm' : 'text-xs';
 
   return (
-    // z-[25] sits above MediaSlot (z-[1]) and art/info sections (z-[2]) but below
-    // EpicPins (z-30) so the number badge always renders on top.
+    // z-[25]: above MediaSlot (z-[1]) and art/info (z-[2]); below EpicPins (z-30).
     <div className="absolute inset-0 z-[25] pointer-events-none flex flex-col">
-      {/* Mirrors artPad (p-2) + aspect-[5/6] spacer in the art section */}
+      {/* Art spacer — mirrors p-2 artPad + aspect-[5/6] */}
       <div className="p-2 w-full shrink-0">
         <div className="aspect-[5/6] w-full" />
       </div>
 
-      {/* Info overlay — covers the invisible info section */}
-      <div className="flex-1 min-h-0 px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center">
+      {/* Info overlay — left-aligned to match native video-card layout */}
+      <div className="flex-1 min-h-0 px-3 pt-2.5 pb-3 flex flex-col">
 
-        {/* Title — shown only for parallax (canvas shows its own design) */}
+        {/* Title — parallax cards only; canvas shows its own title in the video */}
         {!hasMedia && (
-          <p className={cn('font-bold leading-tight truncate w-full text-white', titleSize)}>
+          <p className={cn('font-bold leading-tight truncate w-full text-white mb-0.5', titleSize)}>
             {title}
           </p>
         )}
 
-        {/* Artist — transparent tap zone for canvas; visible text for parallax */}
+        {/* Artist — always visible and tappable on both canvas and parallax */}
         <button
           type="button"
           className={cn(
-            'pointer-events-auto leading-tight truncate w-full text-center transition-opacity active:opacity-60',
-            artistSize,
-            hasMedia ? 'opacity-0 select-none cursor-default' : 'text-white/55',
+            'pointer-events-auto leading-tight truncate w-full text-left transition-opacity active:opacity-60 text-white/55',
+            subSize,
           )}
           onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
           aria-label={`View artist ${artist}`}
@@ -274,46 +272,55 @@ export function EpicCardOverlay({
           {artist}
         </button>
 
-        {/* Rarity + genre badges — styled with neon card color */}
-        <div className="flex items-center justify-center gap-1.5 flex-wrap mt-0.5">
-          <span
-            className="text-[10px] font-bold px-2 py-0.5 rounded-full leading-none border"
-            style={{ background: bg, color, borderColor: `${color}55` }}
-          >
-            {card.rarityType.name}
-          </span>
+        {/* Push the action row to the bottom of the info section */}
+        <div className="flex-1" />
+
+        {/* ── Action row — covers native "+Epic" | "♪" | "▶" elements ── */}
+        <div className="flex items-center gap-1.5 pointer-events-auto">
+          {/* Rarity badge: uses the same RarityBadge as Collection (gold for epics) */}
+          <RarityBadge
+            slug={card.rarityType.slug}
+            name={card.rarityType.name}
+            category={card.rarityType.category}
+            size="sm"
+          />
+
+          {/* Genre badge: grey, same style as non-epic SoundmapCard info section */}
           {genre && (
-            <span
-              className="text-[10px] font-semibold px-2 py-0.5 rounded-full leading-none border flex items-center gap-1"
-              style={{ background: bg, color, borderColor: `${color}55` }}
-            >
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full bg-white/10 text-white/60 border border-white/10 px-2 py-0.5 leading-none whitespace-nowrap">
               <svg width="9" height="9" viewBox="0 0 9 9" fill="none" className="shrink-0">
                 <path d="M1 1.5h7M1 4.5h5M1 7.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               </svg>
               {genre}
             </span>
           )}
-        </div>
 
-        {/* Play / Pause button — neon border, dark fill */}
-        <button
-          type="button"
-          className="pointer-events-auto mt-0.5 w-7 h-7 rounded-full flex items-center justify-center active:opacity-70 transition-opacity shrink-0"
-          style={{ background: bg, border: `1.5px solid ${color}`, color }}
-          onClick={e => { e.stopPropagation(); onPlay?.(); }}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? (
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-              <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" />
-              <rect x="6"   y="1" width="2.5" height="8" rx="0.5" />
-            </svg>
-          ) : (
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-              <path d="M2 1.5L9 5L2 8.5V1.5Z" />
-            </svg>
-          )}
-        </button>
+          {/* Play / Pause — neon for common/uncommon; rainbow for rare */}
+          <button
+            type="button"
+            className={cn(
+              'w-7 h-7 rounded-full flex items-center justify-center active:opacity-70 transition-opacity shrink-0',
+              isRare ? 'epic-rare-chrome' : '',
+            )}
+            style={isRare
+              ? { background: bg }
+              : { background: bg, border: `1.5px solid ${color}`, color }
+            }
+            onClick={e => { e.stopPropagation(); onPlay?.(); }}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" />
+                <rect x="6"   y="1" width="2.5" height="8" rx="0.5" />
+              </svg>
+            ) : (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <path d="M2 1.5L9 5L2 8.5V1.5Z" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

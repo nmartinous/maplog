@@ -263,17 +263,11 @@ export default function CardView() {
       return;
     }
 
-    // Predominantly vertical swipe that started OUTSIDE the card slot →
-    // prev/next in the active filter (prevents conflict with card interactions).
+    // Predominantly vertical swipe → prev/next in the active filter.
+    // No outside-card check: vertical direction alone disambiguates from taps.
     if (hasFilterActive && absDy >= SWIPE_THRESHOLD && absDx <= absDy * 0.8) {
-      const rect = cardElRef.current?.getBoundingClientRect();
-      const outsideCard = !rect
-        || startX < rect.left || startX > rect.right
-        || startY < rect.top  || startY > rect.bottom;
-      if (outsideCard) {
-        swipedRef.current = true;
-        goToFiltered(dy < 0 ? 1 : -1); // swipe up = forward in filter
-      }
+      swipedRef.current = true;
+      goToFiltered(dy < 0 ? 1 : -1); // swipe up = forward in filter
     }
   }, [goTo, goToFiltered, hasFilterActive]);
 
@@ -475,7 +469,7 @@ export default function CardView() {
                 transform:       card ? `scale(${scale})` : undefined,
               }}
               className="cursor-pointer"
-              onClick={handleCardTap}
+              onClick={epicKindCV ? undefined : handleCardTap}
             >
               <SoundmapCard
                 card={topCard}

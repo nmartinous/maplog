@@ -536,9 +536,28 @@ input[type="range"]:focus {
   100% { box-shadow: 0 0 0 2px #ff2244, 0 0 18px 3px #ff224466; }
 }
 
+/* ── Rare-epic chrome: text color + box-shadow border cycle the rainbow ──────── */
+@keyframes epic-rare-text-color {
+  0%   { color: #ff2244; }
+  17%  { color: #ff8800; }
+  33%  { color: #ccff00; }
+  50%  { color: #00ffaa; }
+  67%  { color: #0088ff; }
+  83%  { color: #aa00ff; }
+  100% { color: #ff2244; }
+}
+/** Apply to rare-epic play button and number badge — pairs with rainbow-ring-glow. */
+.epic-rare-chrome {
+  animation: epic-rare-text-color 3s linear infinite,
+             rainbow-ring-glow    3s linear infinite;
+  border: 1.5px solid transparent !important;
+  background: #0a0a0f !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .epic-green-wrap   { animation: none; box-shadow: 0 0 0 2px #4ade80; }
   .epic-purple-wrap  { animation: none; box-shadow: 0 0 0 2px #c084fc; }
   .epic-rainbow-wrap { animation: none; box-shadow: 0 0 0 2px #ff8800; }
   .epic-green-wrap::before, .epic-purple-wrap::before, .epic-rainbow-wrap::before { animation: none; transform: scale(2.5); filter: none; }
+  .epic-rare-chrome  { animation: none; color: #ff8800; box-shadow: 0 0 0 2px #ff8800; }
 }
