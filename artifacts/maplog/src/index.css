@@ -536,6 +536,46 @@ input[type="range"]:focus {
   100% { box-shadow: 0 0 0 2px #ff2244, 0 0 18px 3px #ff224466; }
 }
 
+/* ── Waving epic border glow ──────────────────────────────────────────────────
+   Soundmap-style halo: bright lobes travel around the card border like a
+   wave. Implemented as a blurred conic-gradient halo behind the card whose
+   start angle animates (via @property) so the lobes orbit without rotating
+   the rounded-rect shape itself. */
+@property --epic-wave {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes epic-wave-orbit {
+  to { --epic-wave: 360deg; }
+}
+.epic-wave-glow {
+  position: absolute;
+  inset: -12px;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(14px);
+  animation: epic-wave-orbit 5s linear infinite;
+}
+.epic-wave-glow-green {
+  background: conic-gradient(from var(--epic-wave),
+    #16a34a10 0deg, #4ade80cc 55deg, #16a34a25 115deg, #bbf7d0e0 180deg,
+    #16a34a18 240deg, #4ade80b0 300deg, #16a34a10 360deg);
+}
+.epic-wave-glow-purple {
+  background: conic-gradient(from var(--epic-wave),
+    #7e22ce12 0deg, #c084fccc 55deg, #7e22ce28 115deg, #e9d5ffe0 180deg,
+    #7e22ce18 240deg, #a855f7b0 300deg, #7e22ce12 360deg);
+}
+.epic-wave-glow-rainbow {
+  background: conic-gradient(from var(--epic-wave),
+    #ff2244cc 0deg, #ff880030 40deg, #ccff00cc 90deg, #00ffaa30 140deg,
+    #0088ffcc 190deg, #aa00ff30 240deg, #ff00aacc 300deg, #ff2244cc 360deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .epic-wave-glow { animation: none; }
+}
+
 /* ── Rare-epic chrome: text color + box-shadow border cycle the rainbow ──────── */
 @keyframes epic-rare-text-color {
   0%   { color: #ff2244; }

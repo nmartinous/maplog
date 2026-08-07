@@ -328,7 +328,12 @@ export default function Vault() {
               ×{MODIFIER_VALUES.shiny} its base, so a Shiny Uncommon is {exactValue(RARITY_VALUES.uncommon)} × {MODIFIER_VALUES.shiny} = {exactValue(RARITY_VALUES.uncommon * MODIFIER_VALUES.shiny)}.
             </p>
             <p>
-              Epics, Moments, Lyrics and Radiants don't have a price yet — they show as
+              <span className="text-white font-bold">Epics are priced by their number</span>: #1 is worth 150,000,
+              #25 is 30,000, and #100 or beyond is 15,000, with everything in between following an exponential
+              curve through those points (rounded down). Unnumbered epics are a flat 20,000.
+            </p>
+            <p>
+              Moments, Lyrics and Radiants don't have a price yet — they show as
               <span className="text-white font-bold"> unpriced</span> and count toward totals at 0 until their
               valuation lands.
             </p>

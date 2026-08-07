@@ -492,11 +492,21 @@ export function EpicBorderWrap({
                    : kind === 'uncommon' ? 'epic-purple-inner'
                    :                       'epic-rainbow-inner';
 
+  const glowClass  = kind === 'common'   ? 'epic-wave-glow-green'
+                   : kind === 'uncommon' ? 'epic-wave-glow-purple'
+                   :                       'epic-wave-glow-rainbow';
+
   return (
-    // padding: 0 — card body fills the full wrapper; box-shadow glow ring
-    // provides the colored border without an internal gap
-    <div className={wrapClass} style={{ borderRadius: r, padding: 0 }}>
-      <div className={innerClass}>{children}</div>
+    // Outer relative shell hosts the waving glow halo (Soundmap-style:
+    // bright lobes travel around the border) BEHIND the card. The halo
+    // must live outside the wrap because the wrap clips overflow.
+    <div className="relative" style={{ borderRadius: r }}>
+      <div className={`epic-wave-glow ${glowClass}`} style={{ borderRadius: r + 10 }} aria-hidden />
+      {/* padding: 0 — card body fills the full wrapper; box-shadow glow ring
+          provides the colored border without an internal gap */}
+      <div className={wrapClass} style={{ borderRadius: r, padding: 0, position: 'relative', zIndex: 1 }}>
+        <div className={innerClass}>{children}</div>
+      </div>
     </div>
   );
 }

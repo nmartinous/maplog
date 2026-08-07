@@ -38,7 +38,11 @@ export function vaultEntries(songs: MaplogSong[]): VaultEntry[] {
       out.push({
         card,
         tags,
-        label: tags.length > 0 ? labelForTags(tags) : card.rarityType.name,
+        // All epics group under one "Epic" label in valuation breakdowns —
+        // their individual value comes from their number, not a sub-tier.
+        label: card.rarityType.slug.includes('epic')
+          ? 'Epic'
+          : tags.length > 0 ? labelForTags(tags) : card.rarityType.name,
         value: cardValue(card),
         trackId: song.id,
         title: song.title,

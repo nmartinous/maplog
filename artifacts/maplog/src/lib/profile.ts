@@ -89,6 +89,33 @@ export const MODIFIER_VALUES: Record<string, number> = {
   shiny: 50,
 };
 
+// ── Epic valuation ────────────────────────────────────────────────────────────
+//
+// Epics are valued individually by their number (variantLabel '#N'):
+//   #1 → 150,000   #25 → 30,000   #100 and beyond → 15,000
+// Numbers in between follow a piecewise exponential curve through those
+// anchor points (floored to whole numbers). Unnumbered epics are flat 20,000.
+
+export const EPIC_UNNUMBERED_VALUE = 20_000;
+
+export function epicNumberValue(n: number): number {
+  if (!Number.isFinite(n) || n < 1) return EPIC_UNNUMBERED_VALUE;
+  if (n >= 100) return 15_000;
+  if (n <= 25) {
+    // 150k at #1 → 30k at #25 (exponential decay)
+    return Math.floor(150_000 * Math.pow(30_000 / 150_000, (n - 1) / 24));
+  }
+  // 30k at #25 → 15k at #100
+  return Math.floor(30_000 * Math.pow(15_000 / 30_000, (n - 25) / 75));
+}
+
+/** Value of an epic card from its variantLabel ('#20' → 26,097). */
+export function epicCardValue(card: { variantLabel?: string | null }): number {
+  const m = card.variantLabel?.match(/^#\s*(\d+)/);
+  if (!m) return EPIC_UNNUMBERED_VALUE;
+  return epicNumberValue(parseInt(m[1], 10));
+}
+
 /** Base rarity bucket for a rarity slug ('regular-uncommon' → 'uncommon'). */
 export function rarityBucket(slug: string): string | null {
   if (slug.includes('uncommon')) return 'uncommon';
@@ -102,7 +129,11 @@ export function rarityBucket(slug: string): string | null {
  * Prefers the tag pool; falls back to the rarity slug for untagged cards.
  * Returns null when the card has no priced base rarity (epics etc.).
  */
-export function cardValue(card: { rarityType: { slug: string }; tags?: string[] }): number | null {
+export function cardValue(card: { rarityType: { slug: string }; tags?: string[]; variantLabel?: string | null }): number | null {
+  // Epics are priced by their number, not by base rarity/modifiers.
+  // (Checked first: epic slugs like 'epic-common' would otherwise fall
+  // into the common/uncommon/rare buckets below.)
+  if (card.rarityType.slug.includes('epic')) return epicCardValue(card);
   const tags = card.tags ?? [];
   const bucket =
     (['common', 'uncommon', 'rare'] as const).find(b => tags.includes(b))

@@ -7,8 +7,15 @@ import {
 import type { MaplogCard, MaplogRarityType, MaplogSong } from '@/lib/types';
 import {
   ListMusic, RefreshCw, Link2, X, Loader2, CheckCircle2, XCircle,
-  AlertTriangle, Copy,
+  AlertTriangle, Copy, ChevronDown,
 } from 'lucide-react';
+
+/** Collapsible groups in the playlist-links list. */
+const PLAYLIST_GROUPS = [
+  { id: 'regular', label: 'Regular Playlists', match: (slug: string) => !slug.startsWith('shiny') && !slug.includes('epic') },
+  { id: 'shiny',   label: 'Shiny Playlists',   match: (slug: string) => slug.startsWith('shiny') },
+  { id: 'epic',    label: 'Epic Playlists',    match: (slug: string) => slug.includes('epic') },
+] as const;
 import { Link } from 'wouter';
 import { conflictLine, type TagConflict } from '@/lib/conflicts';
 import { Button } from '@/components/ui/button';
@@ -61,6 +68,7 @@ export function RarityPlaylistSync() {
   const [syncing, setSyncing] = useState(false);
   const [summary, setSummary] = useState<SyncSummary | null>(null);
   const [wizardItems, setWizardItems] = useState<WizardItem[] | null>(null);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ regular: true });
 
   const linkedCount = LINKABLE_RARITIES.filter(r => links[r.slug]).length;
 
@@ -284,23 +292,38 @@ export function RarityPlaylistSync() {
       </AnimatePresence>
 
       <div className="space-y-4">
-        {LINKABLE_RARITIES.map((rarity, i) => {
+        {PLAYLIST_GROUPS.map(group => {
+          const rarities = LINKABLE_RARITIES.filter(r => group.match(r.slug));
+          const linkedInGroup = rarities.filter(r => links[r.slug]).length;
+          const isOpen = openGroups[group.id] ?? false;
+          return (
+            <div key={group.id} className="space-y-4">
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 px-1 py-1"
+                onClick={() => setOpenGroups(g => ({ ...g, [group.id]: !isOpen }))}
+                aria-expanded={isOpen}
+                data-testid={`playlist-group-${group.id}`}
+              >
+                <ChevronDown className={cn('w-4 h-4 text-white/40 transition-transform', !isOpen && '-rotate-90')} />
+                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/50">{group.label}</span>
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[10px] font-bold text-white/30">{linkedInGroup}/{rarities.length} linked</span>
+              </button>
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden space-y-4"
+                  >
+        {rarities.map(rarity => {
           const link = links[rarity.slug];
           const owned = songsAtRarity.get(rarity.slug) ?? [];
           const isLinking = linkingSlug === rarity.slug;
           const accent = RARITY_ACCENT[rarity.slug] ?? 'from-white/10 to-white/5 text-white';
-          // Section divider before the first epic playlist entry
-          const showEpicDivider = i > 0 && rarity.slug === 'epic-common';
 
           return (
             <React.Fragment key={rarity.slug}>
-            {showEpicDivider && (
-              <div className="flex items-center gap-3 px-1 pt-2">
-                <div className="h-px flex-1 bg-white/10" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Epic Playlists</span>
-                <div className="h-px flex-1 bg-white/10" />
-              </div>
-            )}
             <div className="glass-panel rounded-[2rem] overflow-hidden relative">
               <div className={cn('absolute inset-0 bg-gradient-to-br opacity-60 pointer-events-none', accent.split(' ').slice(0, 2).join(' '))} />
 
@@ -388,6 +411,12 @@ export function RarityPlaylistSync() {
               </div>
             </div>
             </React.Fragment>
+          );
+        })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           );
         })}
       </div>
