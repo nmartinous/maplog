@@ -176,7 +176,7 @@ export function EpicPins({
         <div
           className={cn(
             'absolute top-2 right-2 z-30 font-black rounded-full leading-none shadow-lg',
-            isRare ? 'epic-rare-chrome' : '',
+            isRare ? 'epic-pin-base epic-pin-num' : '',
           )}
           style={{
             fontSize:   Math.max(9, cardWidth * 0.06),
@@ -264,7 +264,7 @@ export function EpicCardOverlay({
   const pinColor = kind === 'common' ? '#4ade80' : '#c084fc';
   // Rare epics get the animated rainbow chrome (same class as the number pin);
   // common/uncommon use their static neon color.
-  const playBadgeClass = isRareEpic ? 'epic-rare-chrome' : '';
+  const playBadgeClass = isRareEpic ? 'epic-pin-base epic-pin-play' : '';
   const playBadgeStyle: React.CSSProperties = {
     width: px(32),
     height: px(32),
@@ -531,7 +531,7 @@ export function EpicBorderWrap({
       >
         <div
           className={`epic-wave-ring ${ringClass}`}
-          style={{ borderRadius: r }}
+          style={{ borderRadius: clipR }}
         />
       </div>
       <div className={wrapClass} style={{ borderRadius: r, padding: 0, position: 'relative', zIndex: 1 }}>
