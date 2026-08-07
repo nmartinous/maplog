@@ -77,12 +77,13 @@ export default function SongDetail() {
     const dy = info.offset.y;
     const dx = info.offset.x;
     // Predominantly vertical swipe → prev/next in the active filter.
-    // Horizontal stays with embla (multi-card browsing).
-    if (Math.abs(dy) >= 40 && Math.abs(dx) <= Math.abs(dy) * 0.8) {
+    // Only when a filter is active (parity with CardView semantics);
+    // horizontal stays with embla (multi-card browsing).
+    if (hasFilterActive && Math.abs(dy) >= 40 && Math.abs(dx) <= Math.abs(dy) * 0.8) {
       swipedRef.current = true;
       goToFiltered(dy < 0 ? 1 : -1); // swipe up = forward
     }
-  }, [goToFiltered]);
+  }, [goToFiltered, hasFilterActive]);
 
   const onZoneClickCapture = useCallback((e: React.MouseEvent) => {
     if (swipedRef.current) {
@@ -218,6 +219,8 @@ export default function SongDetail() {
                           size="lg"
                           className="shadow-2xl"
                           onArtistClick={() => setLocation(`/artists/${encodeURIComponent(song.artist)}`)}
+                          onPlay={handleCardTap}
+                          isPlaying={isCurrent && isPlaying}
                         />
                         {!isFlipped && !(isCurrent && isPlaying) && (
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl pointer-events-none">
