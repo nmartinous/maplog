@@ -227,12 +227,10 @@ export function EpicCardOverlay({
   isPlaying?: boolean;
 }) {
   const kind = epicBorderKind(card);
-  // Unnumbered / legacy epics keep their existing look.
   if (kind !== 'common' && kind !== 'uncommon' && kind !== 'rare') return null;
 
   const isRare = kind === 'rare';
-  // Neon color for non-rare buttons (rare gets rainbow via CSS class).
-  const color = kind === 'common' ? '#4ade80' : '#c084fc';
+  const color  = kind === 'common' ? '#4ade80' : '#c084fc';
 
   const media    = useCardMedia(card.id);
   const hasMedia = media !== null;
@@ -240,6 +238,11 @@ export function EpicCardOverlay({
   const bg        = '#0a0a0f';
   const titleSize = cardWidth >= 240 ? 'text-xl' : cardWidth >= 180 ? 'text-base' : 'text-sm';
   const subSize   = cardWidth >= 240 ? 'text-sm' : 'text-xs';
+
+  // Black stroke for parallax text legibility (thin outline on all backgrounds)
+  const textStroke: React.CSSProperties = {
+    textShadow: '0 0 6px #000, 0 0 3px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
+  };
 
   return (
     // z-[25]: above MediaSlot (z-[1]) and art/info (z-[2]); below EpicPins (z-30).
@@ -249,35 +252,55 @@ export function EpicCardOverlay({
         <div className="aspect-[5/6] w-full" />
       </div>
 
-      {/* Info overlay — left-aligned to match native video-card layout */}
-      <div className="flex-1 min-h-0 px-3 pt-2.5 pb-3 flex flex-col">
+      {/* Info section — relative so action row can be absolutely pinned to bottom */}
+      <div className="flex-1 min-h-0 relative">
 
-        {/* Title — parallax cards only; canvas shows its own title in the video */}
+        {/*
+         * Parallax: show title + artist with a thin black stroke so text
+         * stays legible against all artwork backgrounds.
+         * Canvas: omit text entirely — the video already shows its own.
+         */}
         {!hasMedia && (
-          <p className={cn('font-bold leading-tight truncate w-full text-white mb-0.5', titleSize)}>
-            {title}
-          </p>
+          <div className="absolute left-3 right-3 top-2.5 flex flex-col gap-0.5">
+            <p
+              className={cn('font-bold leading-tight truncate text-white', titleSize)}
+              style={textStroke}
+            >
+              {title}
+            </p>
+            <button
+              type="button"
+              className={cn(
+                'pointer-events-auto leading-tight truncate w-full text-left text-white/70 active:opacity-60 transition-opacity',
+                subSize,
+              )}
+              style={textStroke}
+              onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
+              aria-label={`View artist ${artist}`}
+            >
+              {artist}
+            </button>
+          </div>
         )}
 
-        {/* Artist — always visible and tappable on both canvas and parallax */}
-        <button
-          type="button"
-          className={cn(
-            'pointer-events-auto leading-tight truncate w-full text-left transition-opacity active:opacity-60 text-white/55',
-            subSize,
-          )}
-          onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
-          aria-label={`View artist ${artist}`}
-        >
-          {artist}
-        </button>
+        {/* Canvas: invisible artist tap zone only (no visible text) */}
+        {hasMedia && (
+          <button
+            type="button"
+            className="absolute left-3 right-3 top-2.5 h-6 pointer-events-auto opacity-0 select-none"
+            onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
+            aria-label={`View artist ${artist}`}
+          />
+        )}
 
-        {/* Push the action row to the bottom of the info section */}
-        <div className="flex-1" />
-
-        {/* ── Action row — covers native "+Epic" | "♪" | "▶" elements ── */}
-        <div className="flex items-center gap-1.5 pointer-events-auto">
-          {/* Rarity badge: uses the same RarityBadge as Collection (gold for epics) */}
+        {/*
+         * Action row — absolutely pinned to bottom-3 left-3 to align with
+         * the native Soundmap video-card action bar (pb-3 px-3 baseline).
+         * Elements: RarityBadge | genre badge | play button
+         * These sit directly over the native "+Epic", "♪", and "▶" elements.
+         */}
+        <div className="absolute left-3 bottom-3 flex items-center gap-1.5 pointer-events-auto">
+          {/* Same RarityBadge as Collection view → gold epic styling */}
           <RarityBadge
             slug={card.rarityType.slug}
             name={card.rarityType.name}
@@ -285,13 +308,13 @@ export function EpicCardOverlay({
             size="sm"
           />
 
-          {/* Genre badge: grey, same style as non-epic SoundmapCard info section */}
+          {/* Genre — grey, truncated with ellipsis so it never grows wider than the native badge */}
           {genre && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full bg-white/10 text-white/60 border border-white/10 px-2 py-0.5 leading-none whitespace-nowrap">
-              <svg width="9" height="9" viewBox="0 0 9 9" fill="none" className="shrink-0">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full bg-white/10 text-white/60 border border-white/10 px-2 py-0.5 leading-none max-w-[5.5rem] overflow-hidden">
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none" className="shrink-0 flex-none">
                 <path d="M1 1.5h7M1 4.5h5M1 7.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               </svg>
-              {genre}
+              <span className="truncate">{genre}</span>
             </span>
           )}
 

@@ -54,14 +54,22 @@ function AlbumArt({ song, topCard, size = 44 }: { song: MaplogSong; topCard?: Ma
 
 // ── Numbered-variant badge for the collection art thumbnail ───────────────────
 function CollectionNumBadge({ label, slug }: { label: string; slug: string }) {
-  const color = slug === 'epic-common'   ? '#4ade80'
-              : slug === 'epic-uncommon' ? '#c084fc'
-              : slug === 'epic-rare'     ? '#f472b6'
-              : 'rgba(255,255,255,0.7)';
+  const isRare = slug === 'epic-rare';
+  const color  = slug === 'epic-common'   ? '#4ade80'
+               : slug === 'epic-uncommon' ? '#c084fc'
+               : 'rgba(255,255,255,0.7)';
   return (
     <div
-      className="absolute -top-1.5 -right-1.5 z-10 font-black rounded-full leading-none shadow-lg pointer-events-none"
-      style={{ fontSize: 7, padding: '0.3em 0.55em', background: '#0a0a0f', color, border: `1px solid ${color}55` }}
+      className={cn(
+        'absolute -top-1.5 -right-1.5 z-10 font-black rounded-full leading-none shadow-lg pointer-events-none',
+        isRare ? 'epic-rare-chrome' : '',
+      )}
+      style={{
+        fontSize: 7,
+        padding: '0.3em 0.55em',
+        background: '#0a0a0f',
+        ...(isRare ? {} : { color, border: `1px solid ${color}` }),
+      }}
     >
       {label}
     </div>

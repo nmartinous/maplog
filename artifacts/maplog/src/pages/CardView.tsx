@@ -153,12 +153,21 @@ export default function CardView() {
 
   const songId = decodeURIComponent(id ?? '');
 
-  const song = getSong(songId) ?? (currentSong?.id === songId ? currentSong : undefined);
+  // TikTok-style: displaySongId is what's actually shown. It starts at the
+  // URL entry song, and filter-swiping updates it locally without touching
+  // the URL (avoids routing overhead and the stale-filter race condition).
+  const [displaySongId, setDisplaySongId] = useState(songId);
+
+  // Keep displaySongId in sync when the URL changes (browser back, horizontal
+  // swipe calling setLocation, or any external navigation).
+  useEffect(() => { setDisplaySongId(songId); }, [songId]);
+
+  const song = getSong(displaySongId) ?? (currentSong?.id === displaySongId ? currentSong : undefined);
 
   // ── Collection navigation ────────────────────────────────────────────────────
   const collectionIndex = useMemo(
-    () => songs.findIndex(s => s.id === songId),
-    [songs, songId],
+    () => songs.findIndex(s => s.id === displaySongId),
+    [songs, displaySongId],
   );
   const hasPrev = collectionIndex > 0;
   const hasNext = collectionIndex >= 0 && collectionIndex < songs.length - 1;
@@ -195,8 +204,8 @@ export default function CardView() {
 
   const hasFilterActive = cvFilter.search !== '' || cvFilter.activeRarity !== 'All';
   const filteredIndex = useMemo(
-    () => filteredSongs.findIndex(s => s.id === songId),
-    [filteredSongs, songId],
+    () => filteredSongs.findIndex(s => s.id === displaySongId),
+    [filteredSongs, displaySongId],
   );
 
   // Track the slide direction so AnimatePresence knows which way to animate.
@@ -207,18 +216,22 @@ export default function CardView() {
     if (nextIndex < 0 || nextIndex >= songs.length) return;
     const nextSong = songs[nextIndex];
     setDirection(delta);
-    setLocation(`/card/${encodeURIComponent(nextSong.id)}`);
+    setDisplaySongId(nextSong.id);          // immediate visual update
+    setLocation(`/card/${encodeURIComponent(nextSong.id)}`); // sync URL
   }, [collectionIndex, songs, setLocation]);
 
-  /** Navigate within the active filter via vertical swipe. */
+  /**
+   * TikTok-style: navigate within the active filter by updating local state
+   * only — no URL change, no routing overhead. AnimatePresence animates
+   * the card swap via key change on displaySongId.
+   */
   const goToFiltered = useCallback((delta: number) => {
-    const nextIndex = filteredIndex + delta;
-    if (nextIndex < 0 || nextIndex >= filteredSongs.length) return;
-    const nextSong = filteredSongs[nextIndex];
-    // |direction| >= 2 signals vertical animation in slideVariants.
+    const currentIdx = filteredSongs.findIndex(s => s.id === displaySongId);
+    const nextIdx = currentIdx + delta;
+    if (nextIdx < 0 || nextIdx >= filteredSongs.length) return;
     setDirection(delta > 0 ? 2 : -2);
-    setLocation(`/card/${encodeURIComponent(nextSong.id)}`);
-  }, [filteredIndex, filteredSongs, setLocation]);
+    setDisplaySongId(filteredSongs[nextIdx].id);
+  }, [filteredSongs, displaySongId]);
 
   // ── Swipe gesture via pointer events ────────────────────────────────────────
   const pointerStartX = useRef<number | null>(null);
@@ -440,7 +453,7 @@ export default function CardView() {
          */}
         <AnimatePresence mode="popLayout" custom={direction}>
           <motion.div
-            key={songId}
+            key={displaySongId}
             custom={direction}
             variants={slideVariants}
             initial="enter"
