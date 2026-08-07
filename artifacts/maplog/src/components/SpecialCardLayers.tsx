@@ -229,126 +229,121 @@ export function EpicCardOverlay({
   const kind = epicBorderKind(card);
   if (kind !== 'common' && kind !== 'uncommon' && kind !== 'rare') return null;
 
-  const isRare = kind === 'rare';
-  const color  = kind === 'common' ? '#4ade80' : '#c084fc';
-
   const media    = useCardMedia(card.id);
   const hasMedia = media !== null;
 
-  const bg        = '#0a0a0f';
-  // Match native SoundmapCard size map exactly (hero = text-xl/text-sm)
-  const titleSize = cardWidth >= 240 ? 'text-xl' : cardWidth >= 180 ? 'text-base' : 'text-sm';
-  const subSize   = cardWidth >= 240 ? 'text-sm' : 'text-xs';
+  /*
+   * Measurement-based layout, taken from the user's untouched Soundmap
+   * reference capture (inner card 408×656px) and scaled width-fit onto our
+   * card (canvas videos are object-fit:cover, width-bound, vertical crop):
+   *   left padding 31px → 20px   | title ~26px → 17px bold
+   *   artist ~19px → 12px        | artist line center ≈42px above bottom
+   *   action row bottom ≈2px     | play = small grey ▶ on the artist line
+   * All values scale with cardWidth so md/lg cards stay aligned too.
+   */
+  const f  = cardWidth / 266;
+  const px = (n: number) => Math.round(n * f);
 
   // Soft black glow-stroke — keeps parallax text legible without harsh outlines
   const textStroke: React.CSSProperties = {
     textShadow: '0 0 8px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.8)',
   };
 
+  const playGlyph = isPlaying ? (
+    <svg width={px(12)} height={px(12)} viewBox="0 0 10 10" fill="currentColor">
+      <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" />
+      <rect x="6"   y="1" width="2.5" height="8" rx="0.5" />
+    </svg>
+  ) : (
+    <svg width={px(12)} height={px(12)} viewBox="0 0 10 10" fill="currentColor">
+      <path d="M2 1.5L9 5L2 8.5V1.5Z" />
+    </svg>
+  );
+
   return (
     // z-[25]: above MediaSlot (z-[1]) and art/info (z-[2]); below EpicPins (z-30).
-    <div className="absolute inset-0 z-[25] pointer-events-none flex flex-col">
-      {/* Art spacer — mirrors p-2 artPad + aspect-[5/6] */}
-      <div className="p-2 w-full shrink-0">
-        <div className="aspect-[5/6] w-full" />
-      </div>
+    // Everything is anchored to the CARD bottom (not the info section) because
+    // the canvas video fills the whole card and draws its chrome near the edge.
+    <div className="absolute inset-0 z-[25] pointer-events-none">
 
-      {/* Info section — relative so action row can be absolutely pinned to bottom */}
-      <div className="flex-1 min-h-0 relative">
-
-        {/*
-         * Parallax: show title + artist with a thin black stroke so text
-         * stays legible against all artwork backgrounds.
-         * Canvas: omit text entirely — the video already shows its own.
-         */}
-        {!hasMedia && (
-          // Left-aligned like the native canvas video layout (title bold, artist under)
-          <div className="absolute left-3 right-3 top-1 flex flex-col gap-0.5">
-            <p
-              className={cn('font-bold leading-tight truncate w-full text-white', titleSize)}
-              style={textStroke}
-            >
-              {title}
-            </p>
+      {/* ── Parallax: visible title + artist + grey ▶, mirroring the video layout ── */}
+      {!hasMedia && (
+        <div
+          className="absolute flex flex-col"
+          style={{ left: px(20), right: px(20), bottom: px(34) }}
+        >
+          <p
+            className="font-bold leading-tight truncate w-full text-white"
+            style={{ fontSize: px(17), ...textStroke }}
+          >
+            {title}
+          </p>
+          <div className="flex items-center justify-between" style={{ marginTop: px(8) }}>
             <button
               type="button"
-              className={cn(
-                'pointer-events-auto leading-tight truncate w-full text-left text-white/60 active:opacity-60 transition-opacity',
-                subSize,
-              )}
-              style={textStroke}
+              className="pointer-events-auto leading-tight truncate text-left text-white/85 active:opacity-60 transition-opacity min-w-0 flex-1"
+              style={{ fontSize: px(12), ...textStroke }}
               onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
               aria-label={`View artist ${artist}`}
             >
               {artist}
             </button>
+            {/* Small grey play glyph on the artist line — matches native exactly */}
+            <button
+              type="button"
+              className="pointer-events-auto shrink-0 text-white/50 active:opacity-60 transition-opacity flex items-center justify-center"
+              style={{ width: px(24), height: px(20), filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.9))' }}
+              onClick={e => { e.stopPropagation(); onPlay?.(); }}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {playGlyph}
+            </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Canvas: invisible artist tap zone only (no visible text) */}
-        {hasMedia && (
+      {/* ── Canvas: invisible tap zones over the video's own artist text and ▶ ── */}
+      {hasMedia && (
+        <>
           <button
             type="button"
-            className="absolute left-3 right-3 top-2.5 h-6 pointer-events-auto opacity-0 select-none"
+            className="absolute pointer-events-auto opacity-0 select-none"
+            style={{ left: px(20), bottom: px(30), width: '55%', height: px(20) }}
             onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
             aria-label={`View artist ${artist}`}
           />
-        )}
-
-        {/*
-         * Action row — absolutely pinned to bottom-3 left-3 to align with
-         * the native Soundmap video-card action bar (pb-3 px-3 baseline).
-         * Elements: RarityBadge | genre badge | play button
-         * These sit directly over the native "+Epic", "♪", and "▶" elements.
-         */}
-        {/* Pinned near the very card bottom — the canvas video renders its own
-            action row (purple Epic pill, ♪ count, play) almost flush with the
-            bottom edge, so ours must sit there too to cover it. */}
-        <div className="absolute left-2 bottom-1.5 flex items-center gap-1.5 pointer-events-auto">
-          {/* Same RarityBadge as Collection view → gold epic styling */}
-          <RarityBadge
-            slug={card.rarityType.slug}
-            name={card.rarityType.name}
-            category={card.rarityType.category}
-            size="sm"
-          />
-
-          {/* Genre — grey, truncated with ellipsis so it never grows wider than the native badge */}
-          {genre && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full bg-[#18181f] text-white/60 border border-white/15 px-2 py-0.5 leading-none max-w-[5.5rem] overflow-hidden">
-              <svg width="9" height="9" viewBox="0 0 9 9" fill="none" className="shrink-0 flex-none">
-                <path d="M1 1.5h7M1 4.5h5M1 7.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-              <span className="truncate">{genre}</span>
-            </span>
-          )}
-
-          {/* Play / Pause — neon for common/uncommon; rainbow for rare */}
           <button
             type="button"
-            className={cn(
-              'w-7 h-7 rounded-full flex items-center justify-center active:opacity-70 transition-opacity shrink-0',
-              isRare ? 'epic-rare-chrome' : '',
-            )}
-            style={isRare
-              ? { background: bg }
-              : { background: bg, border: `1.5px solid ${color}`, color }
-            }
+            className="absolute pointer-events-auto opacity-0 select-none"
+            style={{ right: px(12), bottom: px(28), width: px(32), height: px(26) }}
             onClick={e => { e.stopPropagation(); onPlay?.(); }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
+          />
+        </>
+      )}
+
+      {/* ── Action row: RarityBadge + genre badge, covering the video's pills ── */}
+      <div
+        className="absolute flex items-center pointer-events-auto"
+        style={{ left: px(20), bottom: px(2), gap: px(6) }}
+      >
+        <RarityBadge
+          slug={card.rarityType.slug}
+          name={card.rarityType.name}
+          category={card.rarityType.category}
+          size="sm"
+        />
+        {genre && (
+          <span
+            className="inline-flex items-center font-semibold rounded-full bg-[#18181f] text-white/60 border border-white/15 leading-none overflow-hidden"
+            style={{ fontSize: px(11), padding: `${px(5)}px ${px(10)}px`, gap: px(4), maxWidth: px(96) }}
           >
-            {isPlaying ? (
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" />
-                <rect x="6"   y="1" width="2.5" height="8" rx="0.5" />
-              </svg>
-            ) : (
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                <path d="M2 1.5L9 5L2 8.5V1.5Z" />
-              </svg>
-            )}
-          </button>
-        </div>
+            <svg width={px(9)} height={px(9)} viewBox="0 0 9 9" fill="none" className="shrink-0 flex-none">
+              <path d="M1 1.5h7M1 4.5h5M1 7.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            <span className="truncate">{genre}</span>
+          </span>
+        )}
       </div>
     </div>
   );
