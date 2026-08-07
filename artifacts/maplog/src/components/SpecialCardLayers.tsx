@@ -333,7 +333,7 @@ export function EpicCardOverlay({
             className={`absolute pointer-events-auto rounded-full active:opacity-60 transition-opacity flex items-center justify-center ${playBadgeClass}`}
             // Raised + slightly larger: canvas videos place their own ▶ at
             // slightly different heights, so the badge covers all variants.
-            style={{ ...playBadgeStyle, right: px(15), bottom: px(43) }}
+            style={{ ...playBadgeStyle, right: px(15), bottom: px(43) + 1 }}
             onClick={e => { e.stopPropagation(); onPlay?.(); }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
