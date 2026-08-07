@@ -390,15 +390,15 @@ input[type="range"]:focus {
 
 /* ── Green (Epic Common) ── */
 @keyframes epic-spin-green {
-  0%   { transform: rotate(0deg)   scale(2.5); filter: blur(3px)   brightness(1.00); }
-  12%  {                                        filter: blur(5.5px) brightness(1.45); }
-  28%  {                                        filter: blur(2px)   brightness(0.80); }
-  44%  {                                        filter: blur(7px)   brightness(1.55); }
-  50%  { transform: rotate(180deg) scale(2.5); filter: blur(3.5px) brightness(1.10); }
-  63%  {                                        filter: blur(6px)   brightness(1.40); }
-  76%  {                                        filter: blur(2px)   brightness(0.82); }
-  88%  {                                        filter: blur(5px)   brightness(1.35); }
-  100% { transform: rotate(360deg) scale(2.5); filter: blur(3px)   brightness(1.00); }
+  0%   { transform: rotate(0deg);   filter: blur(4px)   brightness(1.00); }
+  12%  {                             filter: blur(7px)   brightness(1.55); }
+  28%  {                             filter: blur(3px)   brightness(0.80); }
+  44%  {                             filter: blur(9px)   brightness(1.65); }
+  50%  { transform: rotate(180deg); filter: blur(4px)   brightness(1.10); }
+  63%  {                             filter: blur(8px)   brightness(1.45); }
+  76%  {                             filter: blur(3px)   brightness(0.82); }
+  88%  {                             filter: blur(6px)   brightness(1.40); }
+  100% { transform: rotate(360deg); filter: blur(4px)   brightness(1.00); }
 }
 
 .epic-green-wrap {
@@ -439,15 +439,15 @@ input[type="range"]:focus {
 
 /* ── Purple (Epic Uncommon) ── */
 @keyframes epic-spin-purple {
-  0%   { transform: rotate(0deg)   scale(2.5); filter: blur(3px)   brightness(1.00); }
-  15%  {                                        filter: blur(6px)   brightness(1.50); }
-  30%  {                                        filter: blur(2px)   brightness(0.78); }
-  47%  {                                        filter: blur(7.5px) brightness(1.55); }
-  50%  { transform: rotate(180deg) scale(2.5); filter: blur(3px)   brightness(1.05); }
-  61%  {                                        filter: blur(5.5px) brightness(1.42); }
-  74%  {                                        filter: blur(2px)   brightness(0.80); }
-  87%  {                                        filter: blur(6px)   brightness(1.38); }
-  100% { transform: rotate(360deg) scale(2.5); filter: blur(3px)   brightness(1.00); }
+  0%   { transform: rotate(0deg);   filter: blur(4px)   brightness(1.00); }
+  15%  {                             filter: blur(8px)   brightness(1.60); }
+  30%  {                             filter: blur(3px)   brightness(0.78); }
+  47%  {                             filter: blur(10px)  brightness(1.65); }
+  50%  { transform: rotate(180deg); filter: blur(4px)   brightness(1.05); }
+  61%  {                             filter: blur(7px)   brightness(1.48); }
+  74%  {                             filter: blur(3px)   brightness(0.80); }
+  87%  {                             filter: blur(8px)   brightness(1.42); }
+  100% { transform: rotate(360deg); filter: blur(4px)   brightness(1.00); }
 }
 
 .epic-purple-wrap {
@@ -487,13 +487,13 @@ input[type="range"]:focus {
 
 /* ── Rainbow (Epic Rare) ── */
 @keyframes epic-rainbow-spin {
-  0%   { transform: rotate(0deg)   scale(2.5); filter: blur(2px) brightness(1.00); }
-  20%  {                                        filter: blur(4px) brightness(1.30); }
-  40%  {                                        filter: blur(1px) brightness(0.88); }
-  50%  { transform: rotate(180deg) scale(2.5); filter: blur(5px) brightness(1.40); }
-  70%  {                                        filter: blur(1px) brightness(0.88); }
-  85%  {                                        filter: blur(4px) brightness(1.28); }
-  100% { transform: rotate(360deg) scale(2.5); filter: blur(2px) brightness(1.00); }
+  0%   { transform: rotate(0deg);   filter: blur(4px) brightness(1.00); }
+  20%  {                             filter: blur(7px) brightness(1.40); }
+  40%  {                             filter: blur(3px) brightness(0.88); }
+  50%  { transform: rotate(180deg); filter: blur(8px) brightness(1.50); }
+  70%  {                             filter: blur(3px) brightness(0.88); }
+  85%  {                             filter: blur(7px) brightness(1.38); }
+  100% { transform: rotate(360deg); filter: blur(4px) brightness(1.00); }
 }
 
 .epic-rainbow-wrap {
@@ -557,6 +557,6 @@ input[type="range"]:focus {
   .epic-green-wrap   { animation: none; box-shadow: 0 0 0 2px #4ade80; }
   .epic-purple-wrap  { animation: none; box-shadow: 0 0 0 2px #c084fc; }
   .epic-rainbow-wrap { animation: none; box-shadow: 0 0 0 2px #ff8800; }
-  .epic-green-wrap::before, .epic-purple-wrap::before, .epic-rainbow-wrap::before { animation: none; transform: scale(2.5); filter: none; }
+  .epic-green-wrap::before, .epic-purple-wrap::before, .epic-rainbow-wrap::before { animation: none; filter: none; }
   .epic-rare-chrome  { animation: none; color: #ff8800; box-shadow: 0 0 0 2px #ff8800; }
 }
