@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Coins, Calculator, Trophy, Info, ChartColumn, X } from 'lucide-react';
 import { useMusicKit } from '@/context/MusicKitContext';
 import { vaultEntries, computeVaultStatsFromEntries } from '@/lib/vaultStats';
-import { RARITY_VALUES, MODIFIER_VALUES } from '@/lib/profile';
+import { RARITY_VALUES, MODIFIER_VALUES, epicNumberValue, EPIC_UNNUMBERED_VALUE } from '@/lib/profile';
 import { labelForTags } from '@/lib/tags';
 import { HoldValue } from '@/components/HoldValue';
 import { abbreviateValue, exactValue } from '@/lib/format';
@@ -31,6 +31,49 @@ const FILTERS: { label: string; tags: string[] }[] = [
   { label: 'Rare',     tags: ['rare'] },
   { label: 'Shiny',    tags: ['shiny'] },
 ];
+
+/** Type an epic number, see what it's worth. */
+function EpicValueCalculator() {
+  const [input, setInput] = useState('');
+  const n = parseInt(input, 10);
+  const valid = Number.isFinite(n) && n >= 1;
+  const value = valid ? epicNumberValue(n) : null;
+
+  return (
+    <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-3">
+      <p className="text-xs font-bold uppercase tracking-widest text-white/50">Epic value calculator</p>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          <span className="text-white/40 font-black text-lg shrink-0">#</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Epic number"
+            className="w-full bg-transparent border-b border-white/20 focus:border-primary outline-none text-white font-bold text-lg py-1 placeholder:text-white/25 placeholder:font-normal placeholder:text-sm"
+            data-testid="input-epic-number"
+          />
+        </div>
+        <div className="text-right shrink-0">
+          {value !== null ? (
+            <>
+              <p className="text-lg font-display font-black text-white leading-tight" data-testid="text-epic-value">
+                {exactValue(value)}
+              </p>
+              <p className="text-[10px] text-white/40 leading-tight">value of epic #{n}</p>
+            </>
+          ) : (
+            <p className="text-xs text-white/35">
+              {input.trim() === '' ? `Unnumbered = ${exactValue(EPIC_UNNUMBERED_VALUE)}` : 'Enter a number ≥ 1'}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
@@ -332,6 +375,7 @@ export default function Vault() {
               #25 is 30,000, and #100 or beyond is 15,000, with everything in between following an exponential
               curve through those points (rounded down). Unnumbered epics are a flat 20,000.
             </p>
+            <EpicValueCalculator />
             <p>
               Moments, Lyrics and Radiants don't have a price yet — they show as
               <span className="text-white font-bold"> unpriced</span> and count toward totals at 0 until their

@@ -30,8 +30,10 @@ import { cn } from '@/lib/utils';
 const MOTION_GRANTED_KEY = 'maplog:motionGranted';
 
 function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string }) {
-  // object-position x: 50 = centered, pans between ~20 and ~80 on tilt
-  const [xPct, setXPct] = useState(50);
+  // Panned imperatively via ref — deviceorientation fires ~60Hz, and driving
+  // it through React state restarted the CSS transition every frame, making
+  // the layer (and the text composited above it) jitter back and forth.
+  const imgRef = useRef<HTMLImageElement | null>(null);
   // Low-pass filter on the raw gamma reading (-1 … +1)
   const smoothX = useRef(0);
 
@@ -78,11 +80,13 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
     // overflows horizontally — any object-position within 0-100% is safe.
     const RANGE = 28;
     const handler = (e: DeviceOrientationEvent) => {
-      if (!mounted) return;
+      if (!mounted || !imgRef.current) return;
       // gamma = left(-90°)…right(90°); clamp to ±1 at ±25°
       const raw = Math.max(-1, Math.min(1, (e.gamma ?? 0) / 25));
       smoothX.current = ALPHA * raw + (1 - ALPHA) * smoothX.current;
-      setXPct(50 + smoothX.current * RANGE);
+      // Write directly — the low-pass filter already smooths the motion, so
+      // no CSS transition is needed (and no React re-render per event).
+      imgRef.current.style.objectPosition = `${50 + smoothX.current * RANGE}% 50%`;
     };
     window.addEventListener('deviceorientation', handler, { passive: true });
     return () => { mounted = false; window.removeEventListener('deviceorientation', handler); };
@@ -98,14 +102,11 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
         No gap is ever possible because cover always fills the full area.
       */}
       <img
+        ref={imgRef}
         src={artworkUrl}
         alt={title}
         className="absolute inset-0 w-full h-full select-none pointer-events-none"
-        style={{
-          objectFit: 'cover',
-          objectPosition: `${xPct}% 50%`,
-          transition: 'object-position 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        }}
+        style={{ objectFit: 'cover', objectPosition: '50% 50%' }}
       />
     </div>
   );
@@ -243,9 +244,10 @@ export function EpicCardOverlay({
   const f  = cardWidth / 266;
   const px = (n: number) => Math.round(n * f);
 
-  // Soft black glow-stroke — keeps parallax text legible without harsh outlines
+  // Subtle drop shadow — matches how the native canvas video renders its own
+  // text (a heavier glow-stroke made parallax text look mismatched next to it)
   const textStroke: React.CSSProperties = {
-    textShadow: '0 0 8px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.8)',
+    textShadow: '0 1px 4px rgba(0,0,0,0.75), 0 0 2px rgba(0,0,0,0.5)',
   };
 
   // Play badge styled to match the top-right number pin (same dark shell +
@@ -286,17 +288,19 @@ export function EpicCardOverlay({
           className="absolute flex flex-col"
           style={{ left: px(20), right: px(20), bottom: px(44) }}
         >
+          {/* Sized/positioned to mirror the canvas video's own text: title
+              ~15px bold, artist ~13px near-white directly below. */}
           <p
             className="font-bold leading-tight truncate w-full text-white"
-            style={{ fontSize: px(17), ...textStroke }}
+            style={{ fontSize: px(15), ...textStroke }}
           >
             {title}
           </p>
-          <div className="flex items-center justify-between" style={{ marginTop: px(8) }}>
+          <div className="flex items-center justify-between" style={{ marginTop: px(7) }}>
             <button
               type="button"
-              className="pointer-events-auto leading-tight truncate text-left text-white/85 active:opacity-60 transition-opacity min-w-0 flex-1"
-              style={{ fontSize: px(12), ...textStroke }}
+              className="pointer-events-auto leading-tight truncate text-left text-white/90 active:opacity-60 transition-opacity min-w-0 flex-1"
+              style={{ fontSize: px(13), ...textStroke }}
               onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
               aria-label={`View artist ${artist}`}
             >
@@ -501,7 +505,7 @@ export function EpicBorderWrap({
     // bright lobes travel around the border) BEHIND the card. The halo
     // must live outside the wrap because the wrap clips overflow.
     <div className="relative" style={{ borderRadius: r }}>
-      <div className={`epic-wave-glow ${glowClass}`} style={{ borderRadius: r + 10 }} aria-hidden />
+      <div className={`epic-wave-glow ${glowClass}`} style={{ borderRadius: r }} aria-hidden />
       {/* padding: 0 — card body fills the full wrapper; box-shadow glow ring
           provides the colored border without an internal gap */}
       <div className={wrapClass} style={{ borderRadius: r, padding: 0, position: 'relative', zIndex: 1 }}>

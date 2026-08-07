@@ -550,11 +550,15 @@ input[type="range"]:focus {
   to { --epic-wave: 360deg; }
 }
 .epic-wave-glow {
+  /* inset 0 + card radius: the gradient fills the card's own rounded
+     silhouette and only the BLUR bleeds outward — no rectangular box edge
+     (an oversized inset rect showed straight sides through the blur). */
   position: absolute;
-  inset: -12px;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
-  filter: blur(14px);
+  filter: blur(18px);
+  transform: scale(1.015);
   animation: epic-wave-orbit 5s linear infinite;
 }
 .epic-wave-glow-green {
