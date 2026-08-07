@@ -422,7 +422,7 @@ input[type="range"]:focus {
     #14532d  360deg
   );
   transform-origin: 50% 50%;
-  /* Un-paused: bright lobes now orbit visibly outside the card silhouette */
+  border-radius: 50%; /* circle → no rotating rectangle corners */
   animation: epic-spin-green 6s linear infinite;
   filter: blur(8px);
 }
@@ -470,6 +470,7 @@ input[type="range"]:focus {
     #3b0764  360deg
   );
   transform-origin: 50% 50%;
+  border-radius: 50%;
   animation: epic-spin-purple 6s linear infinite;
   filter: blur(8px);
 }
@@ -514,6 +515,7 @@ input[type="range"]:focus {
     #ff0000  360deg
   );
   transform-origin: 50% 50%;
+  border-radius: 50%;
   animation: epic-rainbow-spin 4s linear infinite;
   filter: blur(8px);
 }

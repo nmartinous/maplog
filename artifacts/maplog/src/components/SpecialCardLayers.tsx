@@ -300,17 +300,16 @@ export function EpicCardOverlay({
           {/* Sized/positioned to mirror the canvas video's own text: title
               ~15px bold, artist ~13px near-white directly below. */}
           <p
-            className="font-bold leading-tight truncate w-full text-white relative"
-            // Calibration: title alone down 3px (artist row stays put)
-            style={{ fontSize: px(15), top: 4, ...textStroke }}
+            className="font-extrabold leading-tight truncate w-full text-white relative"
+            style={{ fontSize: px(17), top: 7, ...textStroke }}
           >
             {title}
           </p>
           <div className="flex items-center justify-between" style={{ marginTop: px(7) }}>
             <button
               type="button"
-              className="pointer-events-auto leading-tight truncate text-left text-white/90 active:opacity-60 transition-opacity min-w-0 flex-1"
-              style={{ fontSize: px(13), ...textStroke }}
+              className="pointer-events-auto leading-tight truncate text-left text-white/95 active:opacity-60 transition-opacity min-w-0 flex-1"
+              style={{ fontSize: px(14), fontWeight: 600, ...textStroke }}
               onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
               aria-label={`View artist ${artist}`}
             >
