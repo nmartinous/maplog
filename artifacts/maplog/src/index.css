@@ -393,15 +393,15 @@ input[type="range"]:focus {
 }
 @keyframes epic-wave-orbit { to { --epic-wave: 360deg; } }
 @keyframes epic-lobe-pulse {
-  0%, 100% { filter: blur(7px)  brightness(1.0); }
-  50%       { filter: blur(11px) brightness(1.6); }
+  0%, 100% { filter: blur(5px)  brightness(1.0); }
+  50%       { filter: blur(8px)  brightness(1.8); }
 }
 
 /* Shared ring geometry + mask */
 .epic-wave-ring {
   position: absolute;
   inset: 0;
-  padding: 13px; /* ring width — controls how thick the glowing band is */
+  padding: 8px; /* ring width — narrower = crisper glow band */
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -410,19 +410,19 @@ input[type="range"]:focus {
              epic-lobe-pulse 3s ease-in-out infinite;
 }
 
-/* ── Green (Epic Common) ── no fully-transparent stops → no gaps anywhere */
+/* ── Green (Epic Common) ── no gaps; high contrast between dim trough & bright lobe */
 .epic-wave-ring-green {
   background: conic-gradient(from var(--epic-wave),
-    #4ade8055   0deg,
-    #4ade80cc  30deg,
+    #4ade8022   0deg,  /* dim trough */
+    #4ade80bb  30deg,
     #bbf7d0ff  50deg,  /* lobe 1 peak */
-    #4ade80cc  70deg,
-    #4ade8055 100deg,
-    #4ade8044 170deg,
-    #4ade80aa 200deg,
-    #4ade8088 240deg,  /* lobe 2 (dimmer) */
-    #4ade8055 270deg,
-    #4ade8055 360deg
+    #4ade80bb  70deg,
+    #4ade8022 100deg,  /* dim trough */
+    #4ade8011 170deg,  /* extra dim */
+    #4ade8077 200deg,
+    #4ade8044 240deg,  /* lobe 2 (dimmer secondary) */
+    #4ade8022 270deg,
+    #4ade8022 360deg
   );
 }
 .epic-green-wrap {
@@ -437,19 +437,19 @@ input[type="range"]:focus {
   border-radius: inherit;
 }
 
-/* ── Purple (Epic Uncommon) ── no fully-transparent stops → no gaps anywhere */
+/* ── Purple (Epic Uncommon) ── no gaps; high contrast between dim trough & bright lobe */
 .epic-wave-ring-purple {
   background: conic-gradient(from var(--epic-wave),
-    #c084fc55   0deg,
-    #c084fccc  30deg,
+    #c084fc22   0deg,  /* dim trough */
+    #c084fcbb  30deg,
     #e9d5ffff  50deg,  /* lobe 1 peak */
-    #c084fccc  70deg,
-    #c084fc55 100deg,
-    #c084fc44 170deg,
-    #c084fcaa 200deg,
-    #c084fc88 240deg,  /* lobe 2 (dimmer) */
-    #c084fc55 270deg,
-    #c084fc55 360deg
+    #c084fcbb  70deg,
+    #c084fc22 100deg,  /* dim trough */
+    #c084fc11 170deg,  /* extra dim */
+    #c084fc77 200deg,
+    #c084fc44 240deg,  /* lobe 2 (dimmer secondary) */
+    #c084fc22 270deg,
+    #c084fc22 360deg
   );
 }
 .epic-purple-wrap {
@@ -464,24 +464,28 @@ input[type="range"]:focus {
   border-radius: inherit;
 }
 
-/* ── Rainbow (Epic Rare) ── */
+/* ── Rainbow (Epic Rare) ──
+ * 6 evenly-spaced hue stops (60° each) that EXACTLY match the epic-rare-text-color
+ * keyframe colors. This alignment is required so that animation-direction:reverse
+ * on the pins can continuously track the border color at any angular position.
+ * Brightness is varied per-stop (dim troughs, bright peaks) for visual interest.
+ */
 .epic-wave-ring-rainbow {
   background: conic-gradient(from var(--epic-wave),
-    #ff2244ee   0deg,
-    #ff2244ff  20deg,  /* lobe 1 peak — red */
-    #ff2244cc  40deg,
-    #ff880066  60deg,
-    #ccff0055  90deg,
-    #00ffaa55 120deg,
-    #0088ffcc 150deg,
-    #0088ffff 170deg,  /* lobe 2 peak — blue */
-    #0088ffcc 190deg,
-    #aa00ff66 220deg,
-    #ff00aa55 270deg,
-    #ff224466 330deg,
-    #ff2244ee 360deg
+    #ff2244ff   0deg,  /* 0%   red    — matches keyframe */
+    #ff8800cc  60deg,  /* 17%  orange */
+    #ccff0099  90deg,  /* trough between orange & lime */
+    #ccff00ff 120deg,  /* 33%  lime   — peak */
+    #00ffaacc 150deg,  /* trough */
+    #00ffaaff 180deg,  /* 50%  teal   — peak */
+    #0088ffcc 210deg,  /* trough */
+    #0088ffff 240deg,  /* 67%  blue   — peak */
+    #aa00ffcc 270deg,  /* trough */
+    #aa00ffff 300deg,  /* 83%  purple — peak */
+    #ff2244cc 330deg,  /* return */
+    #ff2244ff 360deg   /* 100% red */
   );
-  /* lobe-pulse uses a shorter period for the more energetic rainbow */
+  /* shorter period for the more energetic rainbow */
   animation: epic-wave-orbit 4s linear infinite,
              epic-lobe-pulse 2.5s ease-in-out infinite;
 }
@@ -527,8 +531,23 @@ input[type="range"]:focus {
  *
  * currentColor border always matches the animated text color automatically.
  */
+/*
+ * Why reverse?  The conic gradient rotates FORWARD (--epic-wave increases).
+ * At a fixed position θ on the card, the colour passing through moves BACKWARD
+ * through the hue cycle.  animation-direction:reverse makes the keyframe
+ * animation run backward, matching that movement exactly.
+ *
+ * Why these delays?  At t=0 the gradient's 0° stop (red) sits at the top.
+ * After d seconds the ring has rotated d/4 × 360°, so position θ sees
+ * hue-stop θ.  Delay = -(θ/360 × 4s) parks the reversed animation at that
+ * hue at render time.
+ *
+ *   top-right corner  θ ≈ 33°  → -(33/360 × 4) ≈ -0.37 s
+ *   bottom-right      θ ≈ 147° → -(147/360 × 4) ≈ -1.63 s
+ */
 .epic-pin-base {
   animation: epic-rare-text-color 4s linear infinite;
+  animation-direction: reverse;
   border: 1.5px solid currentColor !important;
   background: #0a0a0f !important;
 }
