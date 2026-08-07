@@ -245,10 +245,18 @@ export default function CardView() {
    * from reaching any child (e.g. the card tap handler) before resetting it.
    */
   const swipedRef = useRef(false);
+  /** True while the current pan started inside a RadiantSpin surface —
+   *  those pans belong to the card's drag-to-spin and must not navigate. */
+  const ignorePanRef = useRef(false);
 
-  const onZonePanStart = useCallback(() => { swipedRef.current = false; }, []);
+  const onZonePanStart = useCallback((e: PointerEvent | MouseEvent | TouchEvent) => {
+    swipedRef.current = false;
+    const target = e.target as HTMLElement | null;
+    ignorePanRef.current = !!target?.closest?.('[data-radiant-spin]');
+  }, []);
 
   const onZonePanEnd = useCallback((_: unknown, info: { offset: { x: number; y: number } }) => {
+    if (ignorePanRef.current) { ignorePanRef.current = false; return; }
     const dx = info.offset.x;
     const dy = info.offset.y;
     const absDx = Math.abs(dx);

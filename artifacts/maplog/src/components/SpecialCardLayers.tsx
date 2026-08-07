@@ -475,7 +475,7 @@ export function RadiantSpin({ children, back, enabled }: {
   }
 
   return (
-    <motion.div className="relative select-none" style={{ perspective: 1000, touchAction: 'pan-y' }}
+    <motion.div className="relative select-none" data-radiant-spin style={{ perspective: 1000, touchAction: 'pan-y' }}
       // Framer's pan gesture tracks at window level — robust against pointer
       // capture, delegation quirks, and the media elements inside the card.
       onPanStart={() => { startRot.current = rotY.get(); }}
