@@ -345,15 +345,15 @@ export function EpicCardOverlay({
              (speech-bubble + number) chip that sits right of its genre pill. ── */}
       <div
         className="absolute flex items-center pointer-events-auto"
-        // left +1 / gap −1 (×2): nudges the rarity pill right while the genre badge stays put
-        style={{ left: px(16), bottom: px(21), gap: px(4) }}
+        // Final calibration: +1px right (both pills), pills 1px taller
+        style={{ left: px(16) + 1, bottom: px(21), gap: px(4) }}
       >
         {/* Scaled epic pill (RarityBadge has fixed sizing → too big on cards) */}
         <span
           className="inline-flex items-center font-bold rounded-full text-[#eac54f] leading-none shrink-0"
           style={{
             fontSize: px(11),
-            padding: `${px(5)}px ${px(7)}px`,
+            padding: `${px(5) + 0.5}px ${px(7)}px`,
             gap: px(3),
             background: 'linear-gradient(90deg, #6b5800 0%, #4a2a00 100%)',
             border: '1px solid #b4840055',
@@ -371,7 +371,7 @@ export function EpicCardOverlay({
             className="inline-flex items-center font-semibold rounded-full bg-[#18181f] text-white/60 border border-white/15 leading-none overflow-hidden"
             style={{
               fontSize: px(11),
-              padding: `${px(5)}px ${px(10)}px`,
+              padding: `${px(5) + 0.5}px ${px(10)}px`,
               gap: px(4),
               // Wide enough to also cover Soundmap's genre + speech-bubble
               // count chips (badge row spans both in the reference layout)
