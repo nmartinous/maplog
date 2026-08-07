@@ -61,7 +61,7 @@ function CollectionNumBadge({ label, slug }: { label: string; slug: string }) {
   return (
     <div
       className={cn(
-        'absolute -top-1.5 -right-1.5 z-10 font-black rounded-full leading-none shadow-lg pointer-events-none',
+        'absolute -top-1.5 -right-0.5 z-10 font-black rounded-full leading-none shadow-lg pointer-events-none',
         isRare ? 'epic-rare-chrome' : '',
       )}
       style={{

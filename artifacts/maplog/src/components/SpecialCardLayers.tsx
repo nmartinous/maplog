@@ -236,12 +236,13 @@ export function EpicCardOverlay({
   const hasMedia = media !== null;
 
   const bg        = '#0a0a0f';
+  // Match native SoundmapCard size map exactly (hero = text-xl/text-sm)
   const titleSize = cardWidth >= 240 ? 'text-xl' : cardWidth >= 180 ? 'text-base' : 'text-sm';
   const subSize   = cardWidth >= 240 ? 'text-sm' : 'text-xs';
 
-  // Black stroke for parallax text legibility (thin outline on all backgrounds)
+  // Soft black glow-stroke — keeps parallax text legible without harsh outlines
   const textStroke: React.CSSProperties = {
-    textShadow: '0 0 6px #000, 0 0 3px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
+    textShadow: '0 0 8px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.8)',
   };
 
   return (
@@ -261,9 +262,10 @@ export function EpicCardOverlay({
          * Canvas: omit text entirely — the video already shows its own.
          */}
         {!hasMedia && (
-          <div className="absolute left-3 right-3 top-2.5 flex flex-col gap-0.5">
+          // Mirror native info section layout exactly: centered, gap-1.5, same font sizes
+          <div className="absolute left-3 right-3 top-2.5 flex flex-col gap-1.5 items-center text-center">
             <p
-              className={cn('font-bold leading-tight truncate text-white', titleSize)}
+              className={cn('font-bold leading-tight truncate w-full text-white', titleSize)}
               style={textStroke}
             >
               {title}
@@ -271,7 +273,7 @@ export function EpicCardOverlay({
             <button
               type="button"
               className={cn(
-                'pointer-events-auto leading-tight truncate w-full text-left text-white/70 active:opacity-60 transition-opacity',
+                'pointer-events-auto leading-tight truncate w-full text-center text-white/55 active:opacity-60 transition-opacity',
                 subSize,
               )}
               style={textStroke}
@@ -310,7 +312,7 @@ export function EpicCardOverlay({
 
           {/* Genre — grey, truncated with ellipsis so it never grows wider than the native badge */}
           {genre && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full bg-white/10 text-white/60 border border-white/10 px-2 py-0.5 leading-none max-w-[5.5rem] overflow-hidden">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full bg-[#18181f] text-white/60 border border-white/15 px-2 py-0.5 leading-none max-w-[5.5rem] overflow-hidden">
               <svg width="9" height="9" viewBox="0 0 9 9" fill="none" className="shrink-0 flex-none">
                 <path d="M1 1.5h7M1 4.5h5M1 7.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               </svg>

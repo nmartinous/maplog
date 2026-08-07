@@ -416,6 +416,7 @@ export default function CardView() {
       <div
         ref={zoneRef}
         className="relative z-10 flex-1 min-h-0 flex items-center justify-center overflow-hidden"
+        style={{ touchAction: 'none' }}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={() => { pointerStartX.current = null; pointerStartY.current = null; swipedRef.current = false; }}
