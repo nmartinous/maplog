@@ -332,19 +332,19 @@ function ActiveView({
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 w-full">
             {displayData.map(({ song, topCard }) => (
-              <div key={song.id} className="flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-2xl glass-panel">
+              <div key={song.id} className="flex items-center gap-2 px-2 py-2 rounded-2xl glass-panel">
                 {/* Art — display only, no interaction */}
                 <div className="shrink-0">
-                  <AlbumArt song={song} topCard={topCard} size={52} />
+                  <AlbumArt song={song} topCard={topCard} size={48} />
                 </div>
 
                 {/* Stacked: title / artist / rarity badge */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-white truncate leading-tight">
-                    {song.title.length > 20 ? song.title.slice(0, 20) + '…' : song.title}
+                  <p className="text-[13px] font-bold text-white truncate leading-tight">
+                    {song.title}
                   </p>
-                  <p className="text-[12px] text-white/50 truncate mt-0.5">
-                    {song.artist.length > 22 ? song.artist.slice(0, 22) + '…' : song.artist}
+                  <p className="text-[11px] text-white/50 truncate mt-0.5">
+                    {song.artist}
                   </p>
                   {topCard && (
                     <div className="w-fit mt-1">
@@ -355,15 +355,15 @@ function ActiveView({
 
                 {/* Play / Add to Queue */}
                 <ArtMenu song={song}>
-                  <div className="w-9 h-9 rounded-full bg-primary/15 hover:bg-primary/25 active:bg-primary/35 flex items-center justify-center transition-colors shrink-0">
-                    <Play className="w-4 h-4 text-primary fill-primary ml-0.5" />
+                  <div className="w-8 h-8 rounded-full bg-primary/15 hover:bg-primary/25 active:bg-primary/35 flex items-center justify-center transition-colors shrink-0">
+                    <Play className="w-3.5 h-3.5 text-primary fill-primary ml-0.5" />
                   </div>
                 </ArtMenu>
 
                 {/* Open card view */}
                 <button
                   onClick={() => navigate(`/song/${encodeURIComponent(song.id)}`)}
-                  className="shrink-0 w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
+                  className="shrink-0 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
                   aria-label={`Open card for ${song.title}`}
                 >
                   <CreditCard className="w-3.5 h-3.5 text-white/50" />
@@ -372,7 +372,7 @@ function ActiveView({
                 {/* Open artist page */}
                 <button
                   onClick={() => navigate(`/artists/${encodeURIComponent(song.artist)}`)}
-                  className="shrink-0 w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
+                  className="shrink-0 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
                   aria-label={`View artist ${song.artist}`}
                 >
                   <User className="w-3.5 h-3.5 text-white/50" />

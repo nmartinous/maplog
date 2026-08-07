@@ -132,14 +132,18 @@ export function EpicImportWizard({ items, onSave, onDone }: EpicImportWizardProp
         key="backdrop"
         className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onDone}
       />
 
-      {/* Sheet */}
+      {/* Centered dialog */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
       <motion.div
         key="sheet"
-        className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-[#0d0d14] border-t border-white/10 shadow-2xl pb-safe"
-        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 320, damping: 36 }}
+        className="w-full max-w-sm rounded-3xl bg-[#0d0d14] border border-white/10 shadow-2xl pointer-events-auto"
+        initial={{ opacity: 0, scale: 0.94, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 34 }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3">
@@ -358,6 +362,7 @@ export function EpicImportWizard({ items, onSave, onDone }: EpicImportWizardProp
           </motion.div>
         </AnimatePresence>
       </motion.div>
+      </div>
     </AnimatePresence>
   );
 }
