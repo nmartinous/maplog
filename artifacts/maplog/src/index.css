@@ -403,8 +403,7 @@ input[type="range"]:focus {
 
 .epic-green-wrap {
   position: relative;
-  overflow: hidden;
-  /* Animated ring glow replaces the inner padding-based gradient border */
+  /* overflow: visible so the spinning ::before bleeds outside as the glow halo */
   animation: green-ring-glow 4.5s ease-in-out infinite;
 }
 .epic-green-wrap::before {
@@ -423,9 +422,9 @@ input[type="range"]:focus {
     #14532d  360deg
   );
   transform-origin: 50% 50%;
-  /* ::before is fully covered by card content — pause to save GPU */
-  animation-play-state: paused;
-  transform: scale(2.5);
+  /* Un-paused: bright lobes now orbit visibly outside the card silhouette */
+  animation: epic-spin-green 6s linear infinite;
+  filter: blur(8px);
 }
 .epic-green-inner {
   position: relative;
@@ -453,7 +452,6 @@ input[type="range"]:focus {
 
 .epic-purple-wrap {
   position: relative;
-  overflow: hidden;
   animation: purple-ring-glow 4.5s ease-in-out infinite;
 }
 .epic-purple-wrap::before {
@@ -472,8 +470,8 @@ input[type="range"]:focus {
     #3b0764  360deg
   );
   transform-origin: 50% 50%;
-  animation-play-state: paused;
-  transform: scale(2.5);
+  animation: epic-spin-purple 6s linear infinite;
+  filter: blur(8px);
 }
 .epic-purple-inner {
   position: relative;
@@ -499,7 +497,6 @@ input[type="range"]:focus {
 
 .epic-rainbow-wrap {
   position: relative;
-  overflow: hidden;
   animation: rainbow-ring-glow 3s linear infinite;
 }
 .epic-rainbow-wrap::before {
@@ -517,8 +514,8 @@ input[type="range"]:focus {
     #ff0000  360deg
   );
   transform-origin: 50% 50%;
-  animation-play-state: paused;
-  transform: scale(2.5);
+  animation: epic-rainbow-spin 4s linear infinite;
+  filter: blur(8px);
 }
 .epic-rainbow-inner {
   position: relative;
@@ -534,60 +531,6 @@ input[type="range"]:focus {
   67%  { box-shadow: 0 0 0 2px #0088ff, 0 0 18px 3px #0088ff66; }
   83%  { box-shadow: 0 0 0 2px #aa00ff, 0 0 18px 3px #aa00ff66; }
   100% { box-shadow: 0 0 0 2px #ff2244, 0 0 18px 3px #ff224466; }
-}
-
-/* ── Waving epic border glow ──────────────────────────────────────────────────
-   Soundmap-style halo: bright lobes travel around the card border like a
-   wave. Implemented as a blurred conic-gradient halo behind the card whose
-   start angle animates (via @property) so the lobes orbit without rotating
-   the rounded-rect shape itself. */
-@property --epic-wave {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-@keyframes epic-wave-orbit {
-  to { --epic-wave: 360deg; }
-}
-.epic-wave-glow {
-  /* Ring approach: the gradient is masked to a thick BORDER RING that hugs
-     the rounded corners (padding-box XOR mask), then the whole element is
-     blurred. A blurred ring can only glow around the card silhouette — a
-     blurred filled rectangle showed straight box edges through the blur. */
-  position: absolute;
-  z-index: 0;
-  pointer-events: none;
-  filter: blur(9px);
-}
-.epic-wave-glow::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 15px; /* ring thickness — reaches slightly under the card edge */
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  animation: epic-wave-orbit 5s linear infinite;
-}
-.epic-wave-glow-green::before {
-  background: conic-gradient(from var(--epic-wave),
-    #16a34a10 0deg, #4ade80cc 55deg, #16a34a25 115deg, #bbf7d0e0 180deg,
-    #16a34a18 240deg, #4ade80b0 300deg, #16a34a10 360deg);
-}
-.epic-wave-glow-purple::before {
-  background: conic-gradient(from var(--epic-wave),
-    #7e22ce12 0deg, #c084fccc 55deg, #7e22ce28 115deg, #e9d5ffe0 180deg,
-    #7e22ce18 240deg, #a855f7b0 300deg, #7e22ce12 360deg);
-}
-.epic-wave-glow-rainbow::before {
-  background: conic-gradient(from var(--epic-wave),
-    #ff2244cc 0deg, #ff880030 40deg, #ccff00cc 90deg, #00ffaa30 140deg,
-    #0088ffcc 190deg, #aa00ff30 240deg, #ff00aacc 300deg, #ff2244cc 360deg);
-}
-@media (prefers-reduced-motion: reduce) {
-  .epic-wave-glow::before { animation: none; }
 }
 
 /* ── Rare-epic chrome: text color + box-shadow border cycle the rainbow ──────── */

@@ -78,17 +78,17 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
     // Pan range: ±RANGE% from center (50%). object-fit:cover guarantees no gaps.
     // Artwork is square; container is taller-than-wide, so the image always
     // overflows horizontally — any object-position within 0-100% is safe.
-    // Pan via TRANSFORM only (±15% of the 150%-wide image ≈ ±22% of the card,
-    // within the 25% overflow margin each side). transform is compositor-only:
-    // unlike object-position, it never triggers a repaint of the card layer,
-    // so the text composited above stays rock-steady.
-    const RANGE = 15;
+    // Pan via TRANSFORM only — compositor-only, never repaints card layer,
+    // so the text above stays rock-steady.
+    // scale(1.3) gives 15% overflow each side; pan stays within ±12%.
+    const RANGE = 12;
     const handler = (e: DeviceOrientationEvent) => {
       if (!mounted || !imgRef.current) return;
       // gamma = left(-90°)…right(90°); clamp to ±1 at ±25°
       const raw = Math.max(-1, Math.min(1, (e.gamma ?? 0) / 25));
       smoothX.current = ALPHA * raw + (1 - ALPHA) * smoothX.current;
-      imgRef.current.style.transform = `translate3d(${(-smoothX.current * RANGE).toFixed(3)}%, 0, 0)`;
+      const tx = (-smoothX.current * RANGE).toFixed(3);
+      imgRef.current.style.transform = `scale(1.3) translate3d(${tx}%, 0, 0)`;
     };
     window.addEventListener('deviceorientation', handler, { passive: true });
     return () => { mounted = false; window.removeEventListener('deviceorientation', handler); };
@@ -103,21 +103,17 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
         50% so top and bottom of the art are always flush with the card edges.
         No gap is ever possible because cover always fills the full area.
       */}
-      {/* Oversized image (150% width, centered) panned with translate3d on
-          its own compositor layer — tilt pans never repaint the card. */}
+      {/* Normal-fit image panned with scale(1.3) + translate3d — always
+          fills the container with no gap, transform is compositor-only. */}
       <img
         ref={imgRef}
         src={artworkUrl}
         alt={title}
-        className="absolute select-none pointer-events-none"
+        className="absolute inset-0 w-full h-full select-none pointer-events-none"
         style={{
-          width: '150%',
-          height: '100%',
-          left: '-25%',
-          top: 0,
           objectFit: 'cover',
           willChange: 'transform',
-          transform: 'translate3d(0, 0, 0)',
+          transform: 'scale(1.3) translate3d(0, 0, 0)',
         }}
       />
     </div>
@@ -306,7 +302,7 @@ export function EpicCardOverlay({
           <p
             className="font-bold leading-tight truncate w-full text-white relative"
             // Calibration: title alone down 3px (artist row stays put)
-            style={{ fontSize: px(15), top: 3, ...textStroke }}
+            style={{ fontSize: px(15), top: 4, ...textStroke }}
           >
             {title}
           </p>
@@ -510,21 +506,11 @@ export function EpicBorderWrap({
                    : kind === 'uncommon' ? 'epic-purple-inner'
                    :                       'epic-rainbow-inner';
 
-  const glowClass  = kind === 'common'   ? 'epic-wave-glow-green'
-                   : kind === 'uncommon' ? 'epic-wave-glow-purple'
-                   :                       'epic-wave-glow-rainbow';
-
   return (
-    // Outer relative shell hosts the waving glow halo (Soundmap-style:
-    // bright lobes travel around the border) BEHIND the card. The halo
-    // must live outside the wrap because the wrap clips overflow.
-    <div className="relative" style={{ borderRadius: r }}>
-      <div className={`epic-wave-glow ${glowClass}`} style={{ inset: -12, borderRadius: r + 12 }} aria-hidden />
-      {/* padding: 0 — card body fills the full wrapper; box-shadow glow ring
-          provides the colored border without an internal gap */}
-      <div className={wrapClass} style={{ borderRadius: r, padding: 0, position: 'relative', zIndex: 1 }}>
-        <div className={innerClass}>{children}</div>
-      </div>
+    // padding: 0 — card body fills the full wrapper; the ::before conic
+    // gradient spins at scale(2.5) and bleeds outside as the waving halo.
+    <div className={wrapClass} style={{ borderRadius: r, padding: 0 }}>
+      <div className={innerClass}>{children}</div>
     </div>
   );
 }
