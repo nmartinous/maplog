@@ -256,8 +256,8 @@ export function EpicCardOverlay({
   // common/uncommon use their static neon color.
   const playBadgeClass = isRareEpic ? 'epic-rare-chrome' : '';
   const playBadgeStyle: React.CSSProperties = {
-    width: px(30),
-    height: px(30),
+    width: px(32),
+    height: px(32),
     background: '#0a0a0f',
     boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
     ...(isRareEpic ? {} : { border: `1.5px solid ${pinColor}`, color: pinColor }),
@@ -331,7 +331,9 @@ export function EpicCardOverlay({
           <button
             type="button"
             className={`absolute pointer-events-auto rounded-full active:opacity-60 transition-opacity flex items-center justify-center ${playBadgeClass}`}
-            style={{ ...playBadgeStyle, right: px(16), bottom: px(40) }}
+            // Raised + slightly larger: canvas videos place their own ▶ at
+            // slightly different heights, so the badge covers all variants.
+            style={{ ...playBadgeStyle, right: px(15), bottom: px(43) }}
             onClick={e => { e.stopPropagation(); onPlay?.(); }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
