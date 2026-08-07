@@ -376,3 +376,79 @@ input[type="range"]:focus {
   .radiant-shimmer::before { animation: none; display: none; }
   .radiant-pattern-drift { animation: none; }
 }
+
+/* ── Epic neon borders ──────────────────────────────────────────────────────── */
+
+@keyframes epic-pulse-common {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px #22c55e,
+      0 0 18px  6px rgba(34, 197, 94, 0.47),
+      0 0 45px 20px rgba(34, 197, 94, 0.28),
+      0 0 80px 40px rgba(34, 197, 94, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px #4ade80,
+      0 0 30px 12px rgba(74, 222, 128, 0.60),
+      0 0 65px 32px rgba(74, 222, 128, 0.35),
+      0 0 110px 55px rgba(74, 222, 128, 0.16);
+  }
+}
+
+@keyframes epic-pulse-uncommon {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px #a855f7,
+      0 0 18px  6px rgba(168, 85, 247, 0.47),
+      0 0 45px 20px rgba(168, 85, 247, 0.28),
+      0 0 80px 40px rgba(168, 85, 247, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px #c084fc,
+      0 0 30px 12px rgba(192, 132, 252, 0.60),
+      0 0 65px 32px rgba(192, 132, 252, 0.35),
+      0 0 110px 55px rgba(192, 132, 252, 0.16);
+  }
+}
+
+.epic-neon-common   { animation: epic-pulse-common   2.4s ease-in-out infinite; }
+.epic-neon-uncommon { animation: epic-pulse-uncommon 2.4s ease-in-out infinite; }
+
+/* Rainbow rotating border — applied to the wrapper around the card */
+.epic-rainbow-wrap {
+  position: relative;
+  overflow: hidden;
+}
+.epic-rainbow-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    #ff0000  0deg,
+    #ff6600  51deg,
+    #ffff00  102deg,
+    #00ff44  153deg,
+    #0088ff  204deg,
+    #8800ff  255deg,
+    #ff00aa  306deg,
+    #ff0000  360deg
+  );
+  transform-origin: 50% 50%;
+  animation: epic-rainbow-spin 3s linear infinite;
+}
+@keyframes epic-rainbow-spin {
+  from { transform: rotate(0deg)   scale(2.5); }
+  to   { transform: rotate(360deg) scale(2.5); }
+}
+/* Card sits above the spinning gradient ring */
+.epic-rainbow-inner {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .epic-neon-common, .epic-neon-uncommon { animation: none; }
+  .epic-rainbow-wrap::before { animation: none; transform: scale(2.5); }
+}

@@ -28,6 +28,7 @@ import { usePlayer } from '@/context/AudioPlayerContext';
 import { useArtColor } from '@/lib/useArtColor';
 import { SoundmapCard } from '@/components/SoundmapCard';
 import { Button } from '@/components/ui/button';
+import { presenceForCard, epicBorderKind } from '@/lib/cardTemplates';
 
 // ── Zone constants (from mockup-sandbox/src/components/mockups/zoneConstants.ts) ─
 /** Card slot is 75 % of viewport width at most. */
@@ -46,6 +47,10 @@ function rarityColor(slug: string): string {
     'shiny-rare':       '#f97316',
     'epic':             '#b48400',
     'epic-numbered':    '#b48400',
+    'epic-common':      '#22c55e',
+    'epic-uncommon':    '#a855f7',
+    'epic-rare':        '#f59e0b',
+    'epic-unnumbered':  '#444444',
     'special-edition':  '#be185d',
     'special-epic':     '#e11d48',
     'streak-epic':      '#ea580c',
@@ -226,6 +231,14 @@ export default function CardView() {
 
   const artColor = useArtColor(artworkUrl, fallback);
 
+  // For numbered epics override the page bleed with the rarity neon colour so
+  // the background matches the card's animated border.
+  const epicKindCV = topCard && presenceForCard(topCard) === 'epic'
+    ? epicBorderKind(topCard) : null;
+  const bleedColor = epicKindCV === 'common'   ? '#22c55e'
+                   : epicKindCV === 'uncommon' ? '#a855f7'
+                   : artColor; // rare keeps art color; unnumbered/legacy keep art color
+
   const isCurrent = currentSong?.id === song?.id;
 
   const handleBack = () => {
@@ -267,10 +280,10 @@ export default function CardView() {
       transition={{ duration: 0.22 }}
       className="h-full flex flex-col overflow-hidden relative bg-background w-full"
     >
-      {/* ── Background: blurred art-colour bleed ── */}
+      {/* ── Background: blurred art-colour bleed (neon override for numbered epics) ── */}
       <div
         className="absolute inset-0 z-0 pointer-events-none transition-[background] duration-700 ease-in-out"
-        style={{ background: `color-mix(in srgb, ${artColor} 22%, #09090e)` }}
+        style={{ background: `color-mix(in srgb, ${bleedColor} 22%, #09090e)` }}
       />
 
       <AnimatePresence mode="sync">

@@ -65,6 +65,26 @@ export const EPIC_FRAMES: Record<string, EpicFrame> = {
   },
 };
 
+// ── Epic border kinds (typed playlists) ───────────────────────────────────────
+
+/**
+ * Visual border variant for typed epic cards imported via the four epic
+ * playlists (common / uncommon / rare = numbered with coloured neon border;
+ * unnumbered = no border).  All other epic slugs (legacy, special, streak…)
+ * fall through to 'unnumbered' so they keep their existing gold frame.
+ */
+export type EpicBorderKind = 'common' | 'uncommon' | 'rare' | 'unnumbered';
+
+export function epicBorderKind(card: MaplogCard): EpicBorderKind {
+  switch (card.rarityType.slug) {
+    case 'epic-common':    return 'common';
+    case 'epic-uncommon':  return 'uncommon';
+    case 'epic-rare':      return 'rare';
+    case 'epic-unnumbered':
+    default:               return 'unnumbered';
+  }
+}
+
 /** Pick the frame for an epic card from its override tags. */
 export function epicFrameForCard(card: MaplogCard): EpicFrame {
   const tags = card.tags ?? [];

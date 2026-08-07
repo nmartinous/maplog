@@ -24,6 +24,11 @@ const RARITY_ACCENT: Record<string, string> = {
   'shiny-common':     'from-teal-400/20 to-fuchsia-500/10 text-teal-200',
   'shiny-uncommon':   'from-fuchsia-400/20 to-cyan-500/10 text-fuchsia-200',
   'shiny-rare':       'from-amber-400/20 to-violet-500/10 text-amber-200',
+  // ── Epic playlists ──
+  'epic-common':      'from-green-500/25 to-green-700/10 text-green-300',
+  'epic-uncommon':    'from-purple-500/25 to-purple-700/10 text-purple-300',
+  'epic-rare':        'from-yellow-400/20 to-pink-500/10 text-yellow-200',
+  'epic-unnumbered':  'from-white/10 to-white/5 text-white/70',
 };
 
 type SyncSummary = { rarity: string; added: number; removed: number; error?: string }[];
@@ -220,14 +225,24 @@ export function RarityPlaylistSync() {
       </AnimatePresence>
 
       <div className="space-y-4">
-        {LINKABLE_RARITIES.map((rarity) => {
+        {LINKABLE_RARITIES.map((rarity, i) => {
           const link = links[rarity.slug];
           const owned = songsAtRarity.get(rarity.slug) ?? [];
           const isLinking = linkingSlug === rarity.slug;
           const accent = RARITY_ACCENT[rarity.slug] ?? 'from-white/10 to-white/5 text-white';
+          // Section divider before the first epic playlist entry
+          const showEpicDivider = i > 0 && rarity.slug === 'epic-common';
 
           return (
-            <div key={rarity.slug} className="glass-panel rounded-[2rem] overflow-hidden relative">
+            <React.Fragment key={rarity.slug}>
+            {showEpicDivider && (
+              <div className="flex items-center gap-3 px-1 pt-2">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Epic Playlists</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+            )}
+            <div className="glass-panel rounded-[2rem] overflow-hidden relative">
               <div className={cn('absolute inset-0 bg-gradient-to-br opacity-60 pointer-events-none', accent.split(' ').slice(0, 2).join(' '))} />
 
               <div className="relative z-10 p-5">
@@ -313,6 +328,7 @@ export function RarityPlaylistSync() {
                 </AnimatePresence>
               </div>
             </div>
+            </React.Fragment>
           );
         })}
       </div>

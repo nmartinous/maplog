@@ -11,8 +11,12 @@ const RARITY_MAP: Record<string, MaplogRarityType> = {
   'Shiny Common':    { slug: 'shiny-common',     name: 'Shiny Common',    category: 'Shiny',           tier: 4  },
   'Shiny Uncommon':  { slug: 'shiny-uncommon',   name: 'Shiny Uncommon',  category: 'Shiny',           tier: 5  },
   'Shiny Rare':      { slug: 'shiny-rare',       name: 'Shiny Rare',      category: 'Shiny',           tier: 6  },
-  'Epic':            { slug: 'epic',             name: 'Epic',            category: 'Epic',            tier: 7  },
-  'Special Edition': { slug: 'special-edition',  name: 'Special Edition', category: 'Special Edition', tier: 7  },
+  'Epic':             { slug: 'epic',              name: 'Epic',             category: 'Epic', tier: 7  },
+  'Special Edition':  { slug: 'special-edition',  name: 'Special Edition',  category: 'Special Edition', tier: 7  },
+  'Epic Common':      { slug: 'epic-common',       name: 'Epic Common',      category: 'Epic', tier: 7  },
+  'Epic Uncommon':    { slug: 'epic-uncommon',     name: 'Epic Uncommon',    category: 'Epic', tier: 7  },
+  'Epic Rare':        { slug: 'epic-rare',         name: 'Epic Rare',        category: 'Epic', tier: 7  },
+  'Epic Unnumbered':  { slug: 'epic-unnumbered',   name: 'Epic Unnumbered',  category: 'Epic', tier: 7  },
   'Special Epic':    { slug: 'special-epic',     name: 'Special Epic',    category: 'Special Epic',    tier: 8  },
   'Streak Epic':     { slug: 'streak-epic',      name: 'Streak Epic',     category: 'Streak Epic',     tier: 8  },
   'Moment':          { slug: 'moment',           name: 'Moment',          category: 'Moment',          tier: 8  },
@@ -66,6 +70,11 @@ export const LINKABLE_RARITY_TIERS: MaplogRarityType[] = [
   RARITY_MAP['Shiny Common'],
   RARITY_MAP['Shiny Uncommon'],
   RARITY_MAP['Shiny Rare'],
+  // ── Epic playlists (numbered by base rarity + unnumbered) ──
+  RARITY_MAP['Epic Common'],
+  RARITY_MAP['Epic Uncommon'],
+  RARITY_MAP['Epic Rare'],
+  RARITY_MAP['Epic Unnumbered'],
 ];
 
 /** Parse a human-entered rarity label (case-insensitive, aliased) → rarity object */

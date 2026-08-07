@@ -4,9 +4,10 @@ import { RarityBadge } from '@/components/RarityBadge';
 import { useArtColor } from '@/lib/useArtColor';
 import { cn } from '@/lib/utils';
 import { Disc3 } from 'lucide-react';
-import { presenceForCard } from '@/lib/cardTemplates';
+import { presenceForCard, epicBorderKind } from '@/lib/cardTemplates';
 import {
-  MediaSlot, EpicPins, epicFrameStyle, MomentStars, FlavorBubble,
+  MediaSlot, EpicPins, epicFrameStyle, EpicBorderWrap,
+  MomentStars, FlavorBubble,
   LyricSubject, RadiantPatternOverlay, RadiantSpin,
 } from '@/components/SpecialCardLayers';
 
@@ -91,6 +92,10 @@ function rarityFallbackColor(slug: string): string {
     'shiny-rare':       '#f97316',
     'epic':             '#b48400',
     'epic-numbered':    '#b48400',
+    'epic-common':      '#22c55e',
+    'epic-uncommon':    '#a855f7',
+    'epic-rare':        '#f59e0b',
+    'epic-unnumbered':  '#444444',
     'special-edition':  '#be185d',
     'special-epic':     '#e11d48',
     'streak-epic':      '#ea580c',
@@ -143,17 +148,37 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const special = presence !== 'regular';
   const bigCard = size === 'lg' || size === 'hero';
 
+  // For typed epic playlists (common/uncommon/rare/unnumbered), use the new
+  // neon border system. Legacy epic slugs fall back to the gold epicFrameStyle.
+  const epicKind = presence === 'epic' ? epicBorderKind(card) : null;
+
   // Per-presence shell styling
-  const shellStyle: React.CSSProperties = presence === 'epic'
-    ? epicFrameStyle(card)
-    : {
-        border: `2px solid ${borderColor}`,
-        transition: 'border-color 0.55s ease, box-shadow 0.55s ease, background-color 0.55s ease',
-        ...(isRare ? {} : { boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22` }),
-        background: presence === 'moment'
-          ? `linear-gradient(165deg, color-mix(in srgb, #991b1b 30%, #07070c) 0%, #07070c 70%)`
-          : `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
-      };
+  const shellStyle: React.CSSProperties = (() => {
+    if (presence === 'epic') {
+      // Typed epic playlists: dark shell — neon handled by CSS class or wrapper
+      if (card.rarityType.slug === 'epic-common'
+       || card.rarityType.slug === 'epic-uncommon'
+       || card.rarityType.slug === 'epic-rare'
+       || card.rarityType.slug === 'epic-unnumbered') {
+        return { background: '#0a0a0f', border: 'none' };
+      }
+      // Legacy epics keep the gold gradient frame
+      return epicFrameStyle(card);
+    }
+    return {
+      border: `2px solid ${borderColor}`,
+      transition: 'border-color 0.55s ease, box-shadow 0.55s ease, background-color 0.55s ease',
+      ...(isRare ? {} : { boxShadow: `0 0 20px -4px ${borderColor}66, 0 0 0 1px ${borderColor}22` }),
+      background: presence === 'moment'
+        ? `linear-gradient(165deg, color-mix(in srgb, #991b1b 30%, #07070c) 0%, #07070c 70%)`
+        : `color-mix(in srgb, ${borderColor} 12%, #0a0a0f)`,
+    };
+  })();
+
+  // CSS class for pulsing neon animation (common / uncommon only)
+  const epicNeonClass = epicKind === 'common' ? 'epic-neon-common'
+                      : epicKind === 'uncommon' ? 'epic-neon-uncommon'
+                      : '';
 
   const cardBody = (
     <div
@@ -161,6 +186,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         'relative flex flex-col overflow-hidden text-white card-effect',
         sizeClasses[size],
         isRare && 'card-rare-glow',
+        epicNeonClass,
         className,
       )}
       style={shellStyle}
@@ -263,6 +289,11 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
       )}
     </div>
   );
+
+  // Rainbow epic: wrap the card in the rotating border shell
+  if (epicKind === 'rare') {
+    return <EpicBorderWrap kind="rare" size={size}>{cardBody}</EpicBorderWrap>;
+  }
 
   // Radiant cards spin on drag (big sizes only); the back face shows the
   // Maplog logo under the same tinted pattern.

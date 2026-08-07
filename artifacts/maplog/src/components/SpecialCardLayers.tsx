@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import type { MaplogCard } from '@/lib/types';
-import { epicFrameForCard, radiantPatternCss } from '@/lib/cardTemplates';
+import { epicFrameForCard, radiantPatternCss, type EpicBorderKind } from '@/lib/cardTemplates';
 import { useCardMedia } from '@/lib/useCardMedia';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { Film, Sparkles } from 'lucide-react';
@@ -15,7 +15,49 @@ import { cn } from '@/lib/utils';
 
 // ── Media slot (epics & moments) ──────────────────────────────────────────────
 
-/** Card-slot media from Edit Mode uploads; falls back to artwork + empty-slot hint. */
+/**
+ * Parallax album-art fill for still (no-video) epic cards.
+ * Responds to device orientation (tilt) to pan a zoomed-in copy of the
+ * artwork, giving a live depth effect on iOS/Android.
+ */
+function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string }) {
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    let mounted = true;
+    const handler = (e: DeviceOrientationEvent) => {
+      if (!mounted) return;
+      // gamma = left(-90)..right(90); beta ≈ 45 when phone held upright portrait
+      const x = Math.max(-1, Math.min(1, (e.gamma  ?? 0)        / 25));
+      const y = Math.max(-1, Math.min(1, ((e.beta ?? 45) - 45)  / 25));
+      setOffset({ x, y });
+    };
+    window.addEventListener('deviceorientation', handler, { passive: true });
+    return () => { mounted = false; window.removeEventListener('deviceorientation', handler); };
+  }, []);
+
+  const ZOOM = 15; // % overflow on each side so panning never reveals a gap
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      <img
+        src={artworkUrl}
+        alt={title}
+        crossOrigin="anonymous"
+        className="absolute object-cover select-none pointer-events-none"
+        style={{
+          width:  `${100 + ZOOM * 2}%`,
+          height: `${100 + ZOOM * 2}%`,
+          top:  `${-ZOOM + offset.y * ZOOM}%`,
+          left: `${-ZOOM + offset.x * ZOOM}%`,
+          transition: 'top 0.15s ease-out, left 0.15s ease-out',
+          willChange: 'top, left',
+        }}
+      />
+    </div>
+  );
+}
+
+/** Card-slot media from Edit Mode uploads; falls back to parallax art or empty hint. */
 export function MediaSlot({ card, title, showHint }: { card: MaplogCard; title: string; showHint: boolean }) {
   const media = useCardMedia(card.id);
 
@@ -25,17 +67,15 @@ export function MediaSlot({ card, title, showHint }: { card: MaplogCard; title: 
   if (media?.type === 'image') {
     return <img src={media.url} alt={title} className="absolute inset-0 w-full h-full object-cover" />;
   }
-  // Empty slot — default background over (dimmed) artwork until media is added
+  // No upload yet — show parallax art for still epics, or the empty-slot hint
+  if (card.artworkUrl) {
+    return <ParallaxArt artworkUrl={card.artworkUrl} title={title} />;
+  }
   return (
-    <>
-      {card.artworkUrl ? (
-        <img src={card.artworkUrl} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-40" crossOrigin="anonymous" />
-      ) : null}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-black/30 to-black/60">
-        <Film className="w-[22%] h-[22%] text-white/25" />
-        {showHint && <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest">Empty clip slot</p>}
-      </div>
-    </>
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-black/30 to-black/60">
+      <Film className="w-[22%] h-[22%] text-white/25" />
+      {showHint && <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest">Empty clip slot</p>}
+    </div>
   );
 }
 
@@ -129,6 +169,38 @@ export function RadiantPatternOverlay({ patternId, color, opacity = 0.5 }: {
   return (
     <div className="absolute inset-0 pointer-events-none rounded-[inherit] radiant-pattern-drift"
       style={{ ...radiantPatternCss(patternId, color), opacity, mixBlendMode: 'screen' }} aria-hidden />
+  );
+}
+
+// ── Epic neon border wrapper ──────────────────────────────────────────────────
+
+/**
+ * Wraps typed epic cards in their animated border.
+ * - common / uncommon: the border lives on the card's box-shadow via CSS class
+ *   (no DOM wrapper needed — children pass through unchanged).
+ * - rare: a wrapper div with overflow:hidden clips a spinning conic-gradient
+ *   ::before pseudo-element, producing the rotating rainbow ring.
+ * - unnumbered: no border at all — renders children unchanged.
+ */
+export function EpicBorderWrap({
+  kind,
+  size,
+  children,
+}: {
+  kind: EpicBorderKind;
+  size: 'sm' | 'md' | 'lg' | 'hero';
+  children: React.ReactNode;
+}) {
+  if (kind !== 'rare') return <>{children}</>;
+
+  // Outer radius = card corner radius + border width so the ring hugs the card
+  const radiiMap: Record<typeof size, number> = { sm: 15, md: 19, lg: 19, hero: 27 };
+  const r = radiiMap[size];
+
+  return (
+    <div className="epic-rainbow-wrap" style={{ borderRadius: r, padding: 3 }}>
+      <div className="epic-rainbow-inner">{children}</div>
+    </div>
   );
 }
 
