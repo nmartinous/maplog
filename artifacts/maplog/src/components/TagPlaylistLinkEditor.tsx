@@ -27,6 +27,27 @@ export function tagLinkKey(tags: string[]): string {
   return `tags:${normalizeTags(tags).join('+')}`;
 }
 
+/** Group a tag set into a human-readable presence bucket for collapsible sections. */
+function presenceGroup(tags: string[]): string {
+  const t = new Set(tags);
+  if (t.has('radiant')) return 'Radiant';
+  if (t.has('lyrics'))  return 'Lyrics';
+  if (t.has('moment'))  return 'Moment';
+  if (t.has('epic'))    return 'Epic';
+  if (t.has('shiny'))   return 'Shiny';
+  return 'Regular';
+}
+
+const GROUP_ORDER = ['Regular', 'Shiny', 'Epic', 'Moment', 'Lyrics', 'Radiant'] as const;
+const GROUP_LABELS: Record<string, string> = {
+  Regular: '🎵 Regular',
+  Shiny:   '✨ Shiny',
+  Epic:    '🏆 Epic',
+  Moment:  '⭐ Moment',
+  Lyrics:  '🎤 Lyrics',
+  Radiant: '🌀 Radiant',
+};
+
 /** Derive a synthetic rarity tier from a tag set (for card sorting). */
 function tierFromTags(tags: string[]): number {
   const t = new Set(tags);
@@ -45,12 +66,15 @@ const normKey = (s: { title: string; artist: string }) =>
 
 /**
  * Sync a tag-based playlist link against the local collection.
- * Writes directly to localStorage and then calls refresh() to update context.
+ * - Songs no longer in the playlist lose their matching-tag card (and are
+ *   dropped entirely when no cards remain).
+ * - Songs new to the playlist gain a card.
+ * Writes directly to localStorage then calls refresh() to update context.
  */
 async function syncTagLink(
   link: PlaylistLink & { tags: string[] },
   refreshContext: () => void,
-): Promise<{ added: number; skipped: number }> {
+): Promise<{ added: number; skipped: number; removed: number }> {
   const { songs: tracks } = await fetchPlaylist(link.url);
 
   let collection: MaplogSong[] = [];
@@ -58,13 +82,6 @@ async function syncTagLink(
     const raw = localStorage.getItem(COLLECTION_KEY);
     collection = raw ? JSON.parse(raw) : [];
   } catch { collection = []; }
-
-  const byId = new Map(collection.map(s => [s.id, s]));
-  const byTitleArtist = new Map<string, MaplogSong>();
-  for (const s of collection) {
-    const k = normKey(s);
-    if (!byTitleArtist.has(k)) byTitleArtist.set(k, s);
-  }
 
   const tagsNorm = normalizeTags(link.tags);
   const tagsKey = tagsNorm.join('+');
@@ -74,6 +91,31 @@ async function syncTagLink(
     category: 'custom',
     tier: tierFromTags(tagsNorm),
   };
+
+  // ── Step 1: remove cards for songs no longer in the playlist ─────────────
+  const presentById  = new Set(tracks.map(t => t.id));
+  const presentByKey = new Set(tracks.map(t => normKey(t)));
+
+  let removed = 0;
+  collection = collection
+    .map(song => {
+      // Song is still in the playlist — leave it alone
+      if (presentById.has(song.id) || presentByKey.has(normKey(song))) return song;
+      // Does this song have a card tagged for this exact playlist?
+      const hasMatch = song.cards.some(c => sameTagPool(normalizeTags(c.tags ?? []), tagsNorm));
+      if (!hasMatch) return song;
+      removed++;
+      return { ...song, cards: song.cards.filter(c => !sameTagPool(normalizeTags(c.tags ?? []), tagsNorm)) };
+    })
+    .filter(s => s.cards.length > 0);
+
+  // ── Step 2: add / update tracks present in the playlist ──────────────────
+  const byId = new Map(collection.map(s => [s.id, s]));
+  const byTitleArtist = new Map<string, MaplogSong>();
+  for (const s of collection) {
+    const k = normKey(s);
+    if (!byTitleArtist.has(k)) byTitleArtist.set(k, s);
+  }
 
   let added = 0, skipped = 0;
 
@@ -115,7 +157,7 @@ async function syncTagLink(
   localStorage.setItem(COLLECTION_KEY, JSON.stringify(updated));
   refreshContext();
 
-  return { added, skipped };
+  return { added, skipped, removed };
 }
 
 // ── Tag chip display (read-only) ───────────────────────────────────────────────
@@ -181,6 +223,65 @@ function TagLinkCard({
           <X className="w-3.5 h-3.5 mr-1" /> Unlink
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ── Collapsible group wrapper ──────────────────────────────────────────────────
+
+function LinkGroup({
+  groupKey, links, disabled, onUnlink, onRefresh, refreshing,
+}: {
+  groupKey: string;
+  links: { key: string; link: PlaylistLink & { tags: string[] } }[];
+  disabled: boolean;
+  onUnlink: (key: string) => void;
+  onRefresh: (key: string, link: PlaylistLink & { tags: string[] }) => void;
+  refreshing: Record<string, boolean>;
+}) {
+  const [open, setOpen] = useState(true);
+  if (links.length === 0) return null;
+  return (
+    <div className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
+      <button
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-colors"
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="text-sm font-bold text-white flex-1">{GROUP_LABELS[groupKey] ?? groupKey}</span>
+        <span className="text-xs text-white/30 font-mono">{links.length}</span>
+        <ChevronDown className={cn('w-4 h-4 text-white/30 transition-transform duration-200', open ? 'rotate-180' : '')} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-white/5 p-3 space-y-3">
+              {links.map(({ key, link }) => (
+                <div key={key} className="relative">
+                  {refreshing[key] && (
+                    <div className="absolute inset-0 rounded-2xl bg-black/40 z-10 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-white/70" />
+                      <span className="text-xs text-white/70 font-bold">Syncing…</span>
+                    </div>
+                  )}
+                  <TagLinkCard
+                    linkKey={key}
+                    link={link}
+                    disabled={disabled || !!refreshing[key]}
+                    onUnlink={onUnlink}
+                    onRefresh={onRefresh}
+                  />
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -270,14 +371,17 @@ export function TagPlaylistLinkEditor() {
       };
       updateLinks({ ...loadPlaylistLinks(), [key]: updatedLink });
 
-      const { added, skipped } = await syncTagLink({ ...updatedLink, tags: link.tags }, refresh);
+      const { added, skipped, removed } = await syncTagLink({ ...updatedLink, tags: link.tags }, refresh);
       // Reload links from storage to pick up the update
       setLinks(loadPlaylistLinks());
 
-      if (added === 0 && skipped > 0) {
+      const parts: string[] = [];
+      if (added   > 0) parts.push(`+${added} added`);
+      if (removed > 0) parts.push(`−${removed} removed`);
+      if (parts.length === 0) {
         toast.success('Everything is already in sync.');
       } else {
-        toast.success(`Synced: +${added} added, ${skipped} already present.`);
+        toast.success(`Synced: ${parts.join(', ')}.`);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Sync failed.');
@@ -288,27 +392,31 @@ export function TagPlaylistLinkEditor() {
 
   const canSave = selectedTags.length > 0 && urlInput.trim().includes('music.apple.com');
 
+  // Group tag links by presence category
+  const linkGroups: Record<string, typeof tagLinks> = {};
+  for (const item of tagLinks) {
+    const g = presenceGroup(item.link.tags);
+    if (!linkGroups[g]) linkGroups[g] = [];
+    linkGroups[g].push(item);
+  }
+
+  const anyRefreshing = Object.values(refreshing).some(Boolean);
+
   return (
     <div className="space-y-4">
-      {/* Existing tag links */}
+      {/* Existing tag links — grouped by presence type */}
       {tagLinks.length > 0 && (
         <div className="space-y-3">
-          {tagLinks.map(({ key, link }) => (
-            <div key={key} className="relative">
-              {refreshing[key] && (
-                <div className="absolute inset-0 rounded-2xl bg-black/40 z-10 flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-white/70" />
-                  <span className="text-xs text-white/70 font-bold">Syncing…</span>
-                </div>
-              )}
-              <TagLinkCard
-                linkKey={key}
-                link={link}
-                disabled={!!refreshing[key]}
-                onUnlink={handleUnlink}
-                onRefresh={handleRefresh}
-              />
-            </div>
+          {GROUP_ORDER.filter(g => (linkGroups[g]?.length ?? 0) > 0).map(g => (
+            <LinkGroup
+              key={g}
+              groupKey={g}
+              links={linkGroups[g]!}
+              disabled={anyRefreshing}
+              onUnlink={handleUnlink}
+              onRefresh={handleRefresh}
+              refreshing={refreshing}
+            />
           ))}
         </div>
       )}

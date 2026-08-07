@@ -230,7 +230,7 @@ function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, update
   disabled: boolean;
   updateSong: (id: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => void;
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
-  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
+  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId' | 'variantLabel'>>) => void;
   onClose: () => void;
   mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
 }) {
@@ -304,7 +304,7 @@ function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, update
 function CardTagEditor({ song, card, disabled, updateCardTags, updateCardMeta, hasMedia, refreshMedia, mediaVersion }: {
   song: MaplogSong; card: MaplogCard; disabled: boolean;
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
-  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
+  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId' | 'variantLabel'>>) => void;
   hasMedia: boolean; refreshMedia: () => void; mediaVersion: number;
 }) {
   const currentTags = card.tags ?? [];
@@ -370,15 +370,16 @@ function CardTagEditor({ song, card, disabled, updateCardTags, updateCardMeta, h
   );
 }
 
-/** Presence-specific display fields (flavor text, lyric subject, pin, radiant pattern). */
+/** Presence-specific display fields (flavor text, lyric subject, pin, epic number, radiant pattern). */
 function CardDisplayEditor({ song, card, disabled, updateCardMeta }: {
   song: MaplogSong; card: MaplogCard; disabled: boolean;
-  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
+  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId' | 'variantLabel'>>) => void;
 }) {
   const presence = presenceForCard(card);
   const [flavor, setFlavor] = useState(card.flavorText ?? '');
   const [subject, setSubject] = useState(card.subjectText ?? '');
   const [pin, setPin] = useState(card.pin ?? '');
+  const [variantLabel, setVariantLabel] = useState(card.variantLabel ?? '');
 
   if (presence === 'regular') return null;
 
@@ -390,13 +391,19 @@ function CardDisplayEditor({ song, card, disabled, updateCardMeta }: {
   const dirty =
     (showFlavor && flavor.trim() !== (card.flavorText ?? '')) ||
     (showSubject && subject.trim() !== (card.subjectText ?? '')) ||
-    (showPin && pin.trim() !== (card.pin ?? ''));
+    (showPin && pin.trim() !== (card.pin ?? '')) ||
+    (showPin && (variantLabel.trim() || null) !== (card.variantLabel ?? null));
 
   const save = () => {
-    const patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin'>> = {};
+    const patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'variantLabel'>> = {};
     if (showFlavor) patch.flavorText = flavor.trim() || null;
     if (showSubject) patch.subjectText = subject.trim() || null;
-    if (showPin) patch.pin = pin.trim() || null;
+    if (showPin) {
+      patch.pin = pin.trim() || null;
+      // Auto-prepend # if user typed a bare number; empty → null clears the number
+      const vl = variantLabel.trim();
+      patch.variantLabel = vl ? (vl.startsWith('#') ? vl : `#${vl}`) : null;
+    }
     updateCardMeta(song.id, card.id, patch);
     toast.success('Card display saved.');
   };
@@ -438,12 +445,21 @@ function CardDisplayEditor({ song, card, disabled, updateCardMeta }: {
         </div>
       )}
       {showPin && (
-        <div>
-          <label className={labelCls}>Pin (emoji)</label>
-          <input className={inputCls} value={pin} onChange={e => setPin(e.target.value)}
-            disabled={disabled} placeholder="e.g. 🌈 or 🥤" maxLength={8}
-            data-testid={`card-pin-${card.id}`} />
-        </div>
+        <>
+          <div>
+            <label className={labelCls}>Epic number</label>
+            <input className={inputCls} value={variantLabel} onChange={e => setVariantLabel(e.target.value)}
+              disabled={disabled} placeholder="e.g. 1 or #42  (leave blank for none)"
+              data-testid={`card-variant-label-${card.id}`} />
+            <p className="text-[10px] text-white/30 mt-1">Shown as a pill in the top-right corner of the card.</p>
+          </div>
+          <div>
+            <label className={labelCls}>Pin (emoji)</label>
+            <input className={inputCls} value={pin} onChange={e => setPin(e.target.value)}
+              disabled={disabled} placeholder="e.g. 🌈 or 🥤" maxLength={8}
+              data-testid={`card-pin-${card.id}`} />
+          </div>
+        </>
       )}
       {showPattern && (
         <div>

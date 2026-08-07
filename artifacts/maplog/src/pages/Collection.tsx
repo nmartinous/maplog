@@ -17,6 +17,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Search scope ───────────────────────────────────────────────────────────────
 type SearchScope = 'all' | 'song' | 'artist' | 'album';
+
+// ── Filter state persistence (sessionStorage — clears on tab close) ────────────
+const FILTER_KEY = 'maplog:collection:filter';
+type FilterState = { search: string; scope: SearchScope; activeRarity: string };
+function loadFilter(): FilterState {
+  try { return JSON.parse(sessionStorage.getItem(FILTER_KEY) ?? 'null') ?? { search: '', scope: 'all' as SearchScope, activeRarity: 'All' }; }
+  catch { return { search: '', scope: 'all', activeRarity: 'All' }; }
+}
+function saveFilter(s: FilterState) { sessionStorage.setItem(FILTER_KEY, JSON.stringify(s)); }
 const SCOPE_LABELS: Record<SearchScope, string> = {
   all: 'All', song: 'Song', artist: 'Artist', album: 'Album',
 };
@@ -195,10 +204,13 @@ function ActiveView({
   error: string | null;
 }) {
   const [, navigate] = useLocation();
-  const [search, setSearch] = useState('');
-  const [scope, setScope] = useState<SearchScope>('all');
-  const [activeRarity, setActiveRarity] = useState<string>('All');
+  const [search, setSearch] = useState<string>(() => loadFilter().search);
+  const [scope, setScope] = useState<SearchScope>(() => loadFilter().scope);
+  const [activeRarity, setActiveRarity] = useState<string>(() => loadFilter().activeRarity);
   const [filterOpen, setFilterOpen] = useState(false);
+
+  // Persist filter state so it survives navigating into a card and pressing back
+  useEffect(() => { saveFilter({ search, scope, activeRarity }); }, [search, scope, activeRarity]);
 
   const displayData = useMemo(() => {
     const q = search.toLowerCase();
