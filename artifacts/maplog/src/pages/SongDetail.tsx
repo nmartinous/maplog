@@ -14,6 +14,20 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Vertical slide variants for filtered swipe navigation (mirrors CardView's
+// horizontal slide). dir 1 = swiped up → new card enters from below.
+const vSlideVariants = {
+  enter: (dir: number) =>
+    dir === 0
+      ? { y: 0, opacity: 1, scale: 1 }
+      : { y: dir > 0 ? '60%' : '-60%', opacity: 0, scale: 0.88 },
+  center: { y: 0, opacity: 1, scale: 1 },
+  exit: (dir: number) =>
+    dir === 0
+      ? { y: 0, opacity: 0, scale: 1 }
+      : { y: dir > 0 ? '-60%' : '60%', opacity: 0, scale: 0.88 },
+};
+
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
@@ -26,7 +40,20 @@ export default function SongDetail() {
   const song = getSong(songId) ?? (currentSong?.id === songId ? currentSong : undefined);
   const isCurrent = currentSong?.id === song?.id;
 
-  const multiCard = (song?.cards?.length ?? 0) > 1;
+  // ── Active collection filter (saved by the Collection grid) ────────────────
+  const [cvFilter] = useState(readCollectionFilter);
+  const hasFilterActive = isFilterActive(cvFilter);
+
+  // When a rarity filter is active, only cards of that rarity are shown or
+  // swipeable — e.g. filtering Epic must hide a song's regular copy entirely.
+  const displayCards = useMemo(() => {
+    const all = song?.cards ?? [];
+    if (cvFilter.activeRarity === 'All') return all;
+    const matching = all.filter(c => c.rarityType.category === cvFilter.activeRarity);
+    return matching.length > 0 ? matching : all; // never render an empty card list
+  }, [song?.cards, cvFilter.activeRarity]);
+
+  const multiCard = displayCards.length > 1;
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, watchDrag: multiCard });
   const [activeSnap, setActiveSnap] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -41,16 +68,19 @@ export default function SongDetail() {
   }, [emblaApi]);
 
   useEffect(() => { setIsFlipped(false); }, [activeSnap, song?.id]);
+  // New song (vertical swipe) remounts the carousel — restart at snap 0.
+  useEffect(() => { setActiveSnap(0); }, [song?.id]);
 
   // ── Filter-aware vertical swipe navigation (TikTok-style) ──────────────────
   // The collection grid saves its active filter to sessionStorage; a vertical
   // swipe here moves to the prev/next song in that filtered list.
-  const [cvFilter] = useState(readCollectionFilter);
   const filteredSongs = useMemo(
     () => applyCollectionFilter(allSongs, cvFilter),
     [allSongs, cvFilter],
   );
-  const hasFilterActive = isFilterActive(cvFilter);
+
+  /** Vertical slide direction: 1 = swiped up (forward), -1 = swiped down. */
+  const [vDir, setVDir] = useState(0);
 
   /** Set when a qualifying swipe fired — suppresses the synthetic click. */
   const swipedRef = useRef(false);
@@ -63,6 +93,7 @@ export default function SongDetail() {
     if (idx < 0) return;
     const next = list[idx + delta];
     if (!next) return;
+    setVDir(delta);
     setLocation(`/song/${encodeURIComponent(next.id)}`, { replace: true });
   }, [filteredSongs, songId, setLocation]);
 
@@ -119,8 +150,8 @@ export default function SongDetail() {
     );
   }
 
-  const cards = song.cards;
-  const activeCard = cards[activeSnap];
+  const cards = displayCards;
+  const activeCard = cards[activeSnap] ?? cards[0];
 
   return (
     <motion.div 
@@ -194,7 +225,20 @@ export default function SongDetail() {
         onClickCapture={onZoneClickCapture}
       >
         {cards.length > 0 ? (
-          <div className="w-full flex flex-col items-center h-full justify-center">
+          <AnimatePresence mode="popLayout" custom={vDir} initial={false}>
+          <motion.div
+            key={song.id}
+            custom={vDir}
+            variants={vSlideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              y: { type: 'spring', stiffness: 320, damping: 32 },
+              opacity: { duration: 0.2 },
+              scale: { duration: 0.2 },
+            }}
+            className="w-full flex flex-col items-center h-full justify-center">
             <div className="w-full max-w-[400px] overflow-visible py-4 px-4 flex-1 flex flex-col justify-center" ref={emblaRef}>
               <div className="flex touch-pan-y items-center overflow-visible">
                 {cards.map((card, i) => (
@@ -259,7 +303,8 @@ export default function SongDetail() {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
+          </AnimatePresence>
         ) : (
           <div className="w-64 aspect-[2/3] rounded-3xl glass-panel border border-white/10 flex flex-col items-center justify-center p-6 text-center">
             <Disc3 className="h-12 w-12 text-white/20 mb-4" />

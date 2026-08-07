@@ -269,7 +269,7 @@ export function EpicCardOverlay({
       {!hasMedia && (
         <div
           className="absolute flex flex-col"
-          style={{ left: px(20), right: px(20), bottom: px(34) }}
+          style={{ left: px(20), right: px(20), bottom: px(48) }}
         >
           <p
             className="font-bold leading-tight truncate w-full text-white"
@@ -307,7 +307,7 @@ export function EpicCardOverlay({
           <button
             type="button"
             className="absolute pointer-events-auto opacity-0 select-none"
-            style={{ left: px(20), bottom: px(30), width: '55%', height: px(20) }}
+            style={{ left: px(20), bottom: px(48), width: '55%', height: px(20) }}
             onClick={e => { e.stopPropagation(); onArtistClick?.(); }}
             aria-label={`View artist ${artist}`}
           />
@@ -316,7 +316,7 @@ export function EpicCardOverlay({
           <button
             type="button"
             className="absolute pointer-events-auto text-white/60 active:opacity-60 transition-opacity flex items-center justify-center"
-            style={{ right: px(14), bottom: px(28), width: px(28), height: px(24), filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.9))' }}
+            style={{ right: px(34), bottom: px(44), width: px(28), height: px(24), filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.9))' }}
             onClick={e => { e.stopPropagation(); onPlay?.(); }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
@@ -330,7 +330,7 @@ export function EpicCardOverlay({
              (speech-bubble + number) chip that sits right of its genre pill. ── */}
       <div
         className="absolute flex items-center pointer-events-auto"
-        style={{ left: px(20), bottom: px(10), gap: px(6) }}
+        style={{ left: px(20), bottom: px(22), gap: px(6) }}
       >
         {/* Scaled epic pill (RarityBadge has fixed sizing → too big on cards) */}
         <span
