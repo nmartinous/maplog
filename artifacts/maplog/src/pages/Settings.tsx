@@ -612,7 +612,7 @@ export default function Settings() {
 
         <Section title="About Maplog">
           <Row icon={Shield} label="Version" description="Your Soundmap archive">
-            <span className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest">v1.1.1</span>
+            <span className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest">v1.2.0</span>
           </Row>
           <Row icon={ExternalLink} label="Original Game" description="Visit Soundmap.app"
             onClick={() => window.open('https://soundmap.app', '_blank')} />
