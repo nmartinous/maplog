@@ -78,15 +78,17 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
     // Pan range: ±RANGE% from center (50%). object-fit:cover guarantees no gaps.
     // Artwork is square; container is taller-than-wide, so the image always
     // overflows horizontally — any object-position within 0-100% is safe.
-    const RANGE = 28;
+    // Pan via TRANSFORM only (±15% of the 150%-wide image ≈ ±22% of the card,
+    // within the 25% overflow margin each side). transform is compositor-only:
+    // unlike object-position, it never triggers a repaint of the card layer,
+    // so the text composited above stays rock-steady.
+    const RANGE = 15;
     const handler = (e: DeviceOrientationEvent) => {
       if (!mounted || !imgRef.current) return;
       // gamma = left(-90°)…right(90°); clamp to ±1 at ±25°
       const raw = Math.max(-1, Math.min(1, (e.gamma ?? 0) / 25));
       smoothX.current = ALPHA * raw + (1 - ALPHA) * smoothX.current;
-      // Write directly — the low-pass filter already smooths the motion, so
-      // no CSS transition is needed (and no React re-render per event).
-      imgRef.current.style.objectPosition = `${50 + smoothX.current * RANGE}% 50%`;
+      imgRef.current.style.transform = `translate3d(${(-smoothX.current * RANGE).toFixed(3)}%, 0, 0)`;
     };
     window.addEventListener('deviceorientation', handler, { passive: true });
     return () => { mounted = false; window.removeEventListener('deviceorientation', handler); };
@@ -101,12 +103,22 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
         50% so top and bottom of the art are always flush with the card edges.
         No gap is ever possible because cover always fills the full area.
       */}
+      {/* Oversized image (150% width, centered) panned with translate3d on
+          its own compositor layer — tilt pans never repaint the card. */}
       <img
         ref={imgRef}
         src={artworkUrl}
         alt={title}
-        className="absolute inset-0 w-full h-full select-none pointer-events-none"
-        style={{ objectFit: 'cover', objectPosition: '50% 50%' }}
+        className="absolute select-none pointer-events-none"
+        style={{
+          width: '150%',
+          height: '100%',
+          left: '-25%',
+          top: 0,
+          objectFit: 'cover',
+          willChange: 'transform',
+          transform: 'translate3d(0, 0, 0)',
+        }}
       />
     </div>
   );
@@ -286,13 +298,15 @@ export function EpicCardOverlay({
       {!hasMedia && (
         <div
           className="absolute flex flex-col"
-          style={{ left: px(20), right: px(20), bottom: px(44) }}
+          // Calibration: whole block right 2px / up 1px
+          style={{ left: px(20) + 2, right: px(20) - 2, bottom: px(44) + 1 }}
         >
           {/* Sized/positioned to mirror the canvas video's own text: title
               ~15px bold, artist ~13px near-white directly below. */}
           <p
-            className="font-bold leading-tight truncate w-full text-white"
-            style={{ fontSize: px(15), ...textStroke }}
+            className="font-bold leading-tight truncate w-full text-white relative"
+            // Calibration: title alone down 3px (artist row stays put)
+            style={{ fontSize: px(15), top: 3, ...textStroke }}
           >
             {title}
           </p>
@@ -505,7 +519,7 @@ export function EpicBorderWrap({
     // bright lobes travel around the border) BEHIND the card. The halo
     // must live outside the wrap because the wrap clips overflow.
     <div className="relative" style={{ borderRadius: r }}>
-      <div className={`epic-wave-glow ${glowClass}`} style={{ borderRadius: r }} aria-hidden />
+      <div className={`epic-wave-glow ${glowClass}`} style={{ inset: -12, borderRadius: r + 12 }} aria-hidden />
       {/* padding: 0 — card body fills the full wrapper; box-shadow glow ring
           provides the colored border without an internal gap */}
       <div className={wrapClass} style={{ borderRadius: r, padding: 0, position: 'relative', zIndex: 1 }}>
