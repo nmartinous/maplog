@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ChevronDown, Pencil, Layers, Award, AlertTriangle, Search,
-  Film, Trash2, Plus, X, Check, Tags,
+  Film, Trash2, Plus, X, Check, Tags, Hash,
 } from 'lucide-react';
 
 // ── Section shell ─────────────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ function CardMediaPreview({ cardId, version }: { cardId: string; version: number
 function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
   mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
 }) {
-  const { songs, updateSong, updateCardTags, updateCardMeta } = useMusicKit();
+  const { songs, updateSong, updateCardTags, updateCardMeta, removeSong } = useMusicKit();
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -215,6 +215,7 @@ function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
           updateSong={updateSong}
           updateCardTags={updateCardTags}
           updateCardMeta={updateCardMeta}
+          removeSong={removeSong}
           onClose={() => setSelectedId(null)}
           mediaIds={mediaIds}
           refreshMedia={refreshMedia}
@@ -225,12 +226,13 @@ function SongEditor({ mediaIds, refreshMedia, mediaVersion }: {
   );
 }
 
-function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, updateCardMeta, onClose, mediaIds, refreshMedia, mediaVersion }: {
+function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, updateCardMeta, removeSong, onClose, mediaIds, refreshMedia, mediaVersion }: {
   song: MaplogSong;
   disabled: boolean;
   updateSong: (id: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => void;
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
   updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId' | 'variantLabel'>>) => void;
+  removeSong: (songId: string) => void;
   onClose: () => void;
   mediaIds: Set<string>; refreshMedia: () => void; mediaVersion: number;
 }) {
@@ -238,6 +240,7 @@ function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, update
   const [artist, setArtist] = useState(song.artist);
   const [album, setAlbum] = useState(song.album);
   const [genre, setGenre] = useState(song.genre ?? '');
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   const infoDirty = title !== song.title || artist !== song.artist || album !== song.album || (genre || null) !== (song.genre ?? null);
 
@@ -262,6 +265,34 @@ function SelectedSongEditor({ song, disabled, updateSong, updateCardTags, update
           <X className="w-4 h-4 text-white/60" />
         </button>
       </div>
+
+      {/* Remove from collection */}
+      {confirmingRemove ? (
+        <div className="rounded-xl bg-destructive/10 border border-destructive/30 px-3.5 py-3 space-y-2.5">
+          <p className="text-sm font-bold text-red-300">Remove "{song.title}" from your collection?</p>
+          <p className="text-xs text-white/50">This deletes all {song.cards.length} card{song.cards.length === 1 ? '' : 's'} and any uploaded media. This can't be undone.</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="destructive"
+              className="rounded-full font-bold h-8 px-4 text-xs"
+              onClick={() => { removeSong(song.id); toast.success(`"${song.title}" removed from collection.`); onClose(); }}
+              data-testid="confirm-remove-song">
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Remove
+            </Button>
+            <Button size="sm" variant="ghost"
+              className="rounded-full text-white/40 h-8 text-xs"
+              onClick={() => setConfirmingRemove(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button size="sm" variant="ghost"
+          className="rounded-full text-white/30 hover:text-destructive hover:bg-destructive/10 h-8 px-3 text-xs"
+          onClick={() => setConfirmingRemove(true)}
+          data-testid="remove-song-btn">
+          <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Remove from collection
+        </Button>
+      )}
 
       {/* Info */}
       <div className="grid grid-cols-2 gap-3">
@@ -388,21 +419,35 @@ function CardDisplayEditor({ song, card, disabled, updateCardMeta }: {
   const showPin = presence === 'epic';
   const showPattern = presence === 'radiant';
 
+  // Epic number constraints based on rarity slug
+  const NUMBERED_SLUGS = ['epic-common', 'epic-uncommon', 'epic-rare'];
+  const isNumbered   = NUMBERED_SLUGS.includes(card.rarityType.slug);
+  const isUnnumbered = card.rarityType.slug === 'epic-unnumbered';
+  // Numbered = must keep a number; Unnumbered = number field hidden entirely
+  const showVariantLabel = showPin && !isUnnumbered;
+  const variantLabelEmpty = showVariantLabel && isNumbered && !variantLabel.trim();
+
   const dirty =
     (showFlavor && flavor.trim() !== (card.flavorText ?? '')) ||
     (showSubject && subject.trim() !== (card.subjectText ?? '')) ||
     (showPin && pin.trim() !== (card.pin ?? '')) ||
-    (showPin && (variantLabel.trim() || null) !== (card.variantLabel ?? null));
+    (showVariantLabel && (variantLabel.trim() || null) !== (card.variantLabel ?? null));
 
   const save = () => {
+    if (variantLabelEmpty) {
+      toast.error('Numbered epics must keep their number — enter a number or leave as-is.');
+      return;
+    }
     const patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'variantLabel'>> = {};
     if (showFlavor) patch.flavorText = flavor.trim() || null;
     if (showSubject) patch.subjectText = subject.trim() || null;
     if (showPin) {
       patch.pin = pin.trim() || null;
-      // Auto-prepend # if user typed a bare number; empty → null clears the number
-      const vl = variantLabel.trim();
-      patch.variantLabel = vl ? (vl.startsWith('#') ? vl : `#${vl}`) : null;
+      if (showVariantLabel) {
+        // Auto-prepend # if user typed a bare number
+        const vl = variantLabel.trim();
+        patch.variantLabel = vl ? (vl.startsWith('#') ? vl : `#${vl}`) : null;
+      }
     }
     updateCardMeta(song.id, card.id, patch);
     toast.success('Card display saved.');
@@ -446,13 +491,35 @@ function CardDisplayEditor({ song, card, disabled, updateCardMeta }: {
       )}
       {showPin && (
         <>
-          <div>
-            <label className={labelCls}>Epic number</label>
-            <input className={inputCls} value={variantLabel} onChange={e => setVariantLabel(e.target.value)}
-              disabled={disabled} placeholder="e.g. 1 or #42  (leave blank for none)"
-              data-testid={`card-variant-label-${card.id}`} />
-            <p className="text-[10px] text-white/30 mt-1">Shown as a pill in the top-right corner of the card.</p>
-          </div>
+          {showVariantLabel ? (
+            <div>
+              <label className={labelCls}>
+                Epic number{isNumbered && <span className="text-red-400 ml-1">*</span>}
+              </label>
+              <div className="relative">
+                <Hash className="w-3.5 h-3.5 text-white/30 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  className={cn(inputCls, 'pl-9', variantLabelEmpty && 'ring-2 ring-red-500/50 border-red-500/50')}
+                  value={variantLabel}
+                  onChange={e => setVariantLabel(e.target.value)}
+                  disabled={disabled}
+                  placeholder={isNumbered ? 'Required — e.g. 1 or 42' : 'e.g. 1 or 42  (optional)'}
+                  data-testid={`card-variant-label-${card.id}`}
+                />
+              </div>
+              {variantLabelEmpty && (
+                <p className="text-[10px] text-red-400 mt-1">Numbered epics must keep their number.</p>
+              )}
+              {!variantLabelEmpty && (
+                <p className="text-[10px] text-white/30 mt-1">Shown as a pill in the top-right corner of the card.</p>
+              )}
+            </div>
+          ) : isUnnumbered ? (
+            <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+              <Hash className="w-3.5 h-3.5 text-white/20 shrink-0" />
+              <p className="text-xs text-white/30">Unnumbered — no edition number for this card.</p>
+            </div>
+          ) : null}
           <div>
             <label className={labelCls}>Pin (emoji)</label>
             <input className={inputCls} value={pin} onChange={e => setPin(e.target.value)}

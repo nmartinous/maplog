@@ -98,7 +98,8 @@ export interface MusicKitContextType {
   /** Add a song + rarity card to the local collection */
   addToCollection: (song: MaplogSong, rarity: MaplogRarityType) => void;
 
-  /** Remove a song entirely from the collection */
+  /** Remove a song entirely from the collection (also GCs its media). */
+  removeSong: (songId: string) => void;
 
   /**
    * Sync one rarity tier against a playlist's track list:
@@ -377,6 +378,16 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     return { added, removed, addedSongs };
   }, [commitCollection]);
 
+  /** Remove a song and GC its media from IndexedDB. */
+  const removeSong = useCallback((songId: string) => {
+    const updated = songsRef.current.filter(s => s.id !== songId);
+    commitCollection(updated);
+    const activeCardIds = updated.flatMap(s => s.cards.map(c => c.id));
+    gcOrphanedMedia(activeCardIds).catch(err =>
+      console.warn('[mediaStore] gcOrphanedMedia failed:', err),
+    );
+  }, [commitCollection]);
+
   const refresh = useCallback(() => {
     setSongs(loadCollection());
   }, []);
@@ -496,6 +507,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
         addToCollection,
         syncRarity,
         refresh,
+        removeSong,
         updateSong,
         updateCardTags,
         updateCardMeta,

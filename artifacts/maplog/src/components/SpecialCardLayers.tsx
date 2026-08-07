@@ -126,7 +126,7 @@ export function MediaSlot({ card, title }: { card: MaplogCard; title: string }) 
         playsInline
         // Slight zoom clips the video's own internal borders so only the
         // card content fills the slot — container overflow:hidden does the crop
-        style={{ transform: 'scale(1.12)', transformOrigin: 'center' }}
+        style={{ transform: 'scale(1.16)', transformOrigin: 'center' }}
       />
     );
   }
