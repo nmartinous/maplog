@@ -250,14 +250,17 @@ export function EpicCardOverlay({
 
   // Play badge styled to match the top-right number pin (same dark shell +
   // per-kind neon border). Opaque, so it fully covers the video's own ▶.
-  const pinColor = kind === 'common' ? '#4ade80' : kind === 'uncommon' ? '#c084fc' : 'rgba(255,255,255,0.8)';
+  const isRareEpic = kind === 'rare';
+  const pinColor = kind === 'common' ? '#4ade80' : '#c084fc';
+  // Rare epics get the animated rainbow chrome (same class as the number pin);
+  // common/uncommon use their static neon color.
+  const playBadgeClass = isRareEpic ? 'epic-rare-chrome' : '';
   const playBadgeStyle: React.CSSProperties = {
     width: px(30),
     height: px(30),
     background: '#0a0a0f',
-    border: `1.5px solid ${pinColor}`,
-    color: pinColor,
     boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+    ...(isRareEpic ? {} : { border: `1.5px solid ${pinColor}`, color: pinColor }),
   };
 
   const playGlyph = isPlaying ? (
@@ -302,7 +305,7 @@ export function EpicCardOverlay({
             {/* Play badge on the artist line — styled like the number pin */}
             <button
               type="button"
-              className="pointer-events-auto shrink-0 rounded-full active:opacity-60 transition-opacity flex items-center justify-center"
+              className={`pointer-events-auto shrink-0 rounded-full active:opacity-60 transition-opacity flex items-center justify-center ${playBadgeClass}`}
               style={playBadgeStyle}
               onClick={e => { e.stopPropagation(); onPlay?.(); }}
               aria-label={isPlaying ? 'Pause' : 'Play'}
@@ -327,8 +330,8 @@ export function EpicCardOverlay({
               own play glyph so it's fully hidden and reflects OUR playing state. */}
           <button
             type="button"
-            className="absolute pointer-events-auto rounded-full active:opacity-60 transition-opacity flex items-center justify-center"
-            style={{ ...playBadgeStyle, right: px(16), bottom: px(36) }}
+            className={`absolute pointer-events-auto rounded-full active:opacity-60 transition-opacity flex items-center justify-center ${playBadgeClass}`}
+            style={{ ...playBadgeStyle, right: px(16), bottom: px(40) }}
             onClick={e => { e.stopPropagation(); onPlay?.(); }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
@@ -342,7 +345,7 @@ export function EpicCardOverlay({
              (speech-bubble + number) chip that sits right of its genre pill. ── */}
       <div
         className="absolute flex items-center pointer-events-auto"
-        style={{ left: px(18), bottom: px(21), gap: px(6) }}
+        style={{ left: px(10), bottom: px(25), gap: px(6) }}
       >
         {/* Scaled epic pill (RarityBadge has fixed sizing → too big on cards) */}
         <span
