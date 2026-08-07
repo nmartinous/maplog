@@ -44,7 +44,9 @@ export const LINKABLE_RARITIES: MaplogRarityType[] = LINKABLE_RARITY_TIERS;
 
 /** Fetch + normalize a playlist via the API server. */
 export async function fetchPlaylist(url: string): Promise<{ name: string; songs: import('./types').MaplogSong[] }> {
-  const res = await fetch(`/api/apple-music/playlist?url=${encodeURIComponent(url.trim())}`);
+  // cache: 'no-store' — iOS Safari PWA caches same-URL GETs, which made
+  // refresh serve a stale playlist snapshot and miss newly added songs.
+  const res = await fetch(`/api/apple-music/playlist?url=${encodeURIComponent(url.trim())}`, { cache: 'no-store' });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error ?? 'Could not load the playlist.');
   const songs = (data.songs ?? []).map((t: any) => ({

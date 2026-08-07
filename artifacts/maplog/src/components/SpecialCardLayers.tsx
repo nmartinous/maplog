@@ -262,8 +262,8 @@ export function EpicCardOverlay({
          * Canvas: omit text entirely — the video already shows its own.
          */}
         {!hasMedia && (
-          // Mirror native info section layout exactly: centered, gap-1.5, same font sizes
-          <div className="absolute left-3 right-3 top-2.5 flex flex-col gap-1.5 items-center text-center">
+          // Left-aligned like the native canvas video layout (title bold, artist under)
+          <div className="absolute left-3 right-3 top-1 flex flex-col gap-0.5">
             <p
               className={cn('font-bold leading-tight truncate w-full text-white', titleSize)}
               style={textStroke}
@@ -273,7 +273,7 @@ export function EpicCardOverlay({
             <button
               type="button"
               className={cn(
-                'pointer-events-auto leading-tight truncate w-full text-center text-white/55 active:opacity-60 transition-opacity',
+                'pointer-events-auto leading-tight truncate w-full text-left text-white/60 active:opacity-60 transition-opacity',
                 subSize,
               )}
               style={textStroke}
@@ -301,7 +301,10 @@ export function EpicCardOverlay({
          * Elements: RarityBadge | genre badge | play button
          * These sit directly over the native "+Epic", "♪", and "▶" elements.
          */}
-        <div className="absolute left-3 bottom-3 flex items-center gap-1.5 pointer-events-auto">
+        {/* Pinned near the very card bottom — the canvas video renders its own
+            action row (purple Epic pill, ♪ count, play) almost flush with the
+            bottom edge, so ours must sit there too to cover it. */}
+        <div className="absolute left-2 bottom-1.5 flex items-center gap-1.5 pointer-events-auto">
           {/* Same RarityBadge as Collection view → gold epic styling */}
           <RarityBadge
             slug={card.rarityType.slug}

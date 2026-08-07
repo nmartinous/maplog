@@ -412,7 +412,11 @@ router.get("/apple-music/playlist", async (req, res) => {
       const trackRes = await appleFetch(
         `/catalog/${STOREFRONT}/playlists/${playlistId}/tracks?limit=100&offset=${offset}&include=albums`
       );
-      if (!trackRes.ok) break;
+      if (!trackRes.ok) {
+        // Never silently truncate: a partial snapshot would remove cards for
+        // songs that are still in the playlist and miss newly added ones.
+        throw new Error(`Apple Music API returned HTTP ${trackRes.status} while fetching playlist tracks (page ${page + 1}).`);
+      }
       const json = (await trackRes.json()) as any;
       const batch = (json?.data ?? []).filter((t: any) => t?.type === "songs");
       songs.push(...batch.map(mapSong));
@@ -426,6 +430,9 @@ router.get("/apple-music/playlist", async (req, res) => {
       });
     }
 
+    // no-store: playlist contents must always be fetched fresh so refresh
+    // picks up newly added songs (iOS PWA caches aggressively).
+    res.set("Cache-Control", "no-store");
     res.json({ name, songs });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

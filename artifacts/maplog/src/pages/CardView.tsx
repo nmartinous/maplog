@@ -233,39 +233,24 @@ export default function CardView() {
     setDisplaySongId(filteredSongs[nextIdx].id);
   }, [filteredSongs, displaySongId]);
 
-  // ── Swipe gesture via pointer events ────────────────────────────────────────
-  const pointerStartX = useRef<number | null>(null);
-  const pointerStartY = useRef<number | null>(null);
-  /** Stable ref to the scaled card element — set in JSX so onPointerUp can
-   *  read its bounding rect without needing cardRef from useMeasuredScale
-   *  (which is declared later and would cause a TDZ error in the callback). */
+  // ── Swipe gesture via Framer Motion pan ─────────────────────────────────────
+  // Framer's pan gesture tracks at window level (same approach as RadiantSpin),
+  // which is robust on iOS where raw pointer events get cancelled by the
+  // browser's scroll/gesture heuristics — the root cause of swipes not firing.
+  /** Stable ref to the scaled card element (kept for layout measurements). */
   const cardElRef = useRef<HTMLDivElement | null>(null);
   /**
-   * Set to true when a qualifying swipe is detected in onPointerUp.
+   * Set to true when a qualifying swipe is detected in onPanEnd.
    * onZoneClickCapture (capture-phase) reads this and stops the click event
    * from reaching any child (e.g. the card tap handler) before resetting it.
    */
   const swipedRef = useRef(false);
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    // Only track primary pointer (touch or left mouse)
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    pointerStartX.current = e.clientX;
-    pointerStartY.current = e.clientY;
-    swipedRef.current = false;
-    // Capture the pointer so onPointerUp fires even if the pointer leaves the zone
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
-  }, []);
+  const onZonePanStart = useCallback(() => { swipedRef.current = false; }, []);
 
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
-    if (pointerStartX.current === null || pointerStartY.current === null) return;
-    const startX = pointerStartX.current;
-    const startY = pointerStartY.current;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    pointerStartX.current = null;
-    pointerStartY.current = null;
-
+  const onZonePanEnd = useCallback((_: unknown, info: { offset: { x: number; y: number } }) => {
+    const dx = info.offset.x;
+    const dy = info.offset.y;
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
 
@@ -277,7 +262,6 @@ export default function CardView() {
     }
 
     // Predominantly vertical swipe → prev/next in the active filter.
-    // No outside-card check: vertical direction alone disambiguates from taps.
     if (hasFilterActive && absDy >= SWIPE_THRESHOLD && absDx <= absDy * 0.8) {
       swipedRef.current = true;
       goToFiltered(dy < 0 ? 1 : -1); // swipe up = forward in filter
@@ -412,14 +396,13 @@ export default function CardView() {
         <div className="w-11 shrink-0" aria-hidden />
       </div>
 
-      {/* ── Card background zone — swipe surface ── */}
-      <div
+      {/* ── Card background zone — swipe surface (Framer pan = window-level) ── */}
+      <motion.div
         ref={zoneRef}
         className="relative z-10 flex-1 min-h-0 flex items-center justify-center overflow-hidden"
         style={{ touchAction: 'none' }}
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerCancel={() => { pointerStartX.current = null; pointerStartY.current = null; swipedRef.current = false; }}
+        onPanStart={onZonePanStart}
+        onPanEnd={onZonePanEnd}
         onClickCapture={onZoneClickCapture}
       >
         {/* Prev arrow */}
@@ -501,7 +484,7 @@ export default function CardView() {
             </div>
           </motion.div>
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* ── Swipe hint dots ── */}
       {songs.length > 1 && collectionIndex >= 0 && (
