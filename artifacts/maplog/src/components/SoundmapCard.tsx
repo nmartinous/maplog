@@ -133,9 +133,9 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   // showing its own internal border content. Only epics use these.
   const epicSizeClasses = {
     sm:   'w-24 rounded-xl',
-    md:   'w-36 rounded-2xl',
-    lg:   'w-56 rounded-2xl',
-    hero: 'w-[252px] sm:w-[288px] landscape-compact:w-[144px] rounded-3xl',
+    md:   'w-[140px] rounded-2xl',
+    lg:   'w-[216px] rounded-2xl',
+    hero: 'w-[248px] sm:w-[284px] landscape-compact:w-[140px] rounded-3xl',
   };
 
   const artRadius = {
@@ -151,7 +151,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const isShiny  = card.tags?.includes('shiny') || card.rarityType.slug.startsWith('shiny');
 
   const widthMap     = { sm: 96,  md: 160, lg: 256, hero: 300 };
-  const epicWidthMap = { sm: 96,  md: 144, lg: 224, hero: 270 };
+  const epicWidthMap = { sm: 96,  md: 140, lg: 216, hero: 266 };
   const cardWidth = (isEpic ? epicWidthMap : widthMap)[size];
 
   const titleSize  = size === 'hero' ? 'text-xl'  : size === 'lg' ? 'text-base' : 'text-sm';
