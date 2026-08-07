@@ -121,7 +121,7 @@ export function rarityBucket(slug: string): string | null {
   if (slug.includes('uncommon')) return 'uncommon';
   if (slug.includes('common')) return 'common';
   if (slug.includes('rare')) return 'rare';
-  return null; // epics / premium tiers unpriced for now
+  return null; // premium tiers (moments/lyrics/radiants) unpriced; epics priced by number above
 }
 
 /**
