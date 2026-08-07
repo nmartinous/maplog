@@ -6,4 +6,5 @@
 - [Framer Motion Pitfalls](framer-motion-pitfalls.md) — no mode="wait" on always-visible chrome swaps; grep design-pass diffs for stubbed-out components
 - [Backup Streaming](backup-streaming.md) — zip backups must stream + fold into Blobs (never zipSync); cap decompressed size/entries; size-check before the expensive step
 - [iOS PWA Fetch Caching](ios-pwa-fetch-caching.md) — same-URL API GETs cached on iOS; refresh endpoints need no-store both ends; use Framer pan, not raw pointer events, for swipes
+- [Epic Wave Glow](epic-wave-glow.md) — halo must be a blurred masked conic ring (filled rect shows box edges); parallax pan must be translate3d, never object-position (text shake)
 - [Detail Page Routing](detail-page-routing.md) — /song/ (SongDetail) is what users reach; /card/ (CardView) is unlinked — check entry routes before adding gestures
