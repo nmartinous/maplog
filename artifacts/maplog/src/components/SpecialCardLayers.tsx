@@ -73,10 +73,10 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
   }, [iosPerm]);
 
   // ZOOM controls how much the image overflows each edge.
-  // At max tilt (offset = ±1) the image pans by ±ZOOM%, so the edge
-  // of the image sits exactly flush with the card boundary.
-  // We add an extra 5% safety margin so subpixel rounding never exposes a gap.
-  const ZOOM = 30;
+  // At max tilt (offset = ±1) the image pans by ±ZOOM%, so the trailing
+  // edge is flush at ZOOM=30. We use 35 for a 5% safety buffer so
+  // sub-pixel rounding and aggressive tilts never expose a gap.
+  const ZOOM = 35;
   return (
     <div className="absolute inset-0 overflow-hidden">
       {/* No crossOrigin here — we display only, never read pixels */}
@@ -108,6 +108,7 @@ export function MediaSlot({ card, title }: { card: MaplogCard; title: string }) 
       <video
         src={media.url}
         className="absolute inset-0 w-full h-full object-cover"
+        style={{ transform: 'scale(1.12) translateY(5%)', transformOrigin: 'center center' }}
         autoPlay
         muted
         loop

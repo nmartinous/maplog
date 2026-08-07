@@ -146,7 +146,8 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const special = presence !== 'regular';
   const bigCard = size === 'lg' || size === 'hero';
   const isEpic = presence === 'epic';
-  const showInfo = size !== 'sm';
+  // Epics show only the media slot + pins — no title/artist/genre/rarity below
+  const showInfo = size !== 'sm' && !isEpic;
   // Epics: no inner padding — video/parallax fills flush to the border edge
   const artPad = isEpic ? 'p-0' : (size === 'sm' ? 'p-1.5' : 'p-2');
 
