@@ -107,7 +107,7 @@ export interface MusicKitContextType {
    *   (and are dropped entirely when no cards remain)
    * Returns counts of what changed. No-op in demo mode.
    */
-  syncRarity: (rarity: MaplogRarityType, playlistSongs: MaplogSong[]) => { added: number; removed: number };
+  syncRarity: (rarity: MaplogRarityType, playlistSongs: MaplogSong[]) => { added: number; removed: number; addedSongs: MaplogSong[] };
 
   /** Reload collection from localStorage */
   refresh: () => void;
@@ -116,7 +116,7 @@ export interface MusicKitContextType {
   updateSong: (songId: string, patch: Partial<Pick<MaplogSong, 'title' | 'artist' | 'album' | 'genre'>>) => void;
   /** Replace one card's tag pool (Edit Mode; caller validates). */
   updateCardTags: (songId: string, cardId: string, tags: string[]) => void;
-  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => void;
+  updateCardMeta: (songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId' | 'variantLabel'>>) => void;
 
   /** Queued tag-rule conflicts awaiting resolution */
   conflicts: TagConflict[];
@@ -241,8 +241,8 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     commitCollection(updated);
   }, [commitCollection]);
 
-  /** Edit one card's display metadata (flavor/subject/pin/pattern). */
-  const updateCardMeta = useCallback((songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId'>>) => {
+  /** Edit one card's display metadata (flavor/subject/pin/pattern/variantLabel). */
+  const updateCardMeta = useCallback((songId: string, cardId: string, patch: Partial<Pick<MaplogCard, 'flavorText' | 'subjectText' | 'pin' | 'patternId' | 'variantLabel'>>) => {
     const updated = songsRef.current.map(s =>
       s.id === songId
         ? { ...s, cards: s.cards.map(c => c.id === cardId ? { ...c, ...patch } : c) }
@@ -297,6 +297,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     }
 
     let added = 0, removed = 0;
+    const addedSongIds = new Set<string>(); // track which songs received a new card
 
     // 1) Remove this rarity's cards from songs no longer in the playlist
     let updated: MaplogSong[] = current
@@ -344,6 +345,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
             tags: normalizeTags(tagsFromRaritySlug(rarity.slug) ?? []),
           }].sort((a, b) => b.rarityType.tier - a.rarityType.tier),
         });
+        addedSongIds.add(existing.id);
         added++;
       } else {
         bySongId.set(track.id, {
@@ -356,6 +358,7 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
             tags: normalizeTags(tagsFromRaritySlug(rarity.slug) ?? []),
           }],
         });
+        addedSongIds.add(track.id);
         added++;
       }
     }
@@ -370,7 +373,8 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
       console.warn('[mediaStore] gcOrphanedMedia failed:', err),
     );
 
-    return { added, removed };
+    const addedSongs = updated.filter(s => addedSongIds.has(s.id));
+    return { added, removed, addedSongs };
   }, [commitCollection]);
 
   const refresh = useCallback(() => {

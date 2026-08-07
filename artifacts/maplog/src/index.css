@@ -377,46 +377,108 @@ input[type="range"]:focus {
   .radiant-pattern-drift { animation: none; }
 }
 
-/* ── Epic neon borders ──────────────────────────────────────────────────────── */
+/* ── Epic rotating borders ──────────────────────────────────────────────────── */
+/*
+ * All three numbered epic types use a rotating conic-gradient wrapper.
+ * The spin animation also varies blur + brightness at irregular intervals
+ * to produce a subtle "audio visualizer on low" wave effect as the color
+ * stops pass the card edges.
+ *
+ * Green (common) / Purple (uncommon) cycle through shades of their color.
+ * Rainbow (rare) cycles the full spectrum.
+ */
 
-@keyframes epic-pulse-common {
-  0%, 100% {
-    box-shadow:
-      0 0 0 2px #22c55e,
-      0 0 18px  6px rgba(34, 197, 94, 0.47),
-      0 0 45px 20px rgba(34, 197, 94, 0.28),
-      0 0 80px 40px rgba(34, 197, 94, 0.12);
-  }
-  50% {
-    box-shadow:
-      0 0 0 3px #4ade80,
-      0 0 30px 12px rgba(74, 222, 128, 0.60),
-      0 0 65px 32px rgba(74, 222, 128, 0.35),
-      0 0 110px 55px rgba(74, 222, 128, 0.16);
-  }
+/* ── Green (Epic Common) ── */
+@keyframes epic-spin-green {
+  0%   { transform: rotate(0deg)   scale(2.5); filter: blur(3px)   brightness(1.00); }
+  12%  {                                        filter: blur(5.5px) brightness(1.45); }
+  28%  {                                        filter: blur(2px)   brightness(0.80); }
+  44%  {                                        filter: blur(7px)   brightness(1.55); }
+  50%  { transform: rotate(180deg) scale(2.5); filter: blur(3.5px) brightness(1.10); }
+  63%  {                                        filter: blur(6px)   brightness(1.40); }
+  76%  {                                        filter: blur(2px)   brightness(0.82); }
+  88%  {                                        filter: blur(5px)   brightness(1.35); }
+  100% { transform: rotate(360deg) scale(2.5); filter: blur(3px)   brightness(1.00); }
 }
 
-@keyframes epic-pulse-uncommon {
-  0%, 100% {
-    box-shadow:
-      0 0 0 2px #a855f7,
-      0 0 18px  6px rgba(168, 85, 247, 0.47),
-      0 0 45px 20px rgba(168, 85, 247, 0.28),
-      0 0 80px 40px rgba(168, 85, 247, 0.12);
-  }
-  50% {
-    box-shadow:
-      0 0 0 3px #c084fc,
-      0 0 30px 12px rgba(192, 132, 252, 0.60),
-      0 0 65px 32px rgba(192, 132, 252, 0.35),
-      0 0 110px 55px rgba(192, 132, 252, 0.16);
-  }
+.epic-green-wrap {
+  position: relative;
+  overflow: hidden;
+}
+.epic-green-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    #14532d  0deg,
+    #16a34a  45deg,
+    #4ade80  90deg,
+    #bbf7d0  135deg,
+    #22c55e  180deg,
+    #15803d  225deg,
+    #4ade80  270deg,
+    #dcfce7  315deg,
+    #14532d  360deg
+  );
+  transform-origin: 50% 50%;
+  animation: epic-spin-green 4.5s linear infinite;
+}
+.epic-green-inner {
+  position: relative;
+  z-index: 1;
 }
 
-.epic-neon-common   { animation: epic-pulse-common   2.4s ease-in-out infinite; }
-.epic-neon-uncommon { animation: epic-pulse-uncommon 2.4s ease-in-out infinite; }
+/* ── Purple (Epic Uncommon) ── */
+@keyframes epic-spin-purple {
+  0%   { transform: rotate(0deg)   scale(2.5); filter: blur(3px)   brightness(1.00); }
+  15%  {                                        filter: blur(6px)   brightness(1.50); }
+  30%  {                                        filter: blur(2px)   brightness(0.78); }
+  47%  {                                        filter: blur(7.5px) brightness(1.55); }
+  50%  { transform: rotate(180deg) scale(2.5); filter: blur(3px)   brightness(1.05); }
+  61%  {                                        filter: blur(5.5px) brightness(1.42); }
+  74%  {                                        filter: blur(2px)   brightness(0.80); }
+  87%  {                                        filter: blur(6px)   brightness(1.38); }
+  100% { transform: rotate(360deg) scale(2.5); filter: blur(3px)   brightness(1.00); }
+}
 
-/* Rainbow rotating border — applied to the wrapper around the card */
+.epic-purple-wrap {
+  position: relative;
+  overflow: hidden;
+}
+.epic-purple-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    #3b0764  0deg,
+    #7e22ce  45deg,
+    #c084fc  90deg,
+    #e9d5ff  135deg,
+    #a855f7  180deg,
+    #6b21a8  225deg,
+    #c084fc  270deg,
+    #f3e8ff  315deg,
+    #3b0764  360deg
+  );
+  transform-origin: 50% 50%;
+  animation: epic-spin-purple 4.5s linear infinite;
+}
+.epic-purple-inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Rainbow (Epic Rare) ── */
+@keyframes epic-rainbow-spin {
+  0%   { transform: rotate(0deg)   scale(2.5); filter: blur(2px) brightness(1.00); }
+  20%  {                                        filter: blur(4px) brightness(1.30); }
+  40%  {                                        filter: blur(1px) brightness(0.88); }
+  50%  { transform: rotate(180deg) scale(2.5); filter: blur(5px) brightness(1.40); }
+  70%  {                                        filter: blur(1px) brightness(0.88); }
+  85%  {                                        filter: blur(4px) brightness(1.28); }
+  100% { transform: rotate(360deg) scale(2.5); filter: blur(2px) brightness(1.00); }
+}
+
 .epic-rainbow-wrap {
   position: relative;
   overflow: hidden;
@@ -438,17 +500,13 @@ input[type="range"]:focus {
   transform-origin: 50% 50%;
   animation: epic-rainbow-spin 3s linear infinite;
 }
-@keyframes epic-rainbow-spin {
-  from { transform: rotate(0deg)   scale(2.5); }
-  to   { transform: rotate(360deg) scale(2.5); }
-}
-/* Card sits above the spinning gradient ring */
 .epic-rainbow-inner {
   position: relative;
   z-index: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .epic-neon-common, .epic-neon-uncommon { animation: none; }
-  .epic-rainbow-wrap::before { animation: none; transform: scale(2.5); }
+  .epic-green-wrap::before  { animation: none; transform: scale(2.5); filter: none; }
+  .epic-purple-wrap::before { animation: none; transform: scale(2.5); filter: none; }
+  .epic-rainbow-wrap::before { animation: none; transform: scale(2.5); filter: none; }
 }

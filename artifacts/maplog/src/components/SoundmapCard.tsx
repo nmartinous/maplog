@@ -139,7 +139,6 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
 
   const titleSize  = size === 'hero' ? 'text-xl'  : size === 'lg' ? 'text-base' : 'text-sm';
   const artistSize = size === 'hero' ? 'text-sm'  : 'text-xs';
-  const showInfo   = size !== 'sm';
 
   const isRare = card.rarityType.slug === 'regular-rare' || card.rarityType.slug === 'shiny-rare';
   const isShiny = card.tags?.includes('shiny') || card.rarityType.slug.startsWith('shiny');
@@ -147,6 +146,9 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
   const presence = presenceForCard(card);
   const special = presence !== 'regular';
   const bigCard = size === 'lg' || size === 'hero';
+  // Epic cards have no info section — content fills the whole card slot
+  const isEpic = presence === 'epic';
+  const showInfo = size !== 'sm' && !isEpic;
 
   // For typed epic playlists (common/uncommon/rare/unnumbered), use the new
   // neon border system. Legacy epic slugs fall back to the gold epicFrameStyle.
@@ -175,10 +177,8 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
     };
   })();
 
-  // CSS class for pulsing neon animation (common / uncommon only)
-  const epicNeonClass = epicKind === 'common' ? 'epic-neon-common'
-                      : epicKind === 'uncommon' ? 'epic-neon-uncommon'
-                      : '';
+  // Border for common/uncommon/rare epics is now handled by EpicBorderWrap
+  // (no CSS class needed on the card itself)
 
   const cardBody = (
     <div
@@ -186,7 +186,6 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         'relative flex flex-col overflow-hidden text-white card-effect',
         sizeClasses[size],
         isRare && 'card-rare-glow',
-        epicNeonClass,
         className,
       )}
       style={shellStyle}
@@ -290,9 +289,9 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
     </div>
   );
 
-  // Rainbow epic: wrap the card in the rotating border shell
-  if (epicKind === 'rare') {
-    return <EpicBorderWrap kind="rare" size={size}>{cardBody}</EpicBorderWrap>;
+  // Numbered epics (common/uncommon/rare) get the rotating color border wrapper
+  if (epicKind === 'common' || epicKind === 'uncommon' || epicKind === 'rare') {
+    return <EpicBorderWrap kind={epicKind} size={size}>{cardBody}</EpicBorderWrap>;
   }
 
   // Radiant cards spin on drag (big sizes only); the back face shows the

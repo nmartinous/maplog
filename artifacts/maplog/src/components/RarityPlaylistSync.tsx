@@ -4,7 +4,7 @@ import {
   loadPlaylistLinks, savePlaylistLinks, fetchPlaylist,
   LINKABLE_RARITIES, type PlaylistLinks, type PlaylistLink,
 } from '@/lib/playlistLinks';
-import type { MaplogRarityType, MaplogSong } from '@/lib/types';
+import type { MaplogCard, MaplogRarityType, MaplogSong } from '@/lib/types';
 import {
   ListMusic, RefreshCw, Link2, X, Loader2, CheckCircle2, XCircle,
   AlertTriangle, Copy,
@@ -15,6 +15,11 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { EpicImportWizard, type WizardItem } from '@/components/EpicImportWizard';
+
+/** Epic playlist slugs that prompt for numbered / canvas decisions on import */
+const NUMBERED_EPIC_SLUGS = new Set(['epic-common', 'epic-uncommon', 'epic-rare']);
+const EPIC_WIZARD_SLUGS   = new Set(['epic-common', 'epic-uncommon', 'epic-rare', 'epic-unnumbered']);
 
 // ── Per-rarity accent colors (matches card rarity palette) ────────────────────
 const RARITY_ACCENT: Record<string, string> = {
@@ -38,7 +43,7 @@ type SyncSummary = { rarity: string; added: number; removed: number; error?: str
  * Lives in Settings; the Playlists tab is for user-created playlists.
  */
 export function RarityPlaylistSync() {
-  const { songs, syncRarity, runConflictScan } = useMusicKit();
+  const { songs, syncRarity, runConflictScan, updateCardMeta } = useMusicKit();
   const [conflictReport, setConflictReport] = useState<TagConflict[] | null>(null);
 
   const [links, setLinks] = useState<PlaylistLinks>(() => loadPlaylistLinks());
@@ -48,6 +53,7 @@ export function RarityPlaylistSync() {
   const [linkError, setLinkError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [summary, setSummary] = useState<SyncSummary | null>(null);
+  const [wizardItems, setWizardItems] = useState<WizardItem[] | null>(null);
 
   const linkedCount = LINKABLE_RARITIES.filter(r => links[r.slug]).length;
 
@@ -99,17 +105,20 @@ export function RarityPlaylistSync() {
 
   // ── Sync ────────────────────────────────────────────────────────────────────
 
-  const syncOne = async (rarity: MaplogRarityType, link: PlaylistLink): Promise<SyncSummary[number]> => {
+  const syncOne = async (
+    rarity: MaplogRarityType,
+    link: PlaylistLink,
+  ): Promise<SyncSummary[number] & { addedSongs: MaplogSong[] }> => {
     try {
       const { name, songs: tracks } = await fetchPlaylist(link.url);
-      const { added, removed } = syncRarity(rarity, tracks);
+      const { added, removed, addedSongs } = syncRarity(rarity, tracks);
       updateLinksRef.current = {
         ...updateLinksRef.current,
         [rarity.slug]: { ...link, name, trackCount: tracks.length, artworkUrl: tracks[0]?.artworkUrl || link.artworkUrl, lastSynced: new Date().toISOString() },
       };
-      return { rarity: rarity.name, added, removed };
+      return { rarity: rarity.name, added, removed, addedSongs };
     } catch (err) {
-      return { rarity: rarity.name, added: 0, removed: 0, error: err instanceof Error ? err.message : 'Sync failed' };
+      return { rarity: rarity.name, added: 0, removed: 0, addedSongs: [], error: err instanceof Error ? err.message : 'Sync failed' };
     }
   };
 
@@ -122,7 +131,7 @@ export function RarityPlaylistSync() {
     if (targets.length === 0) { toast.info('Link a playlist first.'); return; }
     setSyncing(true);
     setSummary(null);
-    const results: SyncSummary = [];
+    const results: (SyncSummary[number] & { addedSongs: MaplogSong[] })[] = [];
     for (const rarity of targets) {
       results.push(await syncOne(rarity, updateLinksRef.current[rarity.slug]));
     }
@@ -140,6 +149,22 @@ export function RarityPlaylistSync() {
     else if (failed > 0) toast.warning(`Partially synced: +${totalAdded} added, −${totalRemoved} removed; ${failed} playlist${failed !== 1 ? 's' : ''} failed.`);
     else if (totalAdded === 0 && totalRemoved === 0) toast.success('Everything is already in sync.');
     else toast.success(`Synced: +${totalAdded} added, −${totalRemoved} removed.`);
+
+    // Build wizard items for newly imported epic cards that need configuration
+    const wizItems: WizardItem[] = [];
+    for (const result of results) {
+      for (const song of result.addedSongs) {
+        for (const card of song.cards) {
+          if (!EPIC_WIZARD_SLUGS.has(card.rarityType.slug)) continue;
+          wizItems.push({
+            song,
+            card,
+            isNumbered: NUMBERED_EPIC_SLUGS.has(card.rarityType.slug),
+          });
+        }
+      }
+    }
+    if (wizItems.length > 0) setWizardItems(wizItems);
   };
 
   return (
@@ -332,6 +357,17 @@ export function RarityPlaylistSync() {
           );
         })}
       </div>
+
+      {/* Epic import wizard — appears after sync when new epic cards were added */}
+      {wizardItems && (
+        <EpicImportWizard
+          items={wizardItems}
+          onSaveLabel={(songId, cardId, label) => {
+            updateCardMeta(songId, cardId, { variantLabel: label });
+          }}
+          onDone={() => setWizardItems(null)}
+        />
+      )}
     </div>
   );
 }

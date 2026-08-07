@@ -19,11 +19,27 @@ import { cn } from '@/lib/utils';
  * Parallax album-art fill for still (no-video) epic cards.
  * Responds to device orientation (tilt) to pan a zoomed-in copy of the
  * artwork, giving a live depth effect on iOS/Android.
+ *
+ * iOS 13+ requires an explicit user-gesture permission call before
+ * DeviceOrientationEvent fires. We detect this and show a tap overlay
+ * until the user grants it.
  */
 function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
+  // Detect whether we need to ask iOS for permission.
+  // 'granted' = already have it (Android / desktop / iOS that already approved).
+  // 'unknown' = iOS, need to request on next user gesture.
+  // 'denied'  = user declined or an error occurred.
+  const [iosPerm, setIosPerm] = useState<'granted' | 'unknown' | 'denied'>(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return typeof (DeviceOrientationEvent as any).requestPermission === 'function'
+      ? 'unknown'
+      : 'granted';
+  });
+
   useEffect(() => {
+    if (iosPerm !== 'granted') return;
     let mounted = true;
     const handler = (e: DeviceOrientationEvent) => {
       if (!mounted) return;
@@ -34,15 +50,25 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
     };
     window.addEventListener('deviceorientation', handler, { passive: true });
     return () => { mounted = false; window.removeEventListener('deviceorientation', handler); };
-  }, []);
+  }, [iosPerm]);
+
+  const requestPerm = async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (DeviceOrientationEvent as any).requestPermission();
+      setIosPerm(result === 'granted' ? 'granted' : 'denied');
+    } catch {
+      setIosPerm('denied');
+    }
+  };
 
   const ZOOM = 15; // % overflow on each side so panning never reveals a gap
   return (
     <div className="absolute inset-0 overflow-hidden">
+      {/* No crossOrigin here — we display only, never read pixels */}
       <img
         src={artworkUrl}
         alt={title}
-        crossOrigin="anonymous"
         className="absolute object-cover select-none pointer-events-none"
         style={{
           width:  `${100 + ZOOM * 2}%`,
@@ -53,6 +79,18 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
           willChange: 'top, left',
         }}
       />
+      {iosPerm === 'unknown' && (
+        <button
+          type="button"
+          className="absolute inset-0 flex items-end justify-center pb-4 bg-transparent"
+          onClick={requestPerm}
+          aria-label="Enable tilt parallax"
+        >
+          <span className="text-[10px] font-bold text-white/55 uppercase tracking-widest bg-black/50 rounded-full px-3 py-1.5 backdrop-blur-sm">
+            Tap to enable tilt
+          </span>
+        </button>
+      )}
     </div>
   );
 }
@@ -175,12 +213,11 @@ export function RadiantPatternOverlay({ patternId, color, opacity = 0.5 }: {
 // ── Epic neon border wrapper ──────────────────────────────────────────────────
 
 /**
- * Wraps typed epic cards in their animated border.
- * - common / uncommon: the border lives on the card's box-shadow via CSS class
- *   (no DOM wrapper needed — children pass through unchanged).
- * - rare: a wrapper div with overflow:hidden clips a spinning conic-gradient
- *   ::before pseudo-element, producing the rotating rainbow ring.
- * - unnumbered: no border at all — renders children unchanged.
+ * Wraps typed epic cards in their animated rotating-conic border.
+ * - common:    green shades, cycling with audio-visualizer wave effect
+ * - uncommon:  purple shades, same wave effect
+ * - rare:      full rainbow spectrum
+ * - unnumbered: no border — renders children unchanged
  */
 export function EpicBorderWrap({
   kind,
@@ -191,15 +228,22 @@ export function EpicBorderWrap({
   size: 'sm' | 'md' | 'lg' | 'hero';
   children: React.ReactNode;
 }) {
-  if (kind !== 'rare') return <>{children}</>;
+  if (kind === 'unnumbered') return <>{children}</>;
 
   // Outer radius = card corner radius + border width so the ring hugs the card
   const radiiMap: Record<typeof size, number> = { sm: 15, md: 19, lg: 19, hero: 27 };
   const r = radiiMap[size];
 
+  const wrapClass  = kind === 'common'   ? 'epic-green-wrap'
+                   : kind === 'uncommon' ? 'epic-purple-wrap'
+                   :                       'epic-rainbow-wrap';
+  const innerClass = kind === 'common'   ? 'epic-green-inner'
+                   : kind === 'uncommon' ? 'epic-purple-inner'
+                   :                       'epic-rainbow-inner';
+
   return (
-    <div className="epic-rainbow-wrap" style={{ borderRadius: r, padding: 3 }}>
-      <div className="epic-rainbow-inner">{children}</div>
+    <div className={wrapClass} style={{ borderRadius: r, padding: 3 }}>
+      <div className={innerClass}>{children}</div>
     </div>
   );
 }

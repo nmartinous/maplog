@@ -103,6 +103,10 @@ export function tagsFromRaritySlug(slug: string): string[] | null {
     case 'shiny-uncommon':   return ['regular', 'shiny', 'uncommon'];
     case 'shiny-rare':       return ['regular', 'shiny', 'rare'];
     case 'epic':             return ['epic'];
+    case 'epic-common':      return ['epic', 'common'];
+    case 'epic-uncommon':    return ['epic', 'uncommon'];
+    case 'epic-rare':        return ['epic', 'rare'];
+    case 'epic-unnumbered':  return ['epic'];
     case 'special-edition':  return ['epic', 'specialedition'];
     case 'special-epic':     return ['epic', 'specialepic'];
     case 'streak-epic':      return ['epic', 'streak'];
