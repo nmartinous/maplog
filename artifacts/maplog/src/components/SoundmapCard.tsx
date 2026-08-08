@@ -164,7 +164,11 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
 
   const widthMap     = { sm: 96,  md: 160, lg: 256, hero: 300 };
   const epicWidthMap = { sm: 96,  md: 140, lg: 216, hero: 266 };
-  const cardWidth = (isEpic ? epicWidthMap : widthMap)[size];
+  const isMoment = presence === 'moment';
+
+  // Moments share the same narrow/tall slot dimensions as epics so the video
+  // fills the card face at the same aspect ratio.
+  const cardWidth = ((isEpic || isMoment) ? epicWidthMap : widthMap)[size];
 
   const titleSize  = size === 'hero' ? 'text-xl'  : size === 'lg' ? 'text-base' : 'text-sm';
   const artistSize = size === 'hero' ? 'text-sm'  : 'text-xs';
@@ -206,18 +210,15 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
     <div
       className={cn(
         'relative flex flex-col overflow-hidden text-white card-effect',
-        isEpic ? epicSizeClasses[size] : sizeClasses[size],
+        (isEpic || isMoment) ? epicSizeClasses[size] : sizeClasses[size],
         isRare && 'card-rare-glow',
-        presence === 'moment' && 'card-moment-glow',
+        isMoment && 'card-moment-glow',
         className,
       )}
       style={shellStyle}
     >
       {/* Shiny foil overlay — covers art + frame */}
       {isShiny && <div className="foil-overlay" aria-hidden />}
-
-      {/* Moment: twinkling star field over the whole card */}
-      {presence === 'moment' && <MomentStars seed={card.id} />}
 
       {/* Radiant: shimmer sweep + pattern overlay tinted with the art color */}
       {presence === 'radiant' && (
@@ -243,18 +244,18 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         />
       )}
 
+      {/* Moment: video fills the full card absolutely, same as epics */}
+      {isMoment && <MediaSlot card={card} title={title} muted={momentMuted} />}
+
       {/* Art / media section */}
       <div className={cn(artPad, 'relative z-[2]')}>
-        {isEpic ? (
+        {(isEpic || isMoment) ? (
           /* Taller-than-square spacer — sets slot height; MediaSlot fills absolutely.
-             Ratio targets the inner card content in the recorded video so object-fit:cover
-             clips the video's own border flush with our card edge. */
+             Matches epic ratio so the video fills without showing internal borders. */
           <div className="aspect-[5/6]" />
         ) : (
           <div className={cn('relative aspect-square overflow-hidden', artRadius[size])}>
-            {presence === 'moment' ? (
-              <MediaSlot card={card} title={title} muted={momentMuted} />
-            ) : card.artworkUrl ? (
+            {card.artworkUrl ? (
               <img
                 src={card.artworkUrl}
                 alt={title}
@@ -285,32 +286,34 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
             {card.variantLabel && STAMP_LABELS.has(card.variantLabel) && (
               <ArtStamp label={card.variantLabel} cardWidth={cardWidth} />
             )}
-          </div>
+            </div>
         )}
       </div>
 
       {/* Info section — epics invisible; moments show only full-width Moment badge */}
-      {showInfo && presence === 'moment' ? (
-        /* Full-width centered Moment badge — no title, no artist, no genre */
+      {showInfo && isMoment ? (
+        /* Full-width Moment badge: black pill, white glow border, red gem */
         <div className="relative z-[2] px-3 py-2.5">
           <div
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full"
             style={{
-              background: 'rgba(120,10,10,0.72)',
-              border: '1px solid rgba(239,68,68,0.35)',
-              backdropFilter: 'blur(6px)',
+              background: '#090909',
+              border: '1px solid rgba(255,255,255,0.55)',
+              boxShadow: '0 0 10px 1px rgba(255,255,255,0.28), inset 0 0 6px rgba(255,255,255,0.06)',
             }}
           >
-            {/* Five-point star */}
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z"
-                fill="rgba(254,202,202,0.95)"
-                stroke="rgba(254,202,202,0.4)"
-                strokeWidth="0.5"
+            {/* Red gem — octagon faceted shape */}
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <polygon
+                points="7,1 13,1 19,7 19,13 13,19 7,19 1,13 1,7"
+                fill="#dc2626"
+                stroke="#fca5a5"
+                strokeWidth="0.8"
               />
+              <polygon points="10,3 14,7 14,13 10,17 6,13 6,7" fill="#ef4444" opacity="0.6" />
+              <line x1="10" y1="3" x2="10" y2="7" stroke="#fecaca" strokeWidth="0.8" opacity="0.8" />
             </svg>
-            <span className="font-bold text-[13px] text-red-100 leading-none">Moment</span>
+            <span className="font-bold text-[13px] text-white leading-none tracking-wide">Moment</span>
           </div>
         </div>
       ) : showInfo && (

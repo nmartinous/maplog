@@ -9,7 +9,8 @@ import { SoundmapCard } from '@/components/SoundmapCard';
 import { CardBackInfo } from '@/components/CardBackInfo';
 import { QueueSheet } from '@/components/QueueSheet';
 import { Button } from '@/components/ui/button';
-import { Play, ArrowLeft, MoreVertical, Disc3, ListEnd, Info, ListOrdered } from 'lucide-react';
+import { Play, ArrowLeft, MoreVertical, Disc3, ListEnd, Info, ListOrdered, Volume2, VolumeX } from 'lucide-react';
+import { MomentStars } from '@/components/SpecialCardLayers';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -33,7 +34,7 @@ export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { getSong, songs: allSongs } = useMusicKit();
-  const { play, resume, enqueue, currentSong, isPlaying } = usePlayer();
+  const { play, pause, resume, enqueue, currentSong, isPlaying } = usePlayer();
 
   const songId = decodeURIComponent(id ?? '');
   // Fall back to the actively playing song so the mini player can always
@@ -60,6 +61,45 @@ export default function SongDetail() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+
+  // ── Moment mute control ──────────────────────────────────────────────────
+  const isMoment = presenceForCard(displayCards[0] ?? song?.cards[0]) === 'moment';
+
+  // Default: muted when a song is already playing; unmuted if nothing plays.
+  const [momentMuted, setMomentMuted] = useState(() => isPlaying);
+
+  // Re-sync on song navigation
+  useEffect(() => { setMomentMuted(isPlaying); }, [songId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-mute if a song starts playing while the moment video is unmuted.
+  useEffect(() => {
+    if (isMoment && isPlaying && !momentMuted) setMomentMuted(true);
+  }, [isMoment, isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pausedByMomentRef = useRef(false);
+
+  // Resume song if we navigated away from a moment while we had paused it.
+  useEffect(() => {
+    if (!isMoment && pausedByMomentRef.current) {
+      resume();
+      pausedByMomentRef.current = false;
+    }
+  }, [isMoment, resume]);
+
+  // Resume on unmount.
+  useEffect(() => () => {
+    if (pausedByMomentRef.current) { resume(); pausedByMomentRef.current = false; }
+  }, [resume]);
+
+  const toggleMomentMute = () => {
+    if (momentMuted) {
+      if (isPlaying) { pause(); pausedByMomentRef.current = true; }
+      setMomentMuted(false);
+    } else {
+      if (pausedByMomentRef.current) { resume(); pausedByMomentRef.current = false; }
+      setMomentMuted(true);
+    }
+  };
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -180,6 +220,13 @@ export default function SongDetail() {
         )}
       </AnimatePresence>
 
+      {/* Twinkling stars — behind the card, only for Moment entries */}
+      {isMoment && (
+        <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
+          <MomentStars seed={song.id} />
+        </div>
+      )}
+
       <div className="page-top relative z-50 flex items-center justify-between px-5 pb-2 shrink-0 pointer-events-auto gap-2">
         <Button
           variant="ghost" size="icon"
@@ -194,6 +241,16 @@ export default function SongDetail() {
           </div>
         )}
         <div className="flex items-center gap-2">
+          {/* Mute/unmute — only shown on Moment cards */}
+          {isMoment && (
+            <Button variant="ghost" size="icon"
+              className="w-11 h-11 rounded-full glass-panel hover:bg-white/10 transition-colors active:scale-90 shadow-lg text-white/80"
+              onClick={toggleMomentMute}
+              aria-label={momentMuted ? 'Unmute moment' : 'Mute moment'}
+            >
+              {momentMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </Button>
+          )}
           <Button variant="ghost" size="icon"
             className={cn(
               'w-11 h-11 rounded-full glass-panel transition-colors shadow-lg active:scale-90',
@@ -266,8 +323,9 @@ export default function SongDetail() {
                           size="lg"
                           className="shadow-2xl"
                           onArtistClick={() => setLocation(`/artists/${encodeURIComponent(song.artist)}`)}
-                          onPlay={handleCardTap}
+                          onPlay={isMoment ? undefined : handleCardTap}
                           isPlaying={isCurrent && isPlaying}
+                          momentMuted={momentMuted}
                         />
                         {!isFlipped && !(isCurrent && isPlaying) && presenceForCard(card) !== 'epic' && (
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl pointer-events-none">
