@@ -385,7 +385,7 @@ export default function Vault() {
               valuation lands.
             </p>
             <p className="text-white/40 text-xs">
-              Press and hold any abbreviated number anywhere in Maplog to reveal the exact figure.
+              Press and hold any abbreviated number anywhere in Harmony to reveal the exact figure.
             </p>
           </div>
         </section>

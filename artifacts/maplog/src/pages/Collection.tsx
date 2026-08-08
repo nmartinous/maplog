@@ -381,7 +381,7 @@ function ActiveView({
             </div>
             <h2 className="text-2xl font-display font-bold mb-2 text-white">Empty Binder</h2>
             <p className="text-base text-white/50 mb-8 max-w-[280px] leading-relaxed">
-              Link your rarity playlists in Settings and refresh to build your Maplog collection.
+              Link your rarity playlists in Settings and refresh to build your Harmony collection.
             </p>
           </motion.div>
         ) : displayData.length === 0 ? (
@@ -422,7 +422,25 @@ function ActiveView({
                   </p>
                   {topCard && (
                     <div className="w-fit mt-1">
-                      <RarityBadge slug={topCard.rarityType.slug} name={topCard.rarityType.name} category={topCard.rarityType.category} size="sm" />
+                      {isMomentEntry ? (
+                        <div
+                          className="flex items-center gap-1.5 px-2 py-1 rounded-full"
+                          style={{
+                            background: '#090909',
+                            border: '1px solid rgba(255,255,255,0.4)',
+                            boxShadow: '0 0 6px rgba(255,255,255,0.15)',
+                          }}
+                        >
+                          <svg width="9" height="9" viewBox="0 0 20 20" fill="none" aria-hidden>
+                            <polygon points="7,1 13,1 19,7 19,13 13,19 7,19 1,13 1,7" fill="#dc2626" stroke="#fca5a5" strokeWidth="0.8" />
+                            <polygon points="10,3 14,7 14,13 10,17 6,13 6,7" fill="#ef4444" opacity="0.6" />
+                            <line x1="10" y1="3" x2="10" y2="7" stroke="#fecaca" strokeWidth="0.8" opacity="0.8" />
+                          </svg>
+                          <span className="font-bold text-[10px] text-white leading-none tracking-wide">Moment</span>
+                        </div>
+                      ) : (
+                        <RarityBadge slug={topCard.rarityType.slug} name={topCard.rarityType.name} category={topCard.rarityType.category} size="sm" />
+                      )}
                     </div>
                   )}
                 </div>

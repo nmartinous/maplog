@@ -49,7 +49,7 @@ export function initMusicKit(): Promise<any> {
     await loadScript();
     await window.MusicKit!.configure({
       developerToken: token,
-      app: { name: 'Maplog', build: '1.0.0' },
+      app: { name: 'Harmony', build: '1.0.0' },
     });
     return window.MusicKit!.getInstance();
   })();

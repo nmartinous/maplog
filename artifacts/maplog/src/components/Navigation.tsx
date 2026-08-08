@@ -24,7 +24,7 @@ export function DesktopSidebar() {
         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-orange-400 flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
           <Library className="h-5 w-5 text-white" />
         </div>
-        <span className="text-2xl font-display font-black tracking-tight text-white">Maplog</span>
+        <span className="text-2xl font-display font-black tracking-tight text-white">Harmony</span>
       </div>
 
       <div className="space-y-1.5 flex-1">

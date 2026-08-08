@@ -401,8 +401,8 @@ export default function Settings() {
         setExportState('sharing');
         await navigator.share({
           files: [file],
-          title: 'Maplog Backup',
-          text: `Maplog backup — ${filename}`,
+          title: 'Harmony Backup',
+          text: `Harmony backup — ${filename}`,
         });
         toast.success('Backup shared successfully.');
       } else {
@@ -495,7 +495,7 @@ export default function Settings() {
       <div className="page-top px-4 sm:px-6 pb-8 space-y-10 max-w-2xl mx-auto">
         <div className="relative z-10">
           <h1 className="text-3xl font-display font-black tracking-tight text-white mb-2">Settings</h1>
-          <p className="text-base text-white/50">Configure your Maplog experience</p>
+          <p className="text-base text-white/50">Configure your Harmony experience</p>
         </div>
 
         <section className="space-y-4">
@@ -623,7 +623,7 @@ export default function Settings() {
           )}
           {/* ── Import ── */}
           <Row icon={Upload} label="Import Content"
-            description="Restore a Maplog backup file (older JSON exports work too)"
+            description="Restore a Harmony backup file (older JSON exports work too)"
             onClick={() => importRef.current?.click()} />
           <input ref={importRef} type="file" accept=".zip,.json,application/zip,application/json" className="hidden" onChange={handleImportFile} />
           {songs.length > 0 && (
@@ -650,7 +650,7 @@ export default function Settings() {
                 <p className="text-xs text-white/40 mb-4">
                   {pending.summary.legacy
                     ? 'Older JSON export — restores the collection only; other content on this device is kept.'
-                    : `Full backup${pending.summary.createdAt ? ` from ${new Date(pending.summary.createdAt).toLocaleDateString()}` : ''} — replaces all Maplog content on this device.`}
+                    : `Full backup${pending.summary.createdAt ? ` from ${new Date(pending.summary.createdAt).toLocaleDateString()}` : ''} — replaces all Harmony content on this device.`}
                 </p>
                 <div className="rounded-2xl bg-white/5 border border-white/10 divide-y divide-white/5 mb-5">
                   {[
@@ -687,9 +687,9 @@ export default function Settings() {
           <MomentAutoPlayRow />
         </Section>
 
-        <Section title="About Maplog">
+        <Section title="About Harmony">
           <Row icon={Shield} label="Version" description="Your Soundmap archive">
-            <span className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest">v1.5.5</span>
+            <span className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest">v1.5.6</span>
           </Row>
           <Row icon={ExternalLink} label="Original Game" description="Visit Soundmap.app"
             onClick={() => window.open('https://soundmap.app', '_blank')} />

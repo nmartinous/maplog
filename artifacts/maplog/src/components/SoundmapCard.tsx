@@ -245,7 +245,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
       )}
 
       {/* Moment: video fills the full card absolutely, same as epics */}
-      {isMoment && <MediaSlot card={card} title={title} muted={momentMuted} />}
+      {isMoment && <MediaSlot card={card} title={title} muted={momentMuted} momentMode />}
 
       {/* Art / media section */}
       <div className={cn(artPad, 'relative z-[2]')}>
@@ -295,9 +295,9 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
           px-4 gives equal left/right margin matching the video badge's edge position.
           pb-9 pushes the badge to roughly where the video's own badge sits. */}
       {isMoment && showInfo && (
-        <div className="absolute bottom-0 inset-x-0 z-[4] px-1 pb-2 pt-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none">
+        <div className="absolute bottom-0 inset-x-0 z-[4] px-6 pb-5 pt-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none">
           <div
-            className="w-full flex items-center justify-center gap-2 px-4 py-1.5 rounded-full"
+            className="w-fit mx-auto flex items-center gap-2 px-4 py-1.5 rounded-full"
             style={{
               background: '#090909',
               border: '1px solid rgba(255,255,255,0.55)',
@@ -379,7 +379,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         <RadiantPatternOverlay patternId={card.patternId} color={borderColor} opacity={0.5} />
         <div className="radiant-shimmer" aria-hidden />
         <Disc3 className="w-16 h-16 mb-3" style={{ color: borderColor }} />
-        <p className="font-display font-black text-2xl tracking-tight">Maplog</p>
+        <p className="font-display font-black text-2xl tracking-tight">Harmony</p>
         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mt-1">Radiant</p>
       </div>
     );

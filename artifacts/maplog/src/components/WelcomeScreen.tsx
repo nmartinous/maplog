@@ -90,7 +90,7 @@ export function WelcomeScreen() {
             className="relative text-center mb-20"
           >
             <p className="text-white/30 text-xs font-bold tracking-[0.35em] uppercase mb-5">
-              Maplog
+              Harmony
             </p>
             <h1
               className="font-display font-black leading-none tracking-tight text-white"
