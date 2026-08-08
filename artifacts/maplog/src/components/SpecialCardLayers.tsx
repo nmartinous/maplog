@@ -134,7 +134,28 @@ export function MediaSlot({ card, title, muted = true }: {
   const media = useCardMedia(card.id);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
 
-  // React doesn't reactively update the `muted` property — drive it via ref
+  /**
+   * Two-pronged muted sync:
+   *
+   * 1. Callback ref — runs synchronously in React's commit phase, BEFORE the
+   *    browser processes autoPlay. Setting `.muted` here (not via the HTML
+   *    attribute) lets us start an unmuted video on mount without a separate
+   *    user-gesture step. The `muted` HTML attribute is omitted entirely so
+   *    there is no attribute-vs-property conflict.
+   *
+   * 2. useEffect — handles subsequent prop changes (e.g. user taps mute btn).
+   *    Setting `.muted = true` always works; `.muted = false` also works here
+   *    because it is triggered synchronously from a button onClick (user gesture).
+   */
+  const refCallback = React.useCallback(
+    (el: HTMLVideoElement | null) => {
+      videoRef.current = el;
+      if (el) el.muted = muted;         // set before browser starts autoPlay
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],                                  // mount-only; subsequent changes via effect
+  );
+
   React.useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
   }, [muted]);
@@ -142,11 +163,13 @@ export function MediaSlot({ card, title, muted = true }: {
   if (media?.type === 'video') {
     return (
       <video
-        ref={videoRef}
+        ref={refCallback}
         src={media.url}
         className="absolute inset-0 w-full h-full object-cover"
         autoPlay
-        muted          /* initial value — kept in sync by the effect above */
+        // NO muted attribute — muted state is owned exclusively by .muted
+        // property set in refCallback + effect, avoiding the attribute/property
+        // conflict that would lock the video into always-muted on iOS.
         loop
         playsInline
         // Slight zoom clips the video's own internal borders so only the
