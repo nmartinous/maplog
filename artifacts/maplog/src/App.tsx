@@ -21,6 +21,7 @@ import Settings from '@/pages/Settings';
 import Conflicts from '@/pages/Conflicts';
 import EditMode from '@/pages/EditMode';
 import NotFound from '@/pages/not-found';
+import { WelcomeScreen } from '@/components/WelcomeScreen';
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,7 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
               <AppShell />
             </WouterRouter>
+            <WelcomeScreen />
             <Toaster />
             <SonnerToaster position="top-center" />
           </TooltipProvider>

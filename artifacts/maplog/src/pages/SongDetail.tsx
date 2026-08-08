@@ -322,7 +322,7 @@ export default function SongDetail() {
                     >
                       {/* Epic cards: tapping the card does NOT play — only the
                           overlay's play badge does (regular cards keep tap-to-play). */}
-                      <div className="cursor-pointer group" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }} onClick={presenceForCard(card) === 'epic' ? undefined : handleCardTap}>
+                      <div className="cursor-pointer group" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }} onClick={(presenceForCard(card) === 'epic' || presenceForCard(card) === 'moment') ? undefined : handleCardTap}>
                         <SoundmapCard
                           card={card}
                           title={song.title}
@@ -335,7 +335,7 @@ export default function SongDetail() {
                           isPlaying={isCurrent && isPlaying}
                           momentMuted={momentMuted}
                         />
-                        {!isFlipped && !(isCurrent && isPlaying) && presenceForCard(card) !== 'epic' && (
+                        {!isFlipped && !(isCurrent && isPlaying) && presenceForCard(card) !== 'epic' && presenceForCard(card) !== 'moment' && (
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20 backdrop-blur-sm rounded-2xl pointer-events-none">
                             <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-[0_0_40px_rgba(255,60,0,0.6)] scale-75 group-hover:scale-100 transition-transform duration-300">
                               <Play className="w-10 h-10 text-white fill-white ml-1.5" />

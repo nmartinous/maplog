@@ -44,15 +44,17 @@ function MomentThumbnail({ cardId, size }: { cardId: string; size: number }) {
   }
   if (media.type === 'video') {
     return (
-      <video
-        src={media.url}
-        className="w-full h-full object-cover rounded-xl"
-        muted
-        playsInline
-        preload="metadata"
-        style={{ width: size, height: size }}
-        onLoadedMetadata={e => { (e.currentTarget as HTMLVideoElement).currentTime = 0.1; }}
-      />
+      <div className="w-full h-full rounded-xl overflow-hidden">
+        <video
+          src={media.url}
+          className="w-full h-full object-cover scale-110"
+          muted
+          playsInline
+          preload="metadata"
+          style={{ width: size, height: size }}
+          onLoadedMetadata={e => { (e.currentTarget as HTMLVideoElement).currentTime = 0.1; }}
+        />
+      </div>
     );
   }
   return <img src={media.url} alt="" className="w-full h-full object-cover rounded-xl" />;
@@ -90,7 +92,7 @@ function CollectionNumBadge({ label, slug }: { label: string; slug: string }) {
     <div
       className={cn(
         'absolute -top-1.5 -right-0.5 z-10 font-black rounded-full leading-none shadow-lg pointer-events-none',
-        isRare ? 'epic-rare-chrome' : '',
+        isRare ? 'epic-pin-base epic-pin-num' : '',
       )}
       style={{
         fontSize: 7,
@@ -279,13 +281,13 @@ function ActiveView({
             /* album */          inAlbum;
           if (!match) return false;
         }
-        if (activeRarity !== 'All' && !song.cards.some(c => c.rarityType.category === activeRarity)) return false;
+        if (activeRarity !== 'All' && !song.cards.some(c => c.rarityType.category.toLowerCase() === activeRarity.toLowerCase())) return false;
         return true;
       })
       .map(song => {
         const filtered = activeRarity === 'All'
           ? song.cards
-          : song.cards.filter(c => c.rarityType.category === activeRarity);
+          : song.cards.filter(c => c.rarityType.category.toLowerCase() === activeRarity.toLowerCase());
         return { song, topCard: filtered[0] ?? song.cards[0] };
       });
   }, [songs, search, scope, activeRarity]);

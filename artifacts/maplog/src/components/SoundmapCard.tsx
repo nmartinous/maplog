@@ -295,9 +295,9 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
           px-4 gives equal left/right margin matching the video badge's edge position.
           pb-9 pushes the badge to roughly where the video's own badge sits. */}
       {isMoment && showInfo && (
-        <div className="absolute bottom-0 inset-x-0 z-[4] px-4 pb-9 pt-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none">
+        <div className="absolute bottom-0 inset-x-0 z-[4] px-1 pb-2 pt-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none">
           <div
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-full"
+            className="w-full flex items-center justify-center gap-2 px-4 py-1.5 rounded-full"
             style={{
               background: '#090909',
               border: '1px solid rgba(255,255,255,0.55)',
