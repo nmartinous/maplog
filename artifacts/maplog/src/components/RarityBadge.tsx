@@ -42,11 +42,19 @@ const PixelGem = ({ color }: { color: string }) => (
   </svg>
 );
 
-/** Diamond — Epic variants */
+/** Crystal diamond — Epic variants (pale blue faceted ice-gem) */
 const DiamondIcon = ({ color }: { color: string }) => (
   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="shrink-0" aria-hidden>
+    {/* Main body */}
     <polygon points="5,0.5 9.5,5 5,9.5 0.5,5" fill={color} />
-    <polygon points="5,0.5 9.5,5 5,4.2" fill="white" fillOpacity="0.22" />
+    {/* Upper-right bright facet */}
+    <polygon points="5,0.5 9.5,5 5,4.5" fill="white" fillOpacity="0.40" />
+    {/* Upper-left mid facet — slight depth */}
+    <polygon points="5,0.5 0.5,5 5,4.5" fill="white" fillOpacity="0.14" />
+    {/* Horizontal cut line for crystal clarity */}
+    <line x1="0.5" y1="5" x2="9.5" y2="5" stroke="white" strokeWidth="0.5" strokeOpacity="0.38" />
+    {/* Tiny top glint */}
+    <circle cx="5" cy="2.2" r="0.5" fill="white" fillOpacity="0.55" />
   </svg>
 );
 
@@ -149,20 +157,20 @@ const CONFIGS: Record<string, BadgeConfig> = {
 
   // ── Epic family ────────────────────────────────────────────────────────────
   'epic': {
-    icon: <DiamondIcon color="#eac54f" />,
-    pill: 'text-[#eac54f]',
+    icon: <DiamondIcon color="#a8d0f0" />,
+    pill: 'text-[#f0e8ce]',
     label: 'Epic',
-    borderColor: '#b4840055',
-    gradient: 'linear-gradient(90deg, #6b5800 0%, #4a2a00 100%)',
-    glow: '#b4840050',
+    borderColor: '#c09030',
+    gradient: 'linear-gradient(135deg, #4a3408 0%, #8c6420 35%, #c8a84c 52%, #8c6420 68%, #4a3408 100%)',
+    glow: '#c0903060',
   },
   'epic-numbered': {
-    icon: <DiamondIcon color="#eac54f" />,
-    pill: 'text-[#eac54f]',
+    icon: <DiamondIcon color="#a8d0f0" />,
+    pill: 'text-[#f0e8ce]',
     label: 'Epic',
-    borderColor: '#b4840055',
-    gradient: 'linear-gradient(90deg, #6b5800 0%, #4a2a00 100%)',
-    glow: '#b4840050',
+    borderColor: '#c09030',
+    gradient: 'linear-gradient(135deg, #4a3408 0%, #8c6420 35%, #c8a84c 52%, #8c6420 68%, #4a3408 100%)',
+    glow: '#c0903060',
   },
 
   // ── Special / retired epics (kept for existing data) ───────────────────────

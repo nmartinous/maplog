@@ -159,7 +159,7 @@ export default function SongDetail() {
     // Predominantly vertical swipe → prev/next in the active filter.
     // Only when a filter is active (parity with CardView semantics);
     // horizontal stays with embla (multi-card browsing).
-    if (hasFilterActive && Math.abs(dy) >= 40 && Math.abs(dx) <= Math.abs(dy) * 0.8) {
+    if (Math.abs(dy) >= 40 && Math.abs(dx) <= Math.abs(dy) * 0.8) {
       swipedRef.current = true;
       goToFiltered(dy < 0 ? 1 : -1); // swipe up = forward
     }

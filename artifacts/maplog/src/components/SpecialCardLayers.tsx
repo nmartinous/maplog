@@ -404,19 +404,27 @@ export function EpicCardOverlay({
       >
         {/* Scaled epic pill (RarityBadge has fixed sizing → too big on cards) */}
         <span
-          className="inline-flex items-center font-bold rounded-full text-[#eac54f] leading-none shrink-0"
+          className="inline-flex items-center font-bold rounded-full text-[#f0e8ce] leading-none shrink-0"
           style={{
             fontSize: px(11),
             padding: `${px(5) + 0.5}px ${px(7)}px`,
             gap: px(3),
-            background: 'linear-gradient(90deg, #6b5800 0%, #4a2a00 100%)',
-            border: '1px solid #b4840055',
-            boxShadow: '0 0 8px #b4840050',
+            background: 'linear-gradient(135deg, #4a3408 0%, #8c6420 35%, #c8a84c 52%, #8c6420 68%, #4a3408 100%)',
+            border: `1.5px solid #c09030`,
+            boxShadow: '0 0 8px #c0903060',
           }}
         >
           <svg width={px(10)} height={px(10)} viewBox="0 0 10 10" fill="none" className="shrink-0" aria-hidden>
-            <polygon points="5,0.5 9.5,5 5,9.5 0.5,5" fill="#eac54f" />
-            <polygon points="5,0.5 9.5,5 5,4.2" fill="white" fillOpacity="0.22" />
+            {/* Main body — crystal blue */}
+            <polygon points="5,0.5 9.5,5 5,9.5 0.5,5" fill="#a8d0f0" />
+            {/* Upper-right bright facet */}
+            <polygon points="5,0.5 9.5,5 5,4.5" fill="white" fillOpacity="0.40" />
+            {/* Upper-left mid facet */}
+            <polygon points="5,0.5 0.5,5 5,4.5" fill="white" fillOpacity="0.14" />
+            {/* Horizontal cut line */}
+            <line x1="0.5" y1="5" x2="9.5" y2="5" stroke="white" strokeWidth="0.5" strokeOpacity="0.38" />
+            {/* Top glint */}
+            <circle cx="5" cy="2.2" r="0.5" fill="white" fillOpacity="0.55" />
           </svg>
           Epic
         </span>
