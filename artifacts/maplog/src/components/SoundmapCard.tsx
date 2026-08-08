@@ -245,7 +245,7 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
       )}
 
       {/* Moment: video fills the full card absolutely, same as epics */}
-      {isMoment && <MediaSlot card={card} title={title} muted={momentMuted} momentMode />}
+      {isMoment && <MediaSlot card={card} title={title} muted={momentMuted} />}
 
       {/* Art / media section */}
       <div className={cn(artPad, 'relative z-[2]')}>

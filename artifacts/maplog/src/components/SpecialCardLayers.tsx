@@ -128,8 +128,8 @@ function ParallaxArt({ artworkUrl, title }: { artworkUrl: string; title: string 
  * user unmutes via the mute button. React's `muted` attribute is not
  * reactive, so we drive it imperatively through a ref.
  */
-export function MediaSlot({ card, title, muted = true, momentMode = false }: {
-  card: MaplogCard; title: string; muted?: boolean; momentMode?: boolean;
+export function MediaSlot({ card, title, muted = true }: {
+  card: MaplogCard; title: string; muted?: boolean;
 }) {
   const media = useCardMedia(card.id);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
@@ -172,11 +172,9 @@ export function MediaSlot({ card, title, muted = true, momentMode = false }: {
         // conflict that would lock the video into always-muted on iOS.
         loop
         playsInline
-        // Moment mode: extra zoom + shift downward to hide video's own top text.
-        // Standard mode: slight zoom clips the video's own internal borders.
-        style={momentMode
-          ? { transform: 'scale(1.45) translateY(6%)', transformOrigin: 'center 42%' }
-          : { transform: 'scale(1.16)', transformOrigin: 'center' }}
+        // Slight zoom clips the video's own internal borders so only the
+        // card content fills the slot — container overflow:hidden does the crop
+        style={{ transform: 'scale(1.16)', transformOrigin: 'center' }}
       />
     );
   }

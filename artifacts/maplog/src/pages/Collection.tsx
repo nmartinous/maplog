@@ -47,11 +47,11 @@ function MomentThumbnail({ cardId, size }: { cardId: string; size: number }) {
       <div className="w-full h-full rounded-xl overflow-hidden">
         <video
           src={media.url}
-          className="w-full h-full object-cover scale-110"
+          className="w-full h-full object-cover"
           muted
           playsInline
           preload="metadata"
-          style={{ width: size, height: size }}
+          style={{ width: size, height: size, transform: 'scale(1.5) translateY(10%)', transformOrigin: 'center' }}
           onLoadedMetadata={e => { (e.currentTarget as HTMLVideoElement).currentTime = 0.1; }}
         />
       </div>

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, X, Music2, Quote, StickyNote, Coins, ChevronRight, Camera,
   BadgeCheck, Sparkles, Disc3, ExternalLink, Check, ChevronDown, AlertCircle,
-  ListMusic, Loader2,
+  ListMusic, Loader2, Clapperboard,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ import {
 import { ShowcaseSection } from '@/components/ShowcaseSection';
 import { SoundmapCard } from '@/components/SoundmapCard';
 import { RarityBadge } from '@/components/RarityBadge';
+import { presenceForCard } from '@/lib/cardTemplates';
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
@@ -276,6 +277,94 @@ function CollectedTrackRow({ song, trackNumber, navigate }: {
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Scrapbook section (moment cards) ──────────────────────────────────────────
+/** Red gem SVG — matches the moment badge used everywhere else. */
+function MomentGem({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden>
+      <polygon points="7,1 13,1 19,7 19,13 13,19 7,19 1,13 1,7" fill="#dc2626" stroke="#fca5a5" strokeWidth="0.8" />
+      <polygon points="10,3 14,7 14,13 10,17 6,13 6,7" fill="#ef4444" opacity="0.6" />
+      <line x1="10" y1="3" x2="10" y2="7" stroke="#fecaca" strokeWidth="0.8" opacity="0.8" />
+    </svg>
+  );
+}
+
+function ScrapbookSection({ songs, navigate }: {
+  songs: MaplogSong[];
+  navigate: (to: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  // Only show if this artist has any moment cards
+  const momentSongs = useMemo(
+    () => songs.filter(s => s.cards.some(c => presenceForCard(c) === 'moment')),
+    [songs],
+  );
+
+  if (momentSongs.length === 0) return null;
+
+  return (
+    <section>
+      <SectionHeader icon={Clapperboard} title="Scrapbook" />
+      <div className="rounded-2xl glass-panel overflow-hidden">
+        {/* Header row */}
+        <button
+          className="w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-white/5 active:bg-white/[0.07] transition-colors"
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+        >
+          {/* Moment gem as the "album art" */}
+          <div
+            className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center"
+            style={{ background: '#07070c', border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 0 12px rgba(255,255,255,0.08)' }}
+          >
+            <MomentGem size={22} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white truncate">Scrapbook</p>
+            <p className="text-[11px] text-white/40 mt-0.5">
+              {momentSongs.length} moment{momentSongs.length === 1 ? '' : 's'}
+            </p>
+          </div>
+          <ChevronDown className={cn('w-4 h-4 text-white/40 shrink-0 transition-transform duration-300', open && 'rotate-180')} />
+        </button>
+
+        {/* Expanded list */}
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+              className="border-t border-white/5 overflow-hidden"
+            >
+              <div className="px-4 py-3 space-y-1">
+                {momentSongs.map((s, i) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/5 cursor-pointer active:bg-white/[0.07] transition-colors"
+                    onClick={() => navigate(`/song/${encodeURIComponent(s.id)}`)}
+                  >
+                    <span className="text-[11px] font-mono text-white/30 w-5 text-right shrink-0">{i + 1}</span>
+                    <p className="flex-1 text-sm font-semibold text-white truncate min-w-0">{s.title}</p>
+                    {/* Moment badge — same pill style as collection & card view */}
+                    <div
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-full shrink-0"
+                      style={{ background: '#090909', border: '1px solid rgba(255,255,255,0.4)', boxShadow: '0 0 6px rgba(255,255,255,0.15)' }}
+                    >
+                      <MomentGem size={9} />
+                      <span className="font-bold text-[9px] text-white leading-none tracking-wide">Moment</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </section>
   );
 }
 
@@ -612,8 +701,11 @@ function ArtistPage({ artist, songs, play, navigate }: {
         <ShowcaseSection key={artistKey(artist)} scope={{ kind: 'artist', artist }} songs={songs} readOnly={false} />
       </section>
 
-      {/* Releases (albums / EPs / singles grouped) */}
-      <ReleasesSection songs={artistSongs} navigate={navigate} />
+      {/* Releases (albums / EPs / singles grouped — moments excluded) */}
+      <ReleasesSection songs={artistSongs.filter(s => !s.cards.some(c => presenceForCard(c) === 'moment'))} navigate={navigate} />
+
+      {/* Scrapbook — moment cards, no Apple Music reference */}
+      <ScrapbookSection songs={artistSongs} navigate={navigate} />
 
       {/* All songs flat list */}
       <section>
