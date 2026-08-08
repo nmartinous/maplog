@@ -85,6 +85,14 @@ export async function replaceAllCardMedia(entries: CardMedia[]): Promise<void> {
   });
 }
 
+/**
+ * Write a full CardMedia entry verbatim (used by sync to preserve the
+ * original updatedAt timestamp from Drive rather than overwriting it with now).
+ */
+export async function putCardMediaEntry(entry: CardMedia): Promise<void> {
+  await tx('readwrite', s => s.put(entry));
+}
+
 /** Every stored media entry (used by backup export). */
 export async function getAllCardMedia(): Promise<CardMedia[]> {
   const res = await tx<CardMedia[]>('readonly', s => s.getAll());

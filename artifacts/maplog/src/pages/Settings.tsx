@@ -6,11 +6,12 @@ import {
   Trash2, Download, Upload, Shield, ExternalLink,
   Info, ChevronRight, CheckCircle2, XCircle, Loader2,
   ChevronDown, ChevronUp, Music2, Target, AlertTriangle, Pencil,
-  Share2, CloudUpload, Smartphone, Clapperboard,
+  Share2, Cloud, CloudOff, RefreshCw, LogIn, LogOut, Smartphone, Clapperboard,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { RarityPlaylistSync } from '@/components/RarityPlaylistSync';
+import { useSyncContext } from '@/context/SyncContext';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -331,6 +332,112 @@ function MotionControlsRow() {
   );
 }
 
+// ── Drive Sync section ─────────────────────────────────────────────────────────
+
+function formatSyncAge(iso: string | null): string {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins  = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  if (diff < 60_000)   return 'just now';
+  if (mins  < 60)      return `${mins}m ago`;
+  if (hours < 24)      return `${hours}h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function DriveSyncSection() {
+  const sync = useSyncContext();
+  const [syncAge, setSyncAge] = useState(() => formatSyncAge(sync.lastSyncAt));
+
+  useEffect(() => {
+    const update = () => setSyncAge(formatSyncAge(sync.lastSyncAt));
+    update();
+    const id = setInterval(update, 60_000);
+    return () => clearInterval(id);
+  }, [sync.lastSyncAt]);
+
+  if (!sync.isConfigured) {
+    return (
+      <Section title="Drive Sync">
+        <div className="px-6 py-5 space-y-3">
+          <p className="text-sm text-white/50 leading-relaxed">
+            Automatically sync your collection, media, and settings across devices.
+            To enable, add a Google OAuth Client ID to this project.
+          </p>
+          <p className="text-[11px] font-mono bg-white/5 text-primary/80 rounded-xl px-4 py-3 leading-relaxed">
+            1. console.cloud.google.com → new project<br />
+            2. Enable Google Drive API<br />
+            3. Credentials → OAuth 2.0 Client ID (Web Application)<br />
+            4. Add VITE_GOOGLE_CLIENT_ID to Replit Secrets<br />
+            5. Redeploy
+          </p>
+        </div>
+      </Section>
+    );
+  }
+
+  if (!sync.isConnected) {
+    return (
+      <Section title="Drive Sync">
+        <div className="px-6 pt-5 pb-1">
+          <p className="text-xs text-white/40 leading-relaxed">
+            Sign in with Google to automatically sync your entire collection —
+            songs, cards, media, and settings — across all your devices for free.
+          </p>
+        </div>
+        <Row
+          icon={sync.status === 'syncing' ? Loader2 : Cloud}
+          label="Connect Google Drive"
+          description="Syncs automatically in the background"
+          onClick={sync.status !== 'syncing' ? sync.connect : undefined}
+        >
+          {sync.status === 'syncing'
+            ? <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            : <LogIn className="w-5 h-5 text-white/30" />}
+        </Row>
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Drive Sync">
+      <Row
+        icon={
+          sync.status === 'syncing' ? Loader2
+          : sync.status === 'error'  ? CloudOff
+          : Cloud
+        }
+        label={sync.email ?? 'Google Drive'}
+        description={
+          sync.status === 'syncing' ? 'Syncing…'
+          : sync.status === 'error'  ? (sync.error ?? 'Sync error')
+          : syncAge ? `Last synced ${syncAge}`
+          : 'Connected'
+        }
+      >
+        {sync.status === 'syncing'
+          ? <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          : sync.status === 'error'
+          ? <XCircle className="w-5 h-5 text-destructive" />
+          : <CheckCircle2 className="w-5 h-5 text-primary" />}
+      </Row>
+      <Row
+        icon={RefreshCw}
+        label="Sync Now"
+        description="Pull from Drive then push all local changes"
+        onClick={sync.status !== 'syncing' ? sync.syncNow : undefined}
+      />
+      <Row
+        icon={LogOut}
+        label="Disconnect Drive"
+        description="Stop syncing — your data stays on this device"
+        onClick={sync.disconnect}
+        destructive
+      />
+    </Section>
+  );
+}
+
 export default function Settings() {
   const [rarityOpen, setRarityOpen] = useState<boolean>(() => localStorage.getItem('maplog:rarityOpen') !== '0');
   useEffect(() => { localStorage.setItem('maplog:rarityOpen', rarityOpen ? '1' : '0'); }, [rarityOpen]);
@@ -339,30 +446,10 @@ export default function Settings() {
   const importRef = useRef<HTMLInputElement>(null);
 
   // ── Backup export/import ──────────────────────────────────────────────────
-  type ExportState = 'idle' | 'building' | 'sharing' | 'uploading';
+  type ExportState = 'idle' | 'building' | 'sharing';
   const [exportState, setExportState] = useState<ExportState>('idle');
   const [pending, setPending] = useState<ParsedBackup | null>(null);
   const [restoring, setRestoring] = useState(false);
-
-  // Drive connection status — fetched once on mount
-  type DriveStatus =
-    | { state: 'loading' }
-    | { state: 'connected'; email: string | null; csrfToken: string }
-    | { state: 'unavailable'; reason: string };
-  const [driveStatus, setDriveStatus] = useState<DriveStatus>({ state: 'loading' });
-
-  useEffect(() => {
-    fetch('/api/drive/status')
-      .then(r => r.json())
-      .then((d: any) => {
-        if (d.connected) {
-          setDriveStatus({ state: 'connected', email: d.email ?? null, csrfToken: d.csrfToken });
-        } else {
-          setDriveStatus({ state: 'unavailable', reason: d.reason ?? 'Google Drive is not configured.' });
-        }
-      })
-      .catch(() => setDriveStatus({ state: 'unavailable', reason: 'Could not reach the server.' }));
-  }, []);
 
   const exporting = exportState !== 'idle';
 
@@ -422,45 +509,6 @@ export default function Settings() {
     }
   };
 
-  /** Upload backup directly to the user's Google Drive using a CSRF-protected endpoint. */
-  const handleDriveUpload = async () => {
-    if (exporting) return;
-    if (driveStatus.state !== 'connected') {
-      toast.error('Google Drive is not connected. Check your Replit workspace settings.');
-      return;
-    }
-    setExportState('building');
-    try {
-      await warnIfHugeBackup();
-      const blob = await createBackupZip();
-      const filename = backupFileName();
-      setExportState('uploading');
-      const form = new FormData();
-      form.append('backup', new File([blob], filename, { type: 'application/zip' }));
-      form.append('filename', filename);
-      const res = await fetch('/api/drive/upload', {
-        method: 'POST',
-        body: form,
-        headers: { 'X-Drive-Token': driveStatus.csrfToken },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `Upload failed (${res.status})`);
-      // Refresh the token for the next upload (it rotates every 5 min)
-      setDriveStatus(prev => prev.state === 'connected' ? { ...prev, csrfToken: data.csrfToken ?? prev.csrfToken } : prev);
-      if (data.webViewLink) {
-        toast.success(
-          <span>Saved to Google Drive! <a href={data.webViewLink} target="_blank" rel="noopener noreferrer" className="underline font-bold">Open file ↗</a></span>
-        );
-      } else {
-        toast.success('Backup saved to Google Drive.');
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't upload to Google Drive.");
-    } finally {
-      setExportState('idle');
-    }
-  };
-
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -497,6 +545,8 @@ export default function Settings() {
           <h1 className="text-3xl font-display font-black tracking-tight text-white mb-2">Settings</h1>
           <p className="text-base text-white/50">Configure your Harmony experience</p>
         </div>
+
+        <DriveSyncSection />
 
         <section className="space-y-4">
           <button
@@ -590,37 +640,6 @@ export default function Settings() {
           >
             {exportState === 'sharing' && <Loader2 className="w-5 h-5 text-white/40 animate-spin" />}
           </Row>
-          {/* ── Google Drive direct upload ── */}
-          {driveStatus.state === 'unavailable' ? (
-            <Row
-              icon={CloudUpload}
-              label="Save to Google Drive"
-              description={driveStatus.reason}
-            >
-              <XCircle className="w-5 h-5 text-white/20" />
-            </Row>
-          ) : (
-            <Row
-              icon={exportState === 'uploading' ? Loader2 : CloudUpload}
-              label={exportState === 'uploading' ? 'Uploading to Drive…' : 'Save to Google Drive'}
-              description={
-                driveStatus.state === 'loading'
-                  ? 'Checking Drive connection…'
-                  : driveStatus.email
-                    ? `Uploads to ${driveStatus.email}`
-                    : 'Upload directly to your Google Drive'
-              }
-              onClick={exportState === 'idle' && driveStatus.state === 'connected' ? handleDriveUpload : undefined}
-            >
-              {exportState === 'uploading'
-                ? <Loader2 className="w-5 h-5 text-white/40 animate-spin" />
-                : driveStatus.state === 'loading'
-                  ? <Loader2 className="w-5 h-5 text-white/20 animate-spin" />
-                  : driveStatus.state === 'connected'
-                    ? <CheckCircle2 className="w-5 h-5 text-primary" />
-                    : null}
-            </Row>
-          )}
           {/* ── Import ── */}
           <Row icon={Upload} label="Import Content"
             description="Restore a Harmony backup file (older JSON exports work too)"
@@ -689,7 +708,7 @@ export default function Settings() {
 
         <Section title="About Harmony">
           <Row icon={Shield} label="Version" description="Your Soundmap archive">
-            <span className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest">v1.5.9</span>
+            <span className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest">v1.6.0</span>
           </Row>
           <Row icon={ExternalLink} label="Original Game" description="Visit Soundmap.app"
             onClick={() => window.open('https://soundmap.app', '_blank')} />

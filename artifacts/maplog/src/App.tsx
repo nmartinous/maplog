@@ -6,6 +6,7 @@ import { Route, Switch, Router as WouterRouter, Redirect } from 'wouter';
 
 import { MusicKitProvider } from '@/context/MusicKitContext';
 import { PlayerProvider } from '@/context/AudioPlayerContext';
+import { SyncProvider } from '@/context/SyncContext';
 import { DesktopSidebar, MobileNav } from '@/components/Navigation';
 import { MiniPlayer } from '@/components/MiniPlayer';
 
@@ -64,6 +65,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <MusicKitProvider>
         <PlayerProvider>
+          <SyncProvider>
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
               <AppShell />
@@ -72,6 +74,7 @@ function App() {
             <Toaster />
             <SonnerToaster position="top-center" />
           </TooltipProvider>
+          </SyncProvider>
         </PlayerProvider>
       </MusicKitProvider>
     </QueryClientProvider>
