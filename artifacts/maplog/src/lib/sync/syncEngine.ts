@@ -186,6 +186,14 @@ export async function pull(): Promise<PullResult> {
 
   meta.lastSyncAt = new Date().toISOString();
   saveMeta(meta);
+
+  // Notify React contexts to reload from localStorage so stale in-memory
+  // state (e.g. an empty collection on a fresh device) reflects pulled data
+  // without requiring a full page refresh.
+  if (pulled > 0 || mediaFetched > 0) {
+    window.dispatchEvent(new CustomEvent('harmony:sync:pulled', { detail: { pulled, mediaFetched } }));
+  }
+
   return { pulled, mediaFetched };
 }
 

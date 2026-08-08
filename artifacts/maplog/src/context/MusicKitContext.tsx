@@ -433,6 +433,18 @@ export function MusicKitProvider({ children }: { children: React.ReactNode }) {
     setSongs(loadCollection());
   }, []);
 
+  // When the Drive sync pull writes new data to localStorage, reload both
+  // the collection and conflicts so React state reflects what was pulled
+  // before the user interacts (e.g. before hitting "Refresh All" playlists).
+  useEffect(() => {
+    const onPulled = () => {
+      setSongs(loadCollection());
+      setConflicts(loadConflicts());
+    };
+    window.addEventListener('harmony:sync:pulled', onPulled);
+    return () => window.removeEventListener('harmony:sync:pulled', onPulled);
+  }, []);
+
   // ── Tag conflicts ─────────────────────────────────────────────────────────
 
   const commitConflicts = useCallback((next: TagConflict[]) => {
