@@ -290,30 +290,51 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         )}
       </div>
 
-      {/* Moment overlay: badge floats at the bottom of the video face.
-          No title — the video content provides it.
-          px-4 gives equal left/right margin matching the video badge's edge position.
-          pb-9 pushes the badge to roughly where the video's own badge sits. */}
-      {isMoment && showInfo && (
-        <div className="absolute bottom-0 inset-x-0 z-[4] px-6 pb-5 pt-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none">
-          <div
-            className="w-fit mx-auto flex items-center gap-2 px-4 py-1.5 rounded-full"
-            style={{
-              background: '#090909',
-              border: '1px solid rgba(255,255,255,0.55)',
-              boxShadow: '0 0 10px 1px rgba(255,255,255,0.28), inset 0 0 6px rgba(255,255,255,0.06)',
-            }}
-          >
-            {/* Red gem — octagon faceted shape */}
-            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden>
-              <polygon points="7,1 13,1 19,7 19,13 13,19 7,19 1,13 1,7" fill="#dc2626" stroke="#fca5a5" strokeWidth="0.8" />
-              <polygon points="10,3 14,7 14,13 10,17 6,13 6,7" fill="#ef4444" opacity="0.6" />
-              <line x1="10" y1="3" x2="10" y2="7" stroke="#fecaca" strokeWidth="0.8" opacity="0.8" />
-            </svg>
-            <span className="font-bold text-[13px] text-white leading-none tracking-wide">Moment</span>
-          </div>
-        </div>
-      )}
+      {/* Moment overlay: scrim + badge positioned to overlay the video's own badge.
+          Coordinate system mirrors EpicCardOverlay (f = cardWidth/266):
+          - bottom: px(21)  — same row as the epic action row
+          - left/right: px(16) — symmetric margins matching the epic pill left edge
+          - font + padding: exact match so heights align top-and-bottom */}
+      {isMoment && showInfo && (() => {
+        const f  = cardWidth / 266;
+        const px = (n: number) => Math.round(n * f);
+        const badgePad = `${px(5) + 0.5}px ${px(7)}px`;
+        const gemSize  = Math.max(8, px(10));
+        return (
+          <>
+            {/* Gradient scrim so badge text is legible over any video frame */}
+            <div
+              className="absolute bottom-0 inset-x-0 z-[3] pointer-events-none"
+              style={{ height: px(80), background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)' }}
+            />
+            {/* Badge — same coordinate origin as EpicCardOverlay action row */}
+            <div
+              className="absolute z-[4] pointer-events-none flex items-center justify-center gap-[0.4em] rounded-full"
+              style={{
+                bottom:     px(21),
+                left:       px(16),
+                right:      px(16),
+                padding:    badgePad,
+                fontSize:   px(11),
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                lineHeight: 1,
+                color: '#fff',
+                background: '#090909',
+                border: '1px solid rgba(255,255,255,0.55)',
+                boxShadow: '0 0 10px 1px rgba(255,255,255,0.28), inset 0 0 6px rgba(255,255,255,0.06)',
+              }}
+            >
+              <svg width={gemSize} height={gemSize} viewBox="0 0 20 20" fill="none" aria-hidden>
+                <polygon points="7,1 13,1 19,7 19,13 13,19 7,19 1,13 1,7" fill="#dc2626" stroke="#fca5a5" strokeWidth="0.8" />
+                <polygon points="10,3 14,7 14,13 10,17 6,13 6,7" fill="#ef4444" opacity="0.6" />
+                <line x1="10" y1="3" x2="10" y2="7" stroke="#fecaca" strokeWidth="0.8" opacity="0.8" />
+              </svg>
+              Moment
+            </div>
+          </>
+        );
+      })()}
 
       {/* Info section — epics & moments invisible (preserves card height); regular shows info */}
       {showInfo && (

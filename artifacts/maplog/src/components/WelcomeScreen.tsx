@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const WELCOMED_KEY = 'maplog:welcomed';
+const WELCOMED_KEY = 'maplog:welcomed:v2';
 
 /** Play a brief ascending 5-note jingle via the Web Audio API. */
 function playJingle() {
