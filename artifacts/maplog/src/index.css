@@ -343,16 +343,16 @@ input[type="range"]:focus {
 
 /* ── Special rarity effects (epics / moments / lyrics / radiants) ──────────── */
 
-/* Moment: twinkling star field */
+/* Moment: twinkling star field — peak opacity driven by --star-peak per star */
 @keyframes moment-twinkle {
-  0%, 100% { opacity: 0.15; transform: scale(0.8); }
-  50%      { opacity: 0.95; transform: scale(1.15); }
+  0%, 100% { opacity: 0.04; transform: scale(0.65); }
+  50%      { opacity: var(--star-peak, 0.9); transform: scale(1.2); }
 }
 .moment-star {
   position: absolute;
   border-radius: 9999px;
   background: #fff;
-  box-shadow: 0 0 4px 1px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 3px 1px rgba(255, 255, 255, 0.45);
   animation: moment-twinkle 3.6s ease-in-out infinite;
 }
 

@@ -437,19 +437,40 @@ export function epicFrameStyle(card: MaplogCard): React.CSSProperties {
 // ── Moment star field ─────────────────────────────────────────────────────────
 
 /** Deterministic pseudo-random star positions per card id. */
-export function MomentStars({ seed }: { seed: string }) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const rand = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 2 ** 32; };
-  const stars = Array.from({ length: 18 }, (_, i) => ({
-    left: rand() * 100, top: rand() * 100,
-    size: 1 + rand() * 2.2, delay: rand() * 4, key: i,
-  }));
+export function MomentStars({ seed: _seed }: { seed: string }) {
+  // Randomize on every mount so stars feel alive when navigating between cards.
+  const [stars] = React.useState(() =>
+    Array.from({ length: 48 }, (_, i) => ({
+      left:     Math.random() * 100,
+      top:      Math.random() * 100,
+      // Three size buckets: tiny (0.8–1.6), medium (1.7–3), large (3.1–5)
+      size:     Math.random() < 0.55
+                  ? 0.8 + Math.random() * 0.8        // tiny — most stars
+                  : Math.random() < 0.75
+                  ? 1.7 + Math.random() * 1.3        // medium
+                  : 3.1 + Math.random() * 1.9,       // large — a few
+      delay:    Math.random() * 6,
+      duration: 1.5 + Math.random() * 4.5,           // 1.5–6s twinkle speed
+      peak:     0.18 + Math.random() * 0.82,          // 0.18–1.0 peak brightness
+      key:      i,
+    }))
+  );
   return (
     <div className="absolute inset-0 pointer-events-none z-[1] overflow-hidden rounded-[inherit]" aria-hidden>
       {stars.map(s => (
-        <span key={s.key} className="moment-star"
-          style={{ left: `${s.left}%`, top: `${s.top}%`, width: s.size, height: s.size, animationDelay: `${s.delay}s` }} />
+        <span
+          key={s.key}
+          className="moment-star"
+          style={{
+            left: `${s.left}%`,
+            top:  `${s.top}%`,
+            width:  s.size,
+            height: s.size,
+            animationDelay:    `${s.delay}s`,
+            animationDuration: `${s.duration}s`,
+            '--star-peak': s.peak,
+          } as React.CSSProperties}
+        />
       ))}
     </div>
   );

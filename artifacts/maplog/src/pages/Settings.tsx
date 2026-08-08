@@ -6,7 +6,7 @@ import {
   Trash2, Download, Upload, Shield, ExternalLink,
   Info, ChevronRight, CheckCircle2, XCircle, Loader2,
   ChevronDown, ChevronUp, Music2, Target, AlertTriangle, Pencil,
-  Share2, CloudUpload, Smartphone,
+  Share2, CloudUpload, Smartphone, Clapperboard,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -253,6 +253,41 @@ function PlaylistImport({ addToCollection, collection }: {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── Moment auto-play toggle ───────────────────────────────────────────────────
+
+const MOMENT_AUTO_PLAY_KEY = 'maplog:momentAutoPlay';
+
+function MomentAutoPlayRow() {
+  const [enabled, setEnabled] = useState(() => localStorage.getItem(MOMENT_AUTO_PLAY_KEY) === '1');
+
+  const toggle = () => {
+    const next = !enabled;
+    setEnabled(next);
+    localStorage.setItem(MOMENT_AUTO_PLAY_KEY, next ? '1' : '0');
+  };
+
+  return (
+    <Row
+      icon={Clapperboard}
+      label="Moment Auto-Play"
+      description="Opening a Moment automatically unmutes its video and pauses any playing song."
+    >
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={toggle}
+        className={cn(
+          'relative w-12 h-7 rounded-full transition-colors shrink-0',
+          enabled ? 'bg-primary' : 'bg-white/15',
+        )}
+      >
+        <span className={cn('absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform', enabled ? 'translate-x-5' : 'translate-x-0')} />
+      </button>
+    </Row>
   );
 }
 
@@ -649,11 +684,12 @@ export default function Settings() {
           <Row icon={Info} label="Playback"
             description="Songs stream in full from Apple Music when connected; otherwise 30-second previews play." />
           <MotionControlsRow />
+          <MomentAutoPlayRow />
         </Section>
 
         <Section title="About Maplog">
           <Row icon={Shield} label="Version" description="Your Soundmap archive">
-            <span className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest">v1.5.2</span>
+            <span className="px-3 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest">v1.5.3</span>
           </Row>
           <Row icon={ExternalLink} label="Original Game" description="Visit Soundmap.app"
             onClick={() => window.open('https://soundmap.app', '_blank')} />

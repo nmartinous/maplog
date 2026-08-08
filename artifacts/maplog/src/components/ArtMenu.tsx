@@ -24,7 +24,7 @@ interface ArtMenuProps {
  */
 export function ArtMenu({ song, children, className }: ArtMenuProps) {
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState({ x: 0, y: 0, above: false });
+  const [menuPos, setMenuPos] = useState({ right: 0, y: 0, above: false });
   const { play, enqueue, replaceCurrentSong, queue, queueIndex } = usePlayer();
 
   const hasUpcoming = queue.slice(queueIndex + 1).length > 0;
@@ -37,8 +37,10 @@ export function ArtMenu({ song, children, className }: ArtMenuProps) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const above = spaceBelow < 100;
+    // Anchor to the right edge of the trigger so the menu opens to the LEFT
+    // and never clips the screen edge.
     setMenuPos({
-      x: rect.left + rect.width / 2,
+      right: window.innerWidth - rect.right,
       y: above ? rect.top : rect.bottom,
       above,
     });
@@ -92,10 +94,9 @@ export function ArtMenu({ song, children, className }: ArtMenuProps) {
                 transition={{ type: 'spring', stiffness: 420, damping: 30, duration: 0.15 }}
                 style={{
                   position: 'fixed',
-                  left: menuPos.x,
+                  right: menuPos.right,
                   top: menuPos.above ? undefined : menuPos.y + 6,
                   bottom: menuPos.above ? window.innerHeight - menuPos.y + 6 : undefined,
-                  transform: 'translateX(-50%)',
                   zIndex: 50,
                   minWidth: 160,
                 }}

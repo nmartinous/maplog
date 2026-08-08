@@ -4,11 +4,13 @@ import { useLocation } from 'wouter';
 import { useMusicKit } from '@/context/MusicKitContext';
 import type { MaplogSong, MaplogCard } from '@/lib/types';
 import { ALL_CATEGORIES, CATEGORY_SLUG } from '@/lib/rarityMap';
+import { presenceForCard } from '@/lib/cardTemplates';
+import { useCardMedia } from '@/lib/useCardMedia';
 import { RarityBadge } from '@/components/RarityBadge';
 import { Input } from '@/components/ui/input';
 import {
   Search, Play, Library, Music2, ChevronDown, SlidersHorizontal, X,
-  CreditCard, User,
+  CreditCard, User, Clapperboard,
 } from 'lucide-react';
 import { ArtMenu } from '@/components/ArtMenu';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,32 @@ function saveFilter(s: FilterState) { sessionStorage.setItem(FILTER_KEY, JSON.st
 const SCOPE_LABELS: Record<SearchScope, string> = {
   all: 'All', song: 'Song', artist: 'Artist', album: 'Album',
 };
+
+// ── Moment video thumbnail — first frame of uploaded video ────────────────────
+function MomentThumbnail({ cardId, size }: { cardId: string; size: number }) {
+  const media = useCardMedia(cardId);
+  if (!media) {
+    return (
+      <div className="w-full h-full rounded-xl bg-black/40 flex items-center justify-center">
+        <Clapperboard className="w-4 h-4 text-white/30" />
+      </div>
+    );
+  }
+  if (media.type === 'video') {
+    return (
+      <video
+        src={media.url}
+        className="w-full h-full object-cover rounded-xl"
+        muted
+        playsInline
+        preload="metadata"
+        style={{ width: size, height: size }}
+        onLoadedMetadata={e => { (e.currentTarget as HTMLVideoElement).currentTime = 0.1; }}
+      />
+    );
+  }
+  return <img src={media.url} alt="" className="w-full h-full object-cover rounded-xl" />;
+}
 
 // ── Album art thumbnail with sized CDN URL ─────────────────────────────────────
 function AlbumArt({ song, topCard, size = 44 }: { song: MaplogSong; topCard?: MaplogCard; size?: number }) {
@@ -367,11 +395,16 @@ function ActiveView({
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 w-full">
-            {displayData.map(({ song, topCard }) => (
+            {displayData.map(({ song, topCard }) => {
+              const isMomentEntry = topCard ? presenceForCard(topCard) === 'moment' : false;
+              return (
               <div key={song.id} className="flex items-center gap-2 px-3 py-2 rounded-2xl glass-panel overflow-hidden min-w-0">
-                {/* Art — display only, no interaction */}
-                <div className="relative shrink-0">
-                  <AlbumArt song={song} topCard={topCard} size={48} />
+                {/* Art — moments show first video frame, others show album art */}
+                <div className="relative shrink-0" style={{ width: 48, height: 48 }}>
+                  {isMomentEntry && topCard
+                    ? <MomentThumbnail cardId={topCard.id} size={48} />
+                    : <AlbumArt song={song} topCard={topCard} size={48} />
+                  }
                   {topCard?.variantLabel?.startsWith('#') && (
                     <CollectionNumBadge label={topCard.variantLabel} slug={topCard.rarityType.slug} />
                   )}
@@ -392,12 +425,14 @@ function ActiveView({
                   )}
                 </div>
 
-                {/* Play / Add to Queue */}
+                {/* Play / Add to Queue — hidden for Moment entries (no audio to queue) */}
+                {!isMomentEntry && (
                 <ArtMenu song={song}>
                   <div className="w-8 h-8 rounded-full bg-primary/15 hover:bg-primary/25 active:bg-primary/35 flex items-center justify-center transition-colors shrink-0">
                     <Play className="w-3.5 h-3.5 text-primary fill-primary ml-0.5" />
                   </div>
                 </ArtMenu>
+                )}
 
                 {/* Open card view */}
                 <button
@@ -417,7 +452,8 @@ function ActiveView({
                   <User className="w-3.5 h-3.5 text-white/50" />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

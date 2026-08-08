@@ -290,34 +290,34 @@ export function SoundmapCard({ card, title, artist, genre, className, size = 'md
         )}
       </div>
 
-      {/* Info section — epics invisible; moments show only full-width Moment badge */}
-      {showInfo && isMoment ? (
-        /* Full-width Moment badge: black pill, white glow border, red gem */
-        <div className="relative z-[2] px-3 py-2.5">
-          <div
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full"
-            style={{
-              background: '#090909',
-              border: '1px solid rgba(255,255,255,0.55)',
-              boxShadow: '0 0 10px 1px rgba(255,255,255,0.28), inset 0 0 6px rgba(255,255,255,0.06)',
-            }}
-          >
-            {/* Red gem — octagon faceted shape */}
-            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden>
-              <polygon
-                points="7,1 13,1 19,7 19,13 13,19 7,19 1,13 1,7"
-                fill="#dc2626"
-                stroke="#fca5a5"
-                strokeWidth="0.8"
-              />
-              <polygon points="10,3 14,7 14,13 10,17 6,13 6,7" fill="#ef4444" opacity="0.6" />
-              <line x1="10" y1="3" x2="10" y2="7" stroke="#fecaca" strokeWidth="0.8" opacity="0.8" />
-            </svg>
-            <span className="font-bold text-[13px] text-white leading-none tracking-wide">Moment</span>
+      {/* Moment overlay: title + badge float absolutely over the bottom of the video */}
+      {isMoment && showInfo && (
+        <div className="absolute bottom-0 inset-x-0 z-[4] px-3 pb-3 pt-14 bg-gradient-to-t from-black/82 via-black/40 to-transparent pointer-events-none">
+          <p className={cn('font-bold text-white text-center truncate mb-2.5 drop-shadow-md', titleSize)}>{title}</p>
+          <div className="flex justify-center">
+            <div
+              className="flex items-center gap-2 px-4 py-2 rounded-full"
+              style={{
+                background: '#090909',
+                border: '1px solid rgba(255,255,255,0.55)',
+                boxShadow: '0 0 10px 1px rgba(255,255,255,0.28), inset 0 0 6px rgba(255,255,255,0.06)',
+              }}
+            >
+              {/* Red gem — octagon faceted shape */}
+              <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <polygon points="7,1 13,1 19,7 19,13 13,19 7,19 1,13 1,7" fill="#dc2626" stroke="#fca5a5" strokeWidth="0.8" />
+                <polygon points="10,3 14,7 14,13 10,17 6,13 6,7" fill="#ef4444" opacity="0.6" />
+                <line x1="10" y1="3" x2="10" y2="7" stroke="#fecaca" strokeWidth="0.8" opacity="0.8" />
+              </svg>
+              <span className="font-bold text-[13px] text-white leading-none tracking-wide">Moment</span>
+            </div>
           </div>
         </div>
-      ) : showInfo && (
-        <div className={cn('relative z-[2] px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center', isEpic && 'invisible pointer-events-none select-none')} aria-hidden={isEpic}>
+      )}
+
+      {/* Info section — epics & moments invisible (preserves card height); regular shows info */}
+      {showInfo && (
+        <div className={cn('relative z-[2] px-3 pt-2.5 pb-3 flex flex-col gap-1.5 items-center text-center', (isEpic || isMoment) && 'invisible pointer-events-none select-none')} aria-hidden={isEpic || isMoment}>
           <p className={cn('font-bold leading-tight truncate w-full', titleSize)}>{title}</p>
           {onArtistClick ? (
             <button

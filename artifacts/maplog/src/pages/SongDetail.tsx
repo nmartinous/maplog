@@ -65,11 +65,19 @@ export default function SongDetail() {
   // ── Moment mute control ──────────────────────────────────────────────────
   const isMoment = presenceForCard(displayCards[0] ?? song?.cards[0]) === 'moment';
 
-  // Default: muted when a song is already playing; unmuted if nothing plays.
-  const [momentMuted, setMomentMuted] = useState(() => isPlaying);
+  // Helper: read the auto-play setting (avoids repeated localStorage calls)
+  const readAutoPlay = () =>
+    isMoment && localStorage.getItem('maplog:momentAutoPlay') === '1';
 
-  // Re-sync on song navigation
-  useEffect(() => { setMomentMuted(isPlaying); }, [songId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Start muted unless auto-play is on
+  const [momentMuted, setMomentMuted] = useState(() => !readAutoPlay()); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-sync on song navigation; honour auto-play setting
+  useEffect(() => {
+    const ap = presenceForCard(displayCards[0] ?? song?.cards[0]) === 'moment'
+      && localStorage.getItem('maplog:momentAutoPlay') === '1';
+    setMomentMuted(!ap);
+  }, [songId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-mute if a song starts playing while the moment video is unmuted.
   useEffect(() => {
